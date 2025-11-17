@@ -1,0 +1,159 @@
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  background: #f5f5f5;
+}
+
+.header {
+  background: #fff;
+  padding: 24px 32px;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+}
+
+.tableContainer {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: #f8f9fa;
+}
+
+.table th {
+  padding: 16px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.table td {
+  padding: 16px;
+  font-size: 14px;
+  color: #555;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.contentCell {
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.hasImage {
+  color: #4a9eff;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.authorCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.authorImage {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.authorPlaceholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #4a9eff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.feedId {
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  color: #666;
+}
+
+.reportedBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionBtn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: #f0f0f0;
+  border-color: #bbb;
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 60px 40px !important;
+  color: #999;
+  font-size: 16px;
+  background: #fafafa;
+}
+
+.emptyCell::before {
+  content: '📭';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+

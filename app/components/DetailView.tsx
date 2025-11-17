@@ -1,0 +1,112 @@
+'use client'
+
+import Dashboard from './Dashboard'
+import LiveSpaceList from './LiveSpaceList'
+import UserList from './UserList'
+import FeedList from './FeedList'
+import ReportList from './ReportList'
+import CommentList from './CommentList'
+import RewardList from './RewardList'
+import SystemManagement from './SystemManagement'
+import styles from './DetailView.module.css'
+
+interface DetailViewProps {
+  menuId: string | null
+  menuLabel: string | null
+}
+
+export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
+  if (!menuId) {
+    return (
+      <div className={styles.detailView}>
+        <div className={styles.emptyState}>
+          <h2>메뉴를 선택해주세요</h2>
+          <p>좌측 메뉴에서 항목을 선택하면 상세 내용이 표시됩니다.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 메뉴 ID에 따라 해당 컴포넌트 렌더링
+  const renderContent = () => {
+    switch (menuId) {
+      case 'dashboard':
+        return <Dashboard />
+      
+      // Live Space 관리
+      case 'live-space-list':
+      case 'live-space-force-close':
+      case 'live-space-reported':
+        return <LiveSpaceList menuId={menuId} />
+      
+      // 사용자 관리
+      case 'users-list':
+      case 'users-reported':
+      case 'users-sanctions':
+        return <UserList />
+      
+      // 피드/댓글
+      case 'feed-all':
+      case 'feed-reported':
+        return <FeedList />
+      case 'comment-all':
+      case 'comment-reported':
+        return <CommentList />
+      
+      // 신고/모더레이션
+      case 'reports-all':
+      case 'reports-pending':
+      case 'reports-completed':
+        return <ReportList />
+      
+      // 포인트 & 리워드
+      case 'points-policy':
+      case 'rewards-history':
+      case 'rewards-payment':
+      case 'phone-auth-log':
+        return <RewardList menuId={menuId} />
+      
+      // 시스템 관리
+      case 'system-app-version':
+      case 'system-notice':
+      case 'system-faq':
+      case 'system-operators':
+      case 'system-logs':
+        return <SystemManagement menuId={menuId} />
+      
+      // 설정
+      case 'settings-profile':
+      case 'settings-permissions':
+      case 'settings-logout':
+        return (
+          <div className={styles.detailView}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>{menuLabel}</h1>
+            </div>
+            <div className={styles.content}>
+              <div className={styles.card}>
+                <p>설정 화면은 추후 구현 예정입니다.</p>
+              </div>
+            </div>
+          </div>
+        )
+      
+      default:
+        return (
+          <div className={styles.detailView}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>{menuLabel}</h1>
+            </div>
+            <div className={styles.content}>
+              <div className={styles.card}>
+                <p>해당 메뉴는 추후 구현 예정입니다.</p>
+              </div>
+            </div>
+          </div>
+        )
+    }
+  }
+
+  return renderContent()
+}
+
