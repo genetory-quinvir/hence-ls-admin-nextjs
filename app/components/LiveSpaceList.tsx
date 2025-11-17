@@ -59,6 +59,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       // 2. 체크인이 0 (비정상적인 스페이스)
       // 3. 신고가 있고 체크인이 1 이하 (문제가 있는 스페이스)
       filtered = filtered.filter(ls => 
+        !ls.isHidden &&
         ls.status === 'live' && (
           ls.reportedCount >= 3 || 
           ls.checkInCount === 0 ||
@@ -67,16 +68,21 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       )
     } else if (menuId === 'live-space-reported') {
       // 신고 접수된 스페이스: 신고가 있는 모든 스페이스 (라이브든 종료든 상관없이)
-      filtered = filtered.filter(ls => ls.reportedCount > 0)
+      filtered = filtered.filter(ls => !ls.isHidden && ls.reportedCount > 0)
     }
     
     // 추가 필터 적용
     if (filterStatus !== 'all') {
       filtered = filtered.filter(ls => {
-        if (filterStatus === 'live') return ls.status === 'live'
-        if (filterStatus === 'ended') return ls.status === 'ended'
+        if (filterStatus === 'live') return ls.status === 'live' && !ls.isHidden
+        if (filterStatus === 'ended') return ls.status === 'ended' && !ls.isHidden
+        if (filterStatus === 'force-closed') return ls.isForceClosed === true
+        if (filterStatus === 'hidden') return ls.isHidden === true
         return true
       })
+    } else {
+      // 필터가 'all'일 때도 숨김 처리된 항목은 기본적으로 제외
+      filtered = filtered.filter(ls => !ls.isHidden)
     }
     
     if (filterRegion !== 'all') {
@@ -122,7 +128,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       updateLiveSpaces((prev) => {
         const updated = prev.map((ls) =>
           ls.id === targetId
-            ? { ...ls, status: 'ended' as const, endedAt: new Date().toISOString() }
+            ? { ...ls, status: 'ended' as const, endedAt: new Date().toISOString(), isForceClosed: true }
             : ls
         )
         return updated
@@ -132,8 +138,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       }, 100)
     } else if (actionType === 'hide') {
       updateLiveSpaces((prev) => {
-        const filtered = prev.filter((ls) => ls.id !== targetId)
-        return filtered
+        const updated = prev.map((ls) =>
+          ls.id === targetId
+            ? { ...ls, isHidden: true }
+            : ls
+        )
+        return updated
       })
       setTimeout(() => {
         alert('라이브 스페이스가 숨김 처리되었습니다.')
@@ -248,11 +258,15 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
               {filteredLiveSpaces.length === 0 ? (
                 <tr>
                   <td colSpan={8} className={styles.emptyCell}>
-                    {menuId === 'live-space-force-close' 
-                      ? '강제 종료가 필요한 라이브 스페이스가 없습니다.'
-                      : menuId === 'live-space-reported'
-                      ? '신고 접수된 라이브 스페이스가 없습니다.'
-                      : '조건에 맞는 라이브 스페이스가 없습니다.'}
+                    {(filterStatus !== 'all' || filterRegion !== 'all' || searchQuery) ? (
+                      '리스트가 없습니다.'
+                    ) : (
+                      menuId === 'live-space-force-close' 
+                        ? '강제 종료가 필요한 라이브 스페이스가 없습니다.'
+                        : menuId === 'live-space-reported'
+                        ? '신고 접수된 라이브 스페이스가 없습니다.'
+                        : '조건에 맞는 라이브 스페이스가 없습니다.'
+                    )}
                   </td>
                 </tr>
               ) : (

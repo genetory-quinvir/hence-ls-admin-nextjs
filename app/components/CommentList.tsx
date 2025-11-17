@@ -116,8 +116,8 @@ export default function CommentList() {
                     </td>
                     <td>
                       {comment.reportedCount > 0 ? (
-                        <span className={styles.reportedBadge}>
-                          {comment.reportedCount}
+                        <span className={styles.reportedCountBadge}>
+                          신고 {comment.reportedCount}건
                         </span>
                       ) : (
                         <span>-</span>

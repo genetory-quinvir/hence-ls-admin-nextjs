@@ -23,7 +23,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: 'users',
-    label: '사용자(User) 관리',
+    label: '사용자 관리',
     icon: '👥',
     children: [
       { id: 'users-list', label: '전체 사용자 리스트' },
@@ -33,7 +33,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: 'feed-comment',
-    label: '피드/댓글 Moderation',
+    label: '피드/댓글 관리',
     icon: '💬',
     children: [
       { id: 'feed-all', label: '전체 피드' },

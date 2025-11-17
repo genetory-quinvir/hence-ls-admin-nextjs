@@ -21,6 +21,12 @@
   margin: 0;
 }
 
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 8px 0 0 0;
+}
+
 .content {
   flex: 1;
   padding: 32px;
@@ -130,9 +136,26 @@
   font-size: 16px;
 }
 
+.nicknameCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .nickname {
   font-weight: 500;
   color: #1a1a1a;
+}
+
+.reportedCountBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .activityScore {
@@ -197,6 +220,15 @@
 
 .actionBtn.warning:hover {
   background: #fff3e0;
+}
+
+.actionBtn.success {
+  color: #2e7d32;
+  border-color: #2e7d32;
+}
+
+.actionBtn.success:hover {
+  background: #e8f5e9;
 }
 
 .emptyCell {

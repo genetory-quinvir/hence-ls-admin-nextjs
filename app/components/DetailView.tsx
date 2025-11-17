@@ -43,7 +43,7 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       case 'users-list':
       case 'users-reported':
       case 'users-sanctions':
-        return <UserList />
+        return <UserList menuId={menuId} />
       
       // 피드/댓글
       case 'feed-all':

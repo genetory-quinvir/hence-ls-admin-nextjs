@@ -18,6 +18,8 @@ export interface LiveSpace {
   checkInCount: number
   feedCount: number
   reportedCount: number
+  isForceClosed?: boolean
+  isHidden?: boolean
 }
 
 export interface User {
@@ -35,6 +37,8 @@ export interface User {
   reportedCount: number
   isSuspended: boolean
   suspensionReason?: string
+  isWarned?: boolean
+  warnedAt?: string
 }
 
 export interface Feed {

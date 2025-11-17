@@ -130,8 +130,8 @@ export default function FeedList() {
                     <td>{formatDate(feed.createdAt)}</td>
                     <td>
                       {feed.reportedCount > 0 ? (
-                        <span className={styles.reportedBadge}>
-                          {feed.reportedCount}
+                        <span className={styles.reportedCountBadge}>
+                          신고 {feed.reportedCount}건
                         </span>
                       ) : (
                         <span>-</span>

@@ -119,6 +119,16 @@
   font-weight: 600;
 }
 
+.reportedCountBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .actions {
   display: flex;
   gap: 8px;
