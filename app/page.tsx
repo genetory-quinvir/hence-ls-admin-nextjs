@@ -91,7 +91,7 @@ const menuItems: MenuItem[] = [
 ]
 
 export default function Home() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
 
   // 로그인 시 대시보드를 기본으로 표시
@@ -124,6 +124,11 @@ export default function Home() {
 
     return null
   }, [activeMenuId])
+
+  // 로딩 중이면 아무것도 표시하지 않음 (또는 로딩 스피너)
+  if (isLoading) {
+    return null
+  }
 
   // 로그인되지 않았으면 로그인 화면 표시
   if (!isAuthenticated) {
