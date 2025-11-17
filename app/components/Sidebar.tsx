@@ -50,7 +50,7 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick }: Sideba
   return (
     <aside className={styles.sidebar}>
       <div className={styles.sidebarHeader}>
-        <h1 className={styles.logo}>Hence LS Admin</h1>
+        <h1 className={styles.logo}>Hence Live Space Admin</h1>
       </div>
       <nav className={styles.nav}>
         <ul className={styles.menuList}>

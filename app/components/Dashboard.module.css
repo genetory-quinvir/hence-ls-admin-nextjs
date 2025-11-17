@@ -12,6 +12,9 @@
   padding: 24px 32px;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .title {
@@ -31,6 +34,127 @@
   flex: 1;
   padding: 32px;
   overflow-y: auto;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.statCard {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.statCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-color: #e0e0e0;
+}
+
+.statCard.selected {
+  border-color: #4a9eff;
+  box-shadow: 0 4px 20px rgba(74, 158, 255, 0.3);
+  background: linear-gradient(135deg, rgba(74, 158, 255, 0.08) 0%, rgba(74, 158, 255, 0.03) 100%);
+}
+
+.cardIcon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.cardContent {
+  flex: 1;
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 10px 0;
+}
+
+.cardStats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardStatLabel {
+  font-size: 12px;
+  color: #666;
+}
+
+.cardStatValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.cardStatValue.urgent {
+  color: #ff9800;
+}
+
+.cardStatValue.critical {
+  color: #f44336;
+}
+
+.chartSection {
+  margin-bottom: 32px;
+}
+
+.chartWidget {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.chartHeader {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.chartTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.chartContent {
+  width: 100%;
 }
 
 .widgetGrid {
@@ -174,5 +298,42 @@
 
 .actionIcon {
   font-size: 20px;
+}
+
+.timeRangeSelector {
+  display: flex;
+  gap: 8px;
+  background: #f5f5f5;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.timeRangeButton {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.timeRangeButton:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #333;
+}
+
+.timeRangeButton.active {
+  background: #4a9eff;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(74, 158, 255, 0.3);
+}
+
+.chartContainer {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
 }
 

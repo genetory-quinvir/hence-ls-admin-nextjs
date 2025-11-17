@@ -6,7 +6,11 @@ import { Feed } from '../data/mockData'
 import Modal from './Modal'
 import styles from './FeedList.module.css'
 
-export default function FeedList() {
+interface FeedListProps {
+  menuId: string
+}
+
+export default function FeedList({ menuId }: FeedListProps) {
   const { feeds, updateFeeds } = useMockData()
   const [modalState, setModalState] = useState<{
     isOpen: boolean
@@ -17,6 +21,42 @@ export default function FeedList() {
     type: null,
     feed: null,
   })
+
+  // menuId에 따라 필터링
+  const filteredFeeds = useMemo(() => {
+    switch (menuId) {
+      case 'feed-all':
+        return feeds
+      case 'feed-reported':
+        return feeds.filter(feed => feed.reportedCount > 0)
+      default:
+        return feeds
+    }
+  }, [feeds, menuId])
+
+  // 정렬: 신고 건수 많은 순, 그 다음 최신순
+  const sortedFeeds = useMemo(() => {
+    return [...filteredFeeds].sort((a, b) => {
+      if (menuId === 'feed-reported') {
+        // 신고된 피드는 신고 건수 많은 순
+        if (b.reportedCount !== a.reportedCount) {
+          return b.reportedCount - a.reportedCount
+        }
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+  }, [filteredFeeds, menuId])
+
+  const getMenuTitle = () => {
+    switch (menuId) {
+      case 'feed-all':
+        return '전체 피드'
+      case 'feed-reported':
+        return '신고된 피드'
+      default:
+        return '피드 관리'
+    }
+  }
 
   const handleDelete = (feed: Feed) => {
     setModalState({
@@ -67,7 +107,14 @@ export default function FeedList() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>전체 피드</h1>
+        <h1 className={styles.title}>{getMenuTitle()}</h1>
+        {menuId === 'feed-reported' && (
+          <div className={styles.headerStats}>
+            <span className={styles.statBadge}>
+              신고된 피드: {filteredFeeds.length}건
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={styles.content}>
@@ -85,14 +132,14 @@ export default function FeedList() {
               </tr>
             </thead>
             <tbody>
-              {feeds.length === 0 ? (
+              {sortedFeeds.length === 0 ? (
                 <tr>
                   <td colSpan={7} className={styles.emptyCell}>
                     데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
-                feeds.map((feed) => (
+                sortedFeeds.map((feed) => (
                   <tr key={feed.id}>
                     <td>
                       <div className={styles.contentCell}>

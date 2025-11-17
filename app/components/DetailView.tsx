@@ -8,6 +8,7 @@ import ReportList from './ReportList'
 import CommentList from './CommentList'
 import RewardList from './RewardList'
 import SystemManagement from './SystemManagement'
+import { useAuth } from '../context/AuthContext'
 import styles from './DetailView.module.css'
 
 interface DetailViewProps {
@@ -48,16 +49,16 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       // 피드/댓글
       case 'feed-all':
       case 'feed-reported':
-        return <FeedList />
+        return <FeedList menuId={menuId} />
       case 'comment-all':
       case 'comment-reported':
-        return <CommentList />
+        return <CommentList menuId={menuId} />
       
       // 신고/모더레이션
       case 'reports-all':
       case 'reports-pending':
       case 'reports-completed':
-        return <ReportList />
+        return <ReportList menuId={menuId} />
       
       // 포인트 & 리워드
       case 'points-policy':
@@ -77,7 +78,6 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       // 설정
       case 'settings-profile':
       case 'settings-permissions':
-      case 'settings-logout':
         return (
           <div className={styles.detailView}>
             <div className={styles.header}>
@@ -90,6 +90,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
             </div>
           </div>
         )
+      case 'settings-logout':
+        return <LogoutView />
       
       default:
         return (
@@ -108,5 +110,60 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
   }
 
   return renderContent()
+}
+
+function LogoutView() {
+  const { logout, user } = useAuth()
+
+  const handleLogout = () => {
+    if (confirm('로그아웃 하시겠습니까?')) {
+      logout()
+    }
+  }
+
+  return (
+    <div className={styles.detailView}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>로그아웃</h1>
+      </div>
+      <div className={styles.content}>
+        <div className={styles.card}>
+          <div style={{ padding: '24px', textAlign: 'center' }}>
+            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#666' }}>
+              {user?.email && (
+                <>
+                  현재 로그인된 계정: <strong>{user.email}</strong>
+                </>
+              )}
+            </p>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '12px 24px',
+                background: '#f44336',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#d32f2f'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = '#f44336'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
+            >
+              로그아웃
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 

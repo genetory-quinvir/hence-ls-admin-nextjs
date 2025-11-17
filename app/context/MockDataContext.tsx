@@ -50,6 +50,9 @@ interface MockDataContextType {
   updateComments: (updater: (prev: Comment[]) => Comment[]) => void
   updateReports: (updater: (prev: Report[]) => Report[]) => void
   updateRewardHistory: (updater: (prev: RewardHistory[]) => RewardHistory[]) => void
+  updateNotices: (updater: (prev: Notice[]) => Notice[]) => void
+  updateFAQs: (updater: (prev: FAQ[]) => FAQ[]) => void
+  updateOperators: (updater: (prev: Operator[]) => Operator[]) => void
   resetAllData: () => void
 }
 
@@ -115,6 +118,9 @@ export function MockDataProvider({ children }: { children: ReactNode }) {
     updateComments: setComments,
     updateReports: setReports,
     updateRewardHistory: setRewardHistory,
+    updateNotices: setNotices,
+    updateFAQs: setFaqs,
+    updateOperators: setOperators,
     resetAllData,
   }
 

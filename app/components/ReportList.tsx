@@ -2,52 +2,27 @@
 
 import { useState, useMemo } from 'react'
 import { useMockData } from '../context/MockDataContext'
+import { useAuth } from '../context/AuthContext'
 import { Report } from '../data/mockData'
-import Modal from './Modal'
 import styles from './ReportList.module.css'
 
-export default function ReportList() {
-  const { reports, updateReports } = useMockData()
-  const [filterStatus, setFilterStatus] = useState<string>('pending')
+interface ReportListProps {
+  menuId: string
+}
+
+export default function ReportList({ menuId }: ReportListProps) {
+  const { reports, updateReports, feeds, comments, liveSpaces, users } = useMockData()
+  const { user } = useAuth()
   const [modalState, setModalState] = useState<{
     isOpen: boolean
+    type: 'process' | 'reject' | 'detail' | null
     report: Report | null
   }>({
     isOpen: false,
+    type: null,
     report: null,
   })
-  
-  const filteredReports = useMemo(() => {
-    if (filterStatus === 'all') return reports
-    return reports.filter(r => r.status === filterStatus)
-  }, [reports, filterStatus])
-
-  const handleProcess = (report: Report) => {
-    setModalState({
-      isOpen: true,
-      report,
-    })
-  }
-
-  const confirmProcess = () => {
-    if (!modalState.report) return
-
-    updateReports((prev) =>
-      prev.map((r) =>
-        r.id === modalState.report!.id
-          ? {
-              ...r,
-              status: 'completed' as const,
-              processedAt: new Date().toISOString(),
-              processorId: 'admin-001',
-              result: '처리 완료',
-            }
-          : r
-      )
-    )
-    alert('신고가 처리되었습니다.')
-    setModalState({ isOpen: false, report: null })
-  }
+  const [processResult, setProcessResult] = useState('')
 
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -59,6 +34,159 @@ export default function ReportList() {
     return labels[type] || type
   }
 
+  // 대상 정보 가져오기
+  const getTargetInfo = (report: Report) => {
+    switch (report.type) {
+      case 'feed':
+        const feed = feeds.find(f => f.id === report.targetId)
+        if (feed) {
+          return {
+            title: feed.content.length > 50 ? feed.content.substring(0, 50) + '...' : feed.content,
+            fullContent: feed.content,
+            author: feed.authorNickname,
+            type: '피드'
+          }
+        }
+        break
+      case 'comment':
+        const comment = comments.find(c => c.id === report.targetId)
+        if (comment) {
+          return {
+            title: comment.content.length > 50 ? comment.content.substring(0, 50) + '...' : comment.content,
+            fullContent: comment.content,
+            author: comment.authorNickname,
+            type: '댓글'
+          }
+        }
+        break
+      case 'live-space':
+        const liveSpace = liveSpaces.find(ls => ls.id === report.targetId)
+        if (liveSpace) {
+          return {
+            title: liveSpace.title,
+            fullContent: liveSpace.title,
+            author: liveSpace.hostNickname,
+            type: '라이브 스페이스'
+          }
+        }
+        break
+      case 'user':
+        const targetUser = users.find(u => u.id === report.targetId)
+        if (targetUser) {
+          return {
+            title: targetUser.nickname,
+            fullContent: targetUser.nickname,
+            author: targetUser.nickname,
+            type: '사용자'
+          }
+        }
+        break
+    }
+    return {
+      title: report.targetTitle || report.targetId,
+      fullContent: report.targetTitle || report.targetId,
+      author: '-',
+      type: getTypeLabel(report.type)
+    }
+  }
+  
+  // menuId에 따라 필터링
+  const filteredReports = useMemo(() => {
+    switch (menuId) {
+      case 'reports-all':
+        return reports
+      case 'reports-pending':
+        return reports.filter(r => r.status === 'pending')
+      case 'reports-completed':
+        return reports.filter(r => r.status === 'completed' || r.status === 'rejected')
+      default:
+        return reports
+    }
+  }, [reports, menuId])
+  
+  // 정렬: 미처리 우선, 그 다음 최신순
+  const sortedReports = useMemo(() => {
+    return [...filteredReports].sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1
+      if (a.status !== 'pending' && b.status === 'pending') return 1
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+  }, [filteredReports])
+
+  const handleProcess = (report: Report) => {
+    setProcessResult('')
+    setModalState({
+      isOpen: true,
+      type: 'process',
+      report,
+    })
+  }
+
+  const handleReject = (report: Report) => {
+    setProcessResult('')
+    setModalState({
+      isOpen: true,
+      type: 'reject',
+      report,
+    })
+  }
+
+  const handleDetail = (report: Report) => {
+    setModalState({
+      isOpen: true,
+      type: 'detail',
+      report,
+    })
+  }
+
+  const confirmProcess = () => {
+    if (!modalState.report) return
+
+    const now = new Date().toISOString()
+    const processorId = user?.email || 'admin-001'
+
+    updateReports((prev) =>
+      prev.map((r) =>
+        r.id === modalState.report!.id
+          ? {
+              ...r,
+              status: 'completed' as const,
+              processedAt: now,
+              processorId,
+              result: processResult || '처리 완료',
+            }
+          : r
+      )
+    )
+    alert('신고가 처리되었습니다.')
+    setModalState({ isOpen: false, type: null, report: null })
+    setProcessResult('')
+  }
+
+  const confirmReject = () => {
+    if (!modalState.report) return
+
+    const now = new Date().toISOString()
+    const processorId = user?.email || 'admin-001'
+
+    updateReports((prev) =>
+      prev.map((r) =>
+        r.id === modalState.report!.id
+          ? {
+              ...r,
+              status: 'rejected' as const,
+              processedAt: now,
+              processorId,
+              result: processResult || '신고 거부',
+            }
+          : r
+      )
+    )
+    alert('신고가 거부되었습니다.')
+    setModalState({ isOpen: false, type: null, report: null })
+    setProcessResult('')
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -67,8 +195,23 @@ export default function ReportList() {
         return <span className={`${styles.badge} ${styles.processing}`}>처리중</span>
       case 'completed':
         return <span className={`${styles.badge} ${styles.completed}`}>처리완료</span>
+      case 'rejected':
+        return <span className={`${styles.badge} ${styles.rejected}`}>거부</span>
       default:
         return <span className={styles.badge}>-</span>
+    }
+  }
+
+  const getMenuTitle = () => {
+    switch (menuId) {
+      case 'reports-all':
+        return '전체 신고 내역'
+      case 'reports-pending':
+        return '처리 대기(미처리)'
+      case 'reports-completed':
+        return '처리 완료'
+      default:
+        return '신고/모더레이션'
     }
   }
 
@@ -100,26 +243,17 @@ export default function ReportList() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>신고/모더레이션</h1>
+        <h1 className={styles.title}>{getMenuTitle()}</h1>
+        {menuId === 'reports-pending' && (
+          <div className={styles.headerStats}>
+            <span className={styles.statBadge}>
+              미처리: {reports.filter(r => r.status === 'pending').length}건
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={styles.content}>
-        <div className={styles.filters}>
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>상태</label>
-            <select 
-              className={styles.filterSelect}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">전체</option>
-              <option value="pending">미처리</option>
-              <option value="processing">처리중</option>
-              <option value="completed">처리완료</option>
-            </select>
-          </div>
-        </div>
-
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -130,18 +264,19 @@ export default function ReportList() {
                 <th>신고자</th>
                 <th>신고 시간</th>
                 <th>상태</th>
+                {menuId === 'reports-completed' && <th>처리 결과</th>}
                 <th>액션</th>
               </tr>
             </thead>
             <tbody>
-              {filteredReports.length === 0 ? (
+              {sortedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className={styles.emptyCell}>
+                  <td colSpan={menuId === 'reports-completed' ? 8 : 7} className={styles.emptyCell}>
                     데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
-                filteredReports.map((report) => (
+                sortedReports.map((report) => (
                   <tr key={report.id}>
                     <td>
                       <span className={styles.typeLabel}>
@@ -150,7 +285,20 @@ export default function ReportList() {
                     </td>
                     <td>
                       <div className={styles.targetCell}>
-                        {report.targetTitle || report.targetId}
+                        <div className={styles.targetContent}>
+                          {(() => {
+                            const targetInfo = getTargetInfo(report)
+                            return (
+                              <>
+                                <div className={styles.targetType}>{targetInfo.type}</div>
+                                <div className={styles.targetText}>{targetInfo.title}</div>
+                                {targetInfo.author !== '-' && (
+                                  <div className={styles.targetAuthor}>작성자: {targetInfo.author}</div>
+                                )}
+                              </>
+                            )
+                          })()}
+                        </div>
                       </div>
                     </td>
                     <td>
@@ -166,15 +314,48 @@ export default function ReportList() {
                       </div>
                     </td>
                     <td>{getStatusBadge(report.status)}</td>
+                    {menuId === 'reports-completed' && (
+                      <td>
+                        <div className={styles.resultCell}>
+                          {report.result || '-'}
+                          {report.processedAt && (
+                            <div className={styles.processedTime}>
+                              {formatDate(report.processedAt)}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    )}
                     <td>
                       <div className={styles.actions}>
-                        <button className={styles.actionBtn}>상세</button>
+                        <button 
+                          className={styles.actionBtn}
+                          onClick={() => handleDetail(report)}
+                        >
+                          상세
+                        </button>
                         {report.status === 'pending' && (
+                          <>
+                            <button 
+                              className={`${styles.actionBtn} ${styles.primary}`}
+                              onClick={() => handleProcess(report)}
+                            >
+                              처리
+                            </button>
+                            <button 
+                              className={`${styles.actionBtn} ${styles.reject}`}
+                              onClick={() => handleReject(report)}
+                            >
+                              거부
+                            </button>
+                          </>
+                        )}
+                        {report.status === 'processing' && (
                           <button 
                             className={`${styles.actionBtn} ${styles.primary}`}
                             onClick={() => handleProcess(report)}
                           >
-                            처리
+                            완료
                           </button>
                         )}
                       </div>
@@ -187,16 +368,275 @@ export default function ReportList() {
         </div>
       </div>
 
-      <Modal
-        isOpen={modalState.isOpen}
-        onClose={() => setModalState({ isOpen: false, report: null })}
-        title="신고 처리"
-        message={`이 신고를 처리 완료로 표시하시겠습니까?`}
-        confirmText="처리 완료"
-        cancelText="취소"
-        onConfirm={confirmProcess}
-        type="info"
-      />
+      {/* 처리 모달 */}
+      {modalState.type === 'process' && (
+        <div className={styles.modalOverlay} onClick={() => setModalState({ isOpen: false, type: null, report: null })}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>신고 처리</h2>
+              <button 
+                className={styles.closeButton}
+                onClick={() => setModalState({ isOpen: false, type: null, report: null })}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {modalState.report && (() => {
+                const targetInfo = getTargetInfo(modalState.report)
+                return (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>신고 유형</label>
+                      <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                        {getTypeLabel(modalState.report.type)}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>대상 정보</label>
+                      <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                        <div style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+                          {targetInfo.type} (ID: {modalState.report.targetId})
+                        </div>
+                        <div style={{ marginBottom: '8px', fontWeight: '500' }}>
+                          {targetInfo.fullContent}
+                        </div>
+                        {targetInfo.author !== '-' && (
+                          <div style={{ fontSize: '12px', color: '#666' }}>
+                            작성자: {targetInfo.author}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>신고 사유</label>
+                      <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                        {modalState.report.reason}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>처리 결과 *</label>
+                      <textarea
+                        className={styles.textarea}
+                        value={processResult}
+                        onChange={(e) => setProcessResult(e.target.value)}
+                        placeholder="처리 결과를 입력하세요 (예: 콘텐츠 삭제, 사용자 경고 등)"
+                        rows={4}
+                      />
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+            <div className={styles.modalFooter}>
+              <button 
+                className={styles.cancelButton}
+                onClick={() => setModalState({ isOpen: false, type: null, report: null })}
+              >
+                취소
+              </button>
+              <button 
+                className={styles.saveButton}
+                onClick={confirmProcess}
+              >
+                처리 완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 거부 모달 */}
+      {modalState.type === 'reject' && (
+        <div className={styles.modalOverlay} onClick={() => setModalState({ isOpen: false, type: null, report: null })}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>신고 거부</h2>
+              <button 
+                className={styles.closeButton}
+                onClick={() => setModalState({ isOpen: false, type: null, report: null })}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {modalState.report && (() => {
+                const targetInfo = getTargetInfo(modalState.report)
+                return (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>신고 유형</label>
+                      <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                        {getTypeLabel(modalState.report.type)}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>대상 정보</label>
+                      <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                        <div style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+                          {targetInfo.type} (ID: {modalState.report.targetId})
+                        </div>
+                        <div style={{ marginBottom: '8px', fontWeight: '500' }}>
+                          {targetInfo.fullContent}
+                        </div>
+                        {targetInfo.author !== '-' && (
+                          <div style={{ fontSize: '12px', color: '#666' }}>
+                            작성자: {targetInfo.author}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>신고 사유</label>
+                      <div style={{ padding: '12px', background: '#f5f5f5', borderRadius: '8px' }}>
+                        {modalState.report.reason}
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>거부 사유 *</label>
+                      <textarea
+                        className={styles.textarea}
+                        value={processResult}
+                        onChange={(e) => setProcessResult(e.target.value)}
+                        placeholder="거부 사유를 입력하세요"
+                        rows={4}
+                      />
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+            <div className={styles.modalFooter}>
+              <button 
+                className={styles.cancelButton}
+                onClick={() => setModalState({ isOpen: false, type: null, report: null })}
+              >
+                취소
+              </button>
+              <button 
+                className={styles.rejectButton}
+                onClick={confirmReject}
+              >
+                거부
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 상세보기 모달 */}
+      {modalState.type === 'detail' && modalState.report && (
+        <div className={styles.modalOverlay} onClick={() => setModalState({ isOpen: false, type: null, report: null })}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className={styles.modalHeader}>
+              <h2>신고 상세 정보</h2>
+              <button 
+                className={styles.closeButton}
+                onClick={() => setModalState({ isOpen: false, type: null, report: null })}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailGrid}>
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>신고 ID</label>
+                  <div className={styles.detailValue}>{modalState.report.id}</div>
+                </div>
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>신고 유형</label>
+                  <div className={styles.detailValue}>{getTypeLabel(modalState.report.type)}</div>
+                </div>
+                <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+                  <label className={styles.detailLabel}>대상 정보</label>
+                  <div className={styles.detailValue}>
+                    {(() => {
+                      const targetInfo = getTargetInfo(modalState.report)
+                      return (
+                        <>
+                          <div style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+                            {targetInfo.type} (ID: {modalState.report.targetId})
+                          </div>
+                          <div style={{ marginBottom: '8px', fontWeight: '500' }}>
+                            {targetInfo.fullContent}
+                          </div>
+                          {targetInfo.author !== '-' && (
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                              작성자: {targetInfo.author}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>신고자</label>
+                  <div className={styles.detailValue}>{modalState.report.reporterNickname} ({modalState.report.reporterId})</div>
+                </div>
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>신고 사유</label>
+                  <div className={styles.detailValue}>{modalState.report.reason}</div>
+                </div>
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>상태</label>
+                  <div className={styles.detailValue}>{getStatusBadge(modalState.report.status)}</div>
+                </div>
+                <div className={styles.detailItem}>
+                  <label className={styles.detailLabel}>신고 시간</label>
+                  <div className={styles.detailValue}>{formatDate(modalState.report.createdAt)}</div>
+                </div>
+                {modalState.report.processedAt && (
+                  <>
+                    <div className={styles.detailItem}>
+                      <label className={styles.detailLabel}>처리 시간</label>
+                      <div className={styles.detailValue}>{formatDate(modalState.report.processedAt)}</div>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <label className={styles.detailLabel}>처리자</label>
+                      <div className={styles.detailValue}>{modalState.report.processorId || '-'}</div>
+                    </div>
+                    <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+                      <label className={styles.detailLabel}>처리 결과</label>
+                      <div className={styles.detailValue}>{modalState.report.result || '-'}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button 
+                className={styles.cancelButton}
+                onClick={() => setModalState({ isOpen: false, type: null, report: null })}
+              >
+                닫기
+              </button>
+              {modalState.report.status === 'pending' && (
+                <>
+                  <button 
+                    className={styles.saveButton}
+                    onClick={() => {
+                      setModalState({ isOpen: false, type: null, report: null })
+                      handleProcess(modalState.report!)
+                    }}
+                  >
+                    처리
+                  </button>
+                  <button 
+                    className={styles.rejectButton}
+                    onClick={() => {
+                      setModalState({ isOpen: false, type: null, report: null })
+                      handleReject(modalState.report!)
+                    }}
+                  >
+                    거부
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

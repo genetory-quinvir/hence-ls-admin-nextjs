@@ -12,6 +12,9 @@
   padding: 24px 32px;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .title {
@@ -19,6 +22,21 @@
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
+}
+
+.headerStats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.statBadge {
+  padding: 8px 16px;
+  background: #fff3e0;
+  color: #f57c00;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .content {

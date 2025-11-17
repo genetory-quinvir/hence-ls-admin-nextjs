@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Sidebar, { MenuItem } from './components/Sidebar'
 import DetailView from './components/DetailView'
+import Login from './components/Login'
+import { useAuth } from './context/AuthContext'
 import styles from './page.module.css'
 
 const menuItems: MenuItem[] = [
@@ -67,7 +69,7 @@ const menuItems: MenuItem[] = [
     id: 'system',
     label: '시스템 관리',
     icon: '⚙️',
-    requiredRole: 'SUPER_ADMIN',
+    requiredRole: 'SUPER',
     children: [
       { id: 'system-app-version', label: '앱 버전 관리' },
       { id: 'system-notice', label: '공지사항 관리' },
@@ -89,7 +91,17 @@ const menuItems: MenuItem[] = [
 ]
 
 export default function Home() {
+  const { isAuthenticated } = useAuth()
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
+
+  // 로그인 시 대시보드를 기본으로 표시
+  useEffect(() => {
+    if (isAuthenticated && !activeMenuId) {
+      setActiveMenuId('dashboard')
+    } else if (!isAuthenticated) {
+      setActiveMenuId(null)
+    }
+  }, [isAuthenticated, activeMenuId])
 
   const handleMenuClick = (menuId: string) => {
     setActiveMenuId(menuId)
@@ -112,6 +124,11 @@ export default function Home() {
 
     return null
   }, [activeMenuId])
+
+  // 로그인되지 않았으면 로그인 화면 표시
+  if (!isAuthenticated) {
+    return <Login />
+  }
 
   return (
     <div className={styles.container}>

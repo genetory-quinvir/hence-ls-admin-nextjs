@@ -6,8 +6,12 @@ import { Comment } from '../data/mockData'
 import Modal from './Modal'
 import styles from './CommentList.module.css'
 
-export default function CommentList() {
-  const { comments, updateComments } = useMockData()
+interface CommentListProps {
+  menuId: string
+}
+
+export default function CommentList({ menuId }: CommentListProps) {
+  const { comments, updateComments, feeds } = useMockData()
   const [modalState, setModalState] = useState<{
     isOpen: boolean
     type: 'delete' | 'warn' | null
@@ -17,6 +21,55 @@ export default function CommentList() {
     type: null,
     comment: null,
   })
+
+  // 피드 정보 가져오기
+  const getFeedInfo = (feedId: string) => {
+    const feed = feeds.find(f => f.id === feedId)
+    if (feed) {
+      return {
+        content: feed.content.length > 40 ? feed.content.substring(0, 40) + '...' : feed.content,
+        fullContent: feed.content,
+        author: feed.authorNickname
+      }
+    }
+    return null
+  }
+
+  // menuId에 따라 필터링
+  const filteredComments = useMemo(() => {
+    switch (menuId) {
+      case 'comment-all':
+        return comments
+      case 'comment-reported':
+        return comments.filter(comment => comment.reportedCount > 0)
+      default:
+        return comments
+    }
+  }, [comments, menuId])
+
+  // 정렬: 신고 건수 많은 순, 그 다음 최신순
+  const sortedComments = useMemo(() => {
+    return [...filteredComments].sort((a, b) => {
+      if (menuId === 'comment-reported') {
+        // 신고된 댓글은 신고 건수 많은 순
+        if (b.reportedCount !== a.reportedCount) {
+          return b.reportedCount - a.reportedCount
+        }
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+  }, [filteredComments, menuId])
+
+  const getMenuTitle = () => {
+    switch (menuId) {
+      case 'comment-all':
+        return '전체 댓글'
+      case 'comment-reported':
+        return '신고된 댓글'
+      default:
+        return '댓글 관리'
+    }
+  }
 
   const handleDelete = (comment: Comment) => {
     setModalState({
@@ -61,7 +114,14 @@ export default function CommentList() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>전체 댓글</h1>
+        <h1 className={styles.title}>{getMenuTitle()}</h1>
+        {menuId === 'comment-reported' && (
+          <div className={styles.headerStats}>
+            <span className={styles.statBadge}>
+              신고된 댓글: {filteredComments.length}건
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={styles.content}>
@@ -78,14 +138,14 @@ export default function CommentList() {
               </tr>
             </thead>
             <tbody>
-              {comments.length === 0 ? (
+              {sortedComments.length === 0 ? (
                 <tr>
                   <td colSpan={6} className={styles.emptyCell}>
                     데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
-                comments.map((comment) => (
+                sortedComments.map((comment) => (
                   <tr key={comment.id}>
                     <td>
                       <div className={styles.contentCell}>
@@ -112,7 +172,22 @@ export default function CommentList() {
                       </div>
                     </td>
                     <td>
-                      <code className={styles.feedId}>{comment.feedId}</code>
+                      {(() => {
+                        const feedInfo = getFeedInfo(comment.feedId)
+                        if (feedInfo) {
+                          return (
+                            <div className={styles.feedInfo}>
+                              <div className={styles.feedContent}>{feedInfo.content}</div>
+                              <div className={styles.feedMeta}>
+                                <span className={styles.feedIdLabel}>피드 ID: </span>
+                                <code className={styles.feedId}>{comment.feedId}</code>
+                                <span className={styles.feedAuthor}> · {feedInfo.author}</span>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return <code className={styles.feedId}>{comment.feedId}</code>
+                      })()}
                     </td>
                     <td>
                       {comment.reportedCount > 0 ? (

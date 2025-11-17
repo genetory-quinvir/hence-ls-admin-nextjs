@@ -12,6 +12,9 @@
   padding: 24px 32px;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .title {
@@ -19,6 +22,21 @@
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
+}
+
+.headerStats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.statBadge {
+  padding: 8px 16px;
+  background: #fff3e0;
+  color: #f57c00;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .content {
@@ -101,13 +119,42 @@
   font-size: 14px;
 }
 
+.feedInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feedContent {
+  font-size: 14px;
+  color: #1a1a1a;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.feedMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #999;
+}
+
+.feedIdLabel {
+  color: #666;
+}
+
 .feedId {
   background: #f0f0f0;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-family: 'Monaco', 'Courier New', monospace;
   color: #666;
+}
+
+.feedAuthor {
+  color: #999;
 }
 
 .reportedBadge {
