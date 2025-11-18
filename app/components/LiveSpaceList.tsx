@@ -239,7 +239,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
           </div>
         </div>
 
-        {/* 테이블 */}
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -342,6 +342,106 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {filteredLiveSpaces.length === 0 ? (
+            <div className={styles.emptyCard}>
+              {(filterStatus !== 'all' || filterRegion !== 'all' || searchQuery) ? (
+                '리스트가 없습니다.'
+              ) : (
+                menuId === 'live-space-force-close' 
+                  ? '강제 종료가 필요한 라이브 스페이스가 없습니다.'
+                  : menuId === 'live-space-reported'
+                  ? '신고 접수된 라이브 스페이스가 없습니다.'
+                  : '조건에 맞는 라이브 스페이스가 없습니다.'
+              )}
+            </div>
+          ) : (
+            filteredLiveSpaces.map((ls) => (
+              <div key={ls.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardThumbnail}>
+                    {ls.thumbnail ? (
+                      <img src={ls.thumbnail} alt={ls.title} />
+                    ) : (
+                      <div className={styles.thumbnailPlaceholder}>
+                        {ls.hostNickname[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>
+                      {ls.title || `${ls.hostNickname}의 라이브스페이스`}
+                      {(menuId === 'live-space-reported' || menuId === 'live-space-force-close') && ls.reportedCount > 0 && (
+                        <span className={styles.reportedCountBadge}>
+                          신고 {ls.reportedCount}건
+                        </span>
+                      )}
+                    </div>
+                    <div className={styles.cardHost}>
+                      {ls.hostNickname}
+                      <span className={styles.cardActivityScore}> · 활동지수: 85</span>
+                    </div>
+                  </div>
+                  <div className={styles.cardStatus}>
+                    {getStatusBadge(ls.status)}
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>체크인 수</span>
+                      <span className={styles.cardInfoValue}>
+                        {ls.checkInCount}
+                        {menuId === 'live-space-force-close' && ls.checkInCount === 0 && (
+                          <span className={styles.warningBadge}>⚠️</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>개설 시간</span>
+                      <span className={styles.cardInfoValue}>{formatDate(ls.createdAt)}</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>
+                        {ls.status === 'live' ? '경과 시간' : '종료 시간'}
+                      </span>
+                      <span className={styles.cardInfoValue}>
+                        {ls.status === 'live' ? (
+                          <span className={styles.remainingTime}>
+                            {getRemainingTime(ls.createdAt)}
+                          </span>
+                        ) : ls.endedAt ? (
+                          formatDate(ls.endedAt)
+                        ) : (
+                          '-'
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <button className={styles.actionBtn}>상세</button>
+                  {ls.status === 'live' && (
+                    <button 
+                      className={`${styles.actionBtn} ${styles.danger}`}
+                      onClick={() => handleForceClose(ls)}
+                    >
+                      강제종료
+                    </button>
+                  )}
+                  <button 
+                    className={styles.actionBtn}
+                    onClick={() => handleHide(ls)}
+                  >
+                    숨김
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

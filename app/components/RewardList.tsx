@@ -122,6 +122,7 @@ export default function RewardList({ menuId }: RewardListProps) {
           <h1 className={styles.title}>리워드 내역</h1>
         </div>
         <div className={styles.content}>
+          {/* 테이블 (데스크탑) */}
           <div className={styles.tableContainer}>
             <table className={styles.table}>
               <thead>
@@ -154,18 +155,56 @@ export default function RewardList({ menuId }: RewardListProps) {
               </tbody>
             </table>
           </div>
+
+          {/* 카드 리스트 (모바일) */}
+          <div className={styles.cardList}>
+            {rewardHistory.map((rh) => (
+              <div key={rh.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>{rh.rewardName}</div>
+                    <div className={styles.cardMeta}>{rh.userNickname}</div>
+                  </div>
+                  <div className={styles.cardStatus}>
+                    {getStatusBadge(rh.status)}
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>사용 포인트</span>
+                      <span className={styles.cardInfoValue}>{rh.pointsUsed.toLocaleString()}P</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>전화번호</span>
+                      <span className={styles.cardInfoValue}>{rh.phoneNumber}</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>교환일</span>
+                      <span className={styles.cardInfoValue}>{formatDate(rh.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <button className={styles.actionBtn}>상세</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
   if (menuId === 'rewards-payment') {
+    const pendingRewards = rewardHistory.filter(rh => rh.status === 'pending')
     return (
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>리워드 지급 관리</h1>
         </div>
         <div className={styles.content}>
+          {/* 테이블 (데스크탑) */}
           <div className={styles.tableContainer}>
             <table className={styles.table}>
               <thead>
@@ -180,31 +219,89 @@ export default function RewardList({ menuId }: RewardListProps) {
                 </tr>
               </thead>
               <tbody>
-                {rewardHistory.filter(rh => rh.status === 'pending').map((rh) => (
-                  <tr key={rh.id}>
-                    <td>{rh.rewardName}</td>
-                    <td>{rh.userNickname}</td>
-                    <td>
-                      <span className={styles.verified}>✓ 인증완료</span>
-                    </td>
-                    <td>{rh.phoneNumber}</td>
-                    <td>{getStatusBadge(rh.status)}</td>
-                    <td>{formatDate(rh.createdAt)}</td>
-                    <td>
-                      <div className={styles.actions}>
-                        <button 
-                          className={`${styles.actionBtn} ${styles.primary}`}
-                          onClick={() => handleShip(rh.id)}
-                        >
-                          발송 처리
-                        </button>
-                        <button className={styles.actionBtn}>CS 메모</button>
-                      </div>
+                {pendingRewards.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className={styles.emptyCell}>
+                      대기 중인 리워드가 없습니다.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  pendingRewards.map((rh) => (
+                    <tr key={rh.id}>
+                      <td>{rh.rewardName}</td>
+                      <td>{rh.userNickname}</td>
+                      <td>
+                        <span className={styles.verified}>✓ 인증완료</span>
+                      </td>
+                      <td>{rh.phoneNumber}</td>
+                      <td>{getStatusBadge(rh.status)}</td>
+                      <td>{formatDate(rh.createdAt)}</td>
+                      <td>
+                        <div className={styles.actions}>
+                          <button 
+                            className={`${styles.actionBtn} ${styles.primary}`}
+                            onClick={() => handleShip(rh.id)}
+                          >
+                            발송 처리
+                          </button>
+                          <button className={styles.actionBtn}>CS 메모</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          {/* 카드 리스트 (모바일) */}
+          <div className={styles.cardList}>
+            {pendingRewards.length === 0 ? (
+              <div className={styles.emptyCard}>
+                대기 중인 리워드가 없습니다.
+              </div>
+            ) : (
+              pendingRewards.map((rh) => (
+                <div key={rh.id} className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.cardTitleSection}>
+                      <div className={styles.cardTitle}>{rh.rewardName}</div>
+                      <div className={styles.cardMeta}>{rh.userNickname}</div>
+                    </div>
+                    <div className={styles.cardStatus}>
+                      {getStatusBadge(rh.status)}
+                    </div>
+                  </div>
+                  <div className={styles.cardBody}>
+                    <div className={styles.cardInfo}>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>전화번호 인증</span>
+                        <span className={styles.cardInfoValue}>
+                          <span className={styles.verified}>✓ 인증완료</span>
+                        </span>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>전화번호</span>
+                        <span className={styles.cardInfoValue}>{rh.phoneNumber}</span>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>요청일</span>
+                        <span className={styles.cardInfoValue}>{formatDate(rh.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.cardFooter}>
+                    <button 
+                      className={`${styles.actionBtn} ${styles.primary}`}
+                      onClick={() => handleShip(rh.id)}
+                    >
+                      발송 처리
+                    </button>
+                    <button className={styles.actionBtn}>CS 메모</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -218,6 +315,7 @@ export default function RewardList({ menuId }: RewardListProps) {
           <h1 className={styles.title}>전화번호 인증 로그</h1>
         </div>
         <div className={styles.content}>
+          {/* 테이블 (데스크탑) */}
           <div className={styles.tableContainer}>
             <table className={styles.table}>
               <thead>
@@ -252,6 +350,43 @@ export default function RewardList({ menuId }: RewardListProps) {
               </tbody>
             </table>
           </div>
+
+          {/* 카드 리스트 (모바일) */}
+          <div className={styles.cardList}>
+            {phoneAuthLogs.map((log) => (
+              <div key={log.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>{log.userNickname}</div>
+                    <div className={styles.cardMeta}>{log.phoneNumber}</div>
+                  </div>
+                  <div className={styles.cardStatus}>
+                    {log.status === 'success' ? (
+                      <span className={`${styles.badge} ${styles.success}`}>성공</span>
+                    ) : (
+                      <span className={`${styles.badge} ${styles.failed}`}>실패</span>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>목적</span>
+                      <span className={styles.cardInfoValue}>
+                        <span className={styles.purpose}>
+                          {log.purpose === 'reward' ? '리워드' : '프로필'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>인증일</span>
+                      <span className={styles.cardInfoValue}>{formatDate(log.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -263,6 +398,7 @@ export default function RewardList({ menuId }: RewardListProps) {
         <h1 className={styles.title}>리워드 목록</h1>
       </div>
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -299,6 +435,43 @@ export default function RewardList({ menuId }: RewardListProps) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {rewards.map((reward) => (
+            <div key={reward.id} className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardTitleSection}>
+                  <div className={styles.cardTitle}>{reward.productName}</div>
+                  <div className={styles.cardMeta}>{reward.description}</div>
+                </div>
+                <div className={styles.cardStatus}>
+                  {reward.status === 'active' ? (
+                    <span className={`${styles.badge} ${styles.active}`}>활성</span>
+                  ) : (
+                    <span className={`${styles.badge} ${styles.inactive}`}>비활성</span>
+                  )}
+                </div>
+              </div>
+              <div className={styles.cardBody}>
+                <div className={styles.cardInfo}>
+                  <div className={styles.cardInfoItem}>
+                    <span className={styles.cardInfoLabel}>필요 포인트</span>
+                    <span className={styles.cardInfoValue}>{reward.pointsRequired.toLocaleString()}P</span>
+                  </div>
+                  <div className={styles.cardInfoItem}>
+                    <span className={styles.cardInfoLabel}>교환 횟수</span>
+                    <span className={styles.cardInfoValue}>{reward.exchangeCount}회</span>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.cardFooter}>
+                <button className={styles.actionBtn}>상세</button>
+                <button className={styles.actionBtn}>수정</button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

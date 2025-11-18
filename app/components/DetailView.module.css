@@ -104,3 +104,128 @@
   background: #aaa;
 }
 
+/* 로그아웃 뷰 스타일 */
+.logoutContent {
+  padding: 24px;
+  text-align: center;
+}
+
+.logoutMessage {
+  margin-bottom: 24px;
+  font-size: 16px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.logoutMessage strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 18px;
+  color: #1a1a1a;
+  word-break: break-all;
+}
+
+.logoutButton {
+  padding: 12px 24px;
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.logoutButton:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+}
+
+.logoutButton:active {
+  transform: translateY(0);
+  background: #c62828;
+}
+
+/* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
+@media (max-width: 768px) {
+  .detailView {
+    padding-top: 0; /* 네비게이션 바가 고정되어 있어서 추가 패딩 불필요 */
+  }
+
+  .header {
+    padding: 16px 20px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .emptyState {
+    padding: 20px;
+  }
+
+  .emptyState h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .emptyState p {
+    font-size: 14px;
+    text-align: center;
+    padding: 0 16px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .card h2 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .card p {
+    font-size: 14px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .card code {
+    font-size: 12px;
+    padding: 1px 4px;
+  }
+
+  .description {
+    margin-top: 16px;
+    padding-top: 16px;
+    font-size: 14px;
+  }
+
+  .logoutContent {
+    padding: 20px;
+  }
+
+  .logoutMessage {
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+
+  .logoutMessage strong {
+    margin-top: 8px;
+    font-size: 16px;
+  }
+
+  .logoutButton {
+    width: 100%;
+    max-width: 300px;
+    padding: 14px 28px;
+  }
+}
+

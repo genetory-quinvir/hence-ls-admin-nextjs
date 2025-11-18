@@ -118,6 +118,7 @@ export default function FeedList({ menuId }: FeedListProps) {
       </div>
 
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -206,6 +207,73 @@ export default function FeedList({ menuId }: FeedListProps) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {sortedFeeds.length === 0 ? (
+            <div className={styles.emptyCard}>
+              데이터가 없습니다.
+            </div>
+          ) : (
+            sortedFeeds.map((feed) => (
+              <div key={feed.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardAuthor}>
+                    {feed.authorProfileImage ? (
+                      <img 
+                        src={feed.authorProfileImage} 
+                        alt={feed.authorNickname}
+                      />
+                    ) : (
+                      <div className={styles.authorPlaceholder}>
+                        {feed.authorNickname[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardAuthorName}>{feed.authorNickname}</div>
+                    <div className={styles.cardLiveSpace}>{feed.liveSpaceTitle}</div>
+                  </div>
+                  {feed.reportedCount > 0 && (
+                    <div className={styles.cardReportBadge}>
+                      <span className={styles.reportedCountBadge}>
+                        신고 {feed.reportedCount}건
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardContent}>
+                    {feed.content}
+                    {feed.images.length > 0 && (
+                      <span className={styles.hasImage}> [이미지 {feed.images.length}개]</span>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.cardDate}>{formatDate(feed.createdAt)}</span>
+                  </div>
+                  <div className={styles.cardActions}>
+                    <button 
+                      className={styles.actionBtn}
+                      onClick={() => handleDelete(feed)}
+                    >
+                      삭제
+                    </button>
+                    <button 
+                      className={styles.actionBtn}
+                      onClick={() => handleSanction(feed)}
+                    >
+                      제재
+                    </button>
+                    <button className={styles.actionBtn}>신고처리</button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

@@ -93,6 +93,7 @@ const menuItems: MenuItem[] = [
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuth()
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // 로그인 시 대시보드를 기본으로 표시
   useEffect(() => {
@@ -105,6 +106,12 @@ export default function Home() {
 
   const handleMenuClick = (menuId: string) => {
     setActiveMenuId(menuId)
+    // 모바일에서 메뉴 클릭 시 사이드바 닫기
+    setSidebarOpen(false)
+  }
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
   }
 
   const activeMenuLabel = useMemo(() => {
@@ -141,8 +148,23 @@ export default function Home() {
         menuItems={menuItems}
         activeMenuId={activeMenuId}
         onMenuClick={handleMenuClick}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
       <div className={styles.mainContent}>
+        <nav className={styles.mobileNavBar}>
+          <button 
+            className={styles.mobileMenuButton}
+            onClick={toggleSidebar}
+            aria-label="메뉴 열기"
+          >
+            ☰
+          </button>
+        </nav>
+        <div 
+          className={`${styles.overlay} ${sidebarOpen ? styles.overlayVisible : ''}`}
+          onClick={() => setSidebarOpen(false)}
+        />
         <DetailView
           menuId={activeMenuId}
           menuLabel={activeMenuLabel}

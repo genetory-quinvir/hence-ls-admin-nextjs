@@ -254,6 +254,7 @@ export default function ReportList({ menuId }: ReportListProps) {
       </div>
 
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -365,6 +366,109 @@ export default function ReportList({ menuId }: ReportListProps) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {sortedReports.length === 0 ? (
+            <div className={styles.emptyCard}>
+              데이터가 없습니다.
+            </div>
+          ) : (
+            sortedReports.map((report) => {
+              const targetInfo = getTargetInfo(report)
+              return (
+                <div key={report.id} className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.cardType}>
+                      <span className={styles.typeLabel}>
+                        {getTypeLabel(report.type)}
+                      </span>
+                    </div>
+                    <div className={styles.cardStatus}>
+                      {getStatusBadge(report.status)}
+                    </div>
+                  </div>
+                  <div className={styles.cardBody}>
+                    <div className={styles.cardInfo}>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>대상</span>
+                        <div className={styles.cardInfoValue}>
+                          <div className={styles.targetType}>{targetInfo.type}</div>
+                          <div className={styles.targetText}>{targetInfo.title}</div>
+                          {targetInfo.author !== '-' && (
+                            <div className={styles.targetAuthor}>작성자: {targetInfo.author}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>신고 사유</span>
+                        <span className={styles.cardInfoValue}>{report.reason}</span>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>신고자</span>
+                        <span className={styles.cardInfoValue}>{report.reporterNickname}</span>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>신고 시간</span>
+                        <div className={styles.cardInfoValue}>
+                          <div>{formatDate(report.createdAt)}</div>
+                          <div className={styles.relativeTime}>
+                            {getRelativeTime(report.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                      {menuId === 'reports-completed' && (
+                        <div className={styles.cardInfoItem}>
+                          <span className={styles.cardInfoLabel}>처리 결과</span>
+                          <div className={styles.cardInfoValue}>
+                            {report.result || '-'}
+                            {report.processedAt && (
+                              <div className={styles.processedTime}>
+                                {formatDate(report.processedAt)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.cardFooter}>
+                    <button 
+                      className={styles.actionBtn}
+                      onClick={() => handleDetail(report)}
+                    >
+                      상세
+                    </button>
+                    {report.status === 'pending' && (
+                      <>
+                        <button 
+                          className={`${styles.actionBtn} ${styles.primary}`}
+                          onClick={() => handleProcess(report)}
+                        >
+                          처리
+                        </button>
+                        <button 
+                          className={`${styles.actionBtn} ${styles.reject}`}
+                          onClick={() => handleReject(report)}
+                        >
+                          거부
+                        </button>
+                      </>
+                    )}
+                    {report.status === 'processing' && (
+                      <button 
+                        className={`${styles.actionBtn} ${styles.primary}`}
+                        onClick={() => handleProcess(report)}
+                      >
+                        완료
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 

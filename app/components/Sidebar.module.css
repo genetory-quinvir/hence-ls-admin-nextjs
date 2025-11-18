@@ -12,9 +12,59 @@
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 }
 
+/* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 280px;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar.closed {
+    transform: translateX(-100%);
+  }
+}
+
 .sidebarHeader {
   padding: 24px 20px;
   border-bottom: 1px solid #333;
+}
+
+.closeButton {
+  display: none;
+}
+
+/* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
+@media (max-width: 768px) {
+  .sidebarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .closeButton {
+    display: flex;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .closeButton:hover {
+    background: #2a2a2a;
+  }
 }
 
 .logo {

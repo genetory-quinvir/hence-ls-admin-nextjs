@@ -214,3 +214,265 @@
   opacity: 0.5;
 }
 
+/* 카드 리스트 (모바일 전용) */
+.cardList {
+  display: none;
+}
+
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cardHeader {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+
+.cardAuthor {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardAuthor img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardAuthor .authorPlaceholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #4a9eff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0;
+}
+
+.cardTitleSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardAuthorName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.cardFeedMeta {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.cardReportBadge {
+  flex-shrink: 0;
+}
+
+.cardBody {
+  margin-bottom: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cardContent {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+  word-break: break-word;
+  margin-bottom: 8px;
+}
+
+.cardFeedInfo {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.cardFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardDate {
+  font-size: 12px;
+  color: #999;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emptyCard {
+  background: #fff;
+  border-radius: 8px;
+  padding: 60px 20px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.emptyCard::before {
+  content: '📭';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
+@media (max-width: 768px) {
+  .container {
+    padding-top: 0; /* 네비게이션 바가 고정되어 있어서 추가 패딩 불필요 */
+  }
+
+  .header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .title {
+    font-size: 22px;
+    line-height: 1.3;
+  }
+
+  .headerStats {
+    width: 100%;
+  }
+
+  .statBadge {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  /* 테이블 숨김 (데스크탑만 표시) */
+  .tableContainer {
+    display: none;
+  }
+
+  /* 카드 리스트 표시 */
+  .cardList {
+    display: block;
+  }
+
+  .card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .cardHeader {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .cardAuthor {
+    width: 48px;
+    height: 48px;
+  }
+
+  .cardAuthorName {
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .cardFeedMeta {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .cardBody {
+    padding: 12px 0;
+    margin-bottom: 12px;
+  }
+
+  .cardContent {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .cardFeedInfo {
+    font-size: 12px;
+  }
+
+  .cardFooter {
+    gap: 12px;
+  }
+
+  .cardMeta {
+    margin-bottom: 8px;
+  }
+
+  .cardDate {
+    font-size: 12px;
+    color: #999;
+  }
+
+  .cardActions {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .cardActions .actionBtn {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .reportedCountBadge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .emptyCard {
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+
+  .emptyCard::before {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+}
+

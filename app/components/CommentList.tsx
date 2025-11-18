@@ -125,6 +125,7 @@ export default function CommentList({ menuId }: CommentListProps) {
       </div>
 
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -220,6 +221,86 @@ export default function CommentList({ menuId }: CommentListProps) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {sortedComments.length === 0 ? (
+            <div className={styles.emptyCard}>
+              데이터가 없습니다.
+            </div>
+          ) : (
+            sortedComments.map((comment) => {
+              const feedInfo = getFeedInfo(comment.feedId)
+              return (
+                <div key={comment.id} className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.cardAuthor}>
+                      {comment.authorProfileImage ? (
+                        <img 
+                          src={comment.authorProfileImage} 
+                          alt={comment.authorNickname}
+                        />
+                      ) : (
+                        <div className={styles.authorPlaceholder}>
+                          {comment.authorNickname[0]}
+                        </div>
+                      )}
+                    </div>
+                    <div className={styles.cardTitleSection}>
+                      <div className={styles.cardAuthorName}>{comment.authorNickname}</div>
+                      {feedInfo && (
+                        <div className={styles.cardFeedMeta}>
+                          피드: {feedInfo.content}
+                        </div>
+                      )}
+                    </div>
+                    {comment.reportedCount > 0 && (
+                      <div className={styles.cardReportBadge}>
+                        <span className={styles.reportedCountBadge}>
+                          신고 {comment.reportedCount}건
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.cardBody}>
+                    <div className={styles.cardContent}>
+                      {comment.content}
+                      {comment.image && (
+                        <span className={styles.hasImage}> [이미지]</span>
+                      )}
+                    </div>
+                    {feedInfo && (
+                      <div className={styles.cardFeedInfo}>
+                        <span className={styles.feedIdLabel}>피드 ID: </span>
+                        <code className={styles.feedId}>{comment.feedId}</code>
+                        <span className={styles.feedAuthor}> · {feedInfo.author}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.cardFooter}>
+                    <div className={styles.cardMeta}>
+                      <span className={styles.cardDate}>{formatDate(comment.createdAt)}</span>
+                    </div>
+                    <div className={styles.cardActions}>
+                      <button 
+                        className={styles.actionBtn}
+                        onClick={() => handleDelete(comment)}
+                      >
+                        삭제
+                      </button>
+                      <button 
+                        className={styles.actionBtn}
+                        onClick={() => handleWarn(comment)}
+                      >
+                        경고
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 

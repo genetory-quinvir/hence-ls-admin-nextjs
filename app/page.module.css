@@ -8,12 +8,83 @@
   flex: 1;
   margin-left: 260px;
   min-height: 100vh;
+  position: relative;
 }
 
-/* 반응형 디자인 */
+.mobileNavBar {
+  display: none;
+}
+
+.mobileMenuButton {
+  display: none;
+}
+
+.overlay {
+  display: none;
+}
+
+/* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
 @media (max-width: 768px) {
   .mainContent {
     margin-left: 0;
+    padding-top: 50px; /* 네비게이션 바 높이만큼 여백 */
+  }
+
+  .mobileNavBar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: #1a1a1a;
+    z-index: 99;
+    align-items: center;
+    padding: 0 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .mobileMenuButton {
+    display: flex;
+    background: none;
+    color: #fff;
+    border: none;
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .mobileMenuButton:hover {
+    background: #2a2a2a;
+  }
+
+  .mobileMenuButton:active {
+    background: #333;
+  }
+
+  .overlay {
+    position: fixed;
+    top: 50px; /* 네비게이션 바 아래부터 */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 98;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+
+  .overlay.overlayVisible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
 }
 

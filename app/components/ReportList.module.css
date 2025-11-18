@@ -258,6 +258,258 @@
   opacity: 0.5;
 }
 
+/* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
+@media (max-width: 768px) {
+  .header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .filters {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .filterGroup {
+    min-width: 100%;
+  }
+
+  .table th,
+  .table td {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+
+  .targetCell {
+    max-width: 200px;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .actionBtn {
+    font-size: 11px;
+    padding: 8px 10px;
+    width: 100%;
+  }
+
+  /* 모달 스타일 모바일 최적화 */
+  .modalOverlay {
+    padding: 16px;
+  }
+
+  .modalContent {
+    max-width: 100%;
+    max-height: 85vh;
+  }
+
+  .modalHeader {
+    padding: 16px 20px;
+  }
+
+  .modalHeader h2 {
+    font-size: 18px;
+  }
+
+  .modalBody {
+    padding: 16px 20px;
+  }
+
+  .modalFooter {
+    padding: 16px 20px;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .cancelButton,
+  .saveButton,
+  .rejectButton {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+
+  .formGroup {
+    margin-bottom: 16px;
+  }
+
+  .label {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .textarea {
+    font-size: 16px; /* iOS 줌 방지 */
+  }
+
+  /* Detail Grid 모바일 최적화 */
+  .detailGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .detailItem {
+    gap: 6px;
+  }
+
+  .detailLabel {
+    font-size: 11px;
+  }
+
+  .detailValue {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  /* 테이블 숨김 (데스크탑만 표시) */
+  .tableContainer {
+    display: none;
+  }
+
+  /* 카드 리스트 표시 */
+  .cardList {
+    display: block !important;
+  }
+
+  .cardList .card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .cardList .cardHeader {
+    margin-bottom: 12px;
+    gap: 12px;
+  }
+
+  .cardList .cardBody {
+    margin-bottom: 12px;
+  }
+
+  .cardList .cardInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cardList .cardInfoItem {
+    padding: 8px 0;
+    gap: 4px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cardList .cardInfoLabel {
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .cardList .cardInfoValue {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #1a1a1a;
+    font-weight: 400;
+    word-break: break-word;
+  }
+
+  .cardList .cardInfoValue .targetType {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  .cardList .cardInfoValue .targetText {
+    font-size: 13px;
+    margin: 4px 0;
+    font-weight: 500;
+    color: #1a1a1a;
+  }
+
+  .cardList .cardInfoValue .targetAuthor {
+    font-size: 12px;
+    color: #666;
+  }
+
+  .cardList .cardType {
+    flex: 1;
+  }
+
+  .cardList .cardStatus {
+    flex-shrink: 0;
+  }
+
+  .cardList .typeLabel {
+    font-size: 13px;
+  }
+
+  .cardList .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+
+  .cardList .cardFooter {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .cardList .actionBtn {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .cardList .actionBtn.primary {
+    background: #4a9eff;
+    color: #fff;
+    border-color: #4a9eff;
+  }
+
+  .cardList .actionBtn.reject {
+    background: #f44336;
+    color: #fff;
+    border-color: #f44336;
+  }
+
+  .cardList .relativeTime {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  .cardList .processedTime {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  .cardList .emptyCard {
+    padding: 60px 20px;
+    font-size: 14px;
+    display: block !important;
+  }
+
+  .cardList .emptyCard::before {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+}
+
 .resultCell {
   display: flex;
   flex-direction: column;
@@ -451,5 +703,97 @@
   padding: 12px;
   background: #f8f9fa;
   border-radius: 8px;
+}
+
+/* 카드 리스트 (모바일 전용) */
+.cardList {
+  display: none;
+}
+
+.cardList .card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cardList .cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.cardList .cardType {
+  flex: 1;
+}
+
+.cardList .cardStatus {
+  flex-shrink: 0;
+}
+
+.cardList .cardBody {
+  margin-bottom: 12px;
+}
+
+.cardList .cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardList .cardInfoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cardList .cardInfoItem:last-child {
+  border-bottom: none;
+}
+
+.cardList .cardInfoLabel {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.cardList .cardInfoValue {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 400;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.cardList .cardFooter {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+}
+
+.cardList .emptyCard {
+  background: #fff;
+  border-radius: 8px;
+  padding: 60px 20px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cardList .emptyCard::before {
+  content: '📭';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
 }
 

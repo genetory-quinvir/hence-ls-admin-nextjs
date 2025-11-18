@@ -20,9 +20,11 @@ interface SidebarProps {
   menuItems: MenuItem[]
   activeMenuId: string | null
   onMenuClick: (menuId: string) => void
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export default function Sidebar({ menuItems, activeMenuId, onMenuClick }: SidebarProps) {
+export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen = true, onClose }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
 
   const toggleMenu = (menuId: string) => {
@@ -48,9 +50,18 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick }: Sideba
   }
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${isOpen ? styles.open : styles.closed}`}>
       <div className={styles.sidebarHeader}>
         <h1 className={styles.logo}>Hence Live Space Admin</h1>
+        {onClose && (
+          <button 
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="메뉴 닫기"
+          >
+            ×
+          </button>
+        )}
       </div>
       <nav className={styles.nav}>
         <ul className={styles.menuList}>

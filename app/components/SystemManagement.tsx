@@ -109,6 +109,7 @@ export default function SystemManagement({ menuId }: SystemManagementProps) {
           <h1 className={styles.title}>앱 버전 관리</h1>
         </div>
         <div className={styles.content}>
+          {/* 테이블 (데스크탑) */}
           <div className={styles.tableContainer}>
             <table className={styles.table}>
               <thead>
@@ -157,6 +158,62 @@ export default function SystemManagement({ menuId }: SystemManagementProps) {
               </tbody>
             </table>
           </div>
+
+          {/* 카드 리스트 (모바일) */}
+          <div className={styles.cardList}>
+            {appVersions.length === 0 ? (
+              <div className={styles.emptyCard}>
+                데이터가 없습니다.
+              </div>
+            ) : (
+              appVersions.map((version) => (
+                <div key={version.id} className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <div className={styles.cardTitleSection}>
+                      <div className={styles.cardTitle}>
+                        <span className={styles.platform}>
+                          {version.platform === 'ios' ? 'iOS' : 'Android'}
+                        </span>
+                        <span style={{ marginLeft: '8px' }}>{version.version}</span>
+                      </div>
+                    </div>
+                    <div className={styles.cardStatus}>
+                      {version.status === 'active' ? (
+                        <span className={`${styles.badge} ${styles.active}`}>활성</span>
+                      ) : (
+                        <span className={`${styles.badge} ${styles.inactive}`}>비활성</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.cardBody}>
+                    <div className={styles.cardInfo}>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>강제 업데이트</span>
+                        <span className={styles.cardInfoValue}>
+                          {version.forceUpdate ? (
+                            <span className={`${styles.badge} ${styles.force}`}>강제</span>
+                          ) : (
+                            <span className={styles.badge}>선택</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>릴리즈 노트</span>
+                        <span className={styles.cardInfoValue}>{version.releaseNotes}</span>
+                      </div>
+                      <div className={styles.cardInfoItem}>
+                        <span className={styles.cardInfoLabel}>릴리즈일</span>
+                        <span className={styles.cardInfoValue}>{formatDate(version.releasedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.cardFooter}>
+                    <button className={styles.actionBtn}>수정</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     )
@@ -181,6 +238,7 @@ export default function SystemManagement({ menuId }: SystemManagementProps) {
           <h1 className={styles.title}>Permission Log</h1>
         </div>
         <div className={styles.content}>
+          {/* 테이블 (데스크탑) */}
           <div className={styles.tableContainer}>
             <table className={styles.table}>
               <thead>
@@ -233,6 +291,68 @@ export default function SystemManagement({ menuId }: SystemManagementProps) {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* 카드 리스트 (모바일) */}
+          <div className={styles.cardList}>
+            {permissionLogs.length === 0 ? (
+              <div className={styles.emptyCard}>
+                데이터가 없습니다.
+              </div>
+            ) : (
+              permissionLogs.map((log) => {
+                const targetInfo = getTargetInfo(log.targetType, log.targetId)
+                return (
+                  <div key={log.id} className={styles.card}>
+                    <div className={styles.cardHeader}>
+                      <div className={styles.cardTitleSection}>
+                        <div className={styles.cardTitle}>{log.operatorEmail}</div>
+                        <div className={styles.cardMeta}>
+                          <span className={styles.actionBadge}>{log.action}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.cardBody}>
+                      <div className={styles.cardInfo}>
+                        <div className={styles.cardInfoItem}>
+                          <span className={styles.cardInfoLabel}>대상 타입</span>
+                          <span className={styles.cardInfoValue}>{log.targetType}</span>
+                        </div>
+                        <div className={styles.cardInfoItem}>
+                          <span className={styles.cardInfoLabel}>대상 ID</span>
+                          <div className={styles.cardInfoValue}>
+                            {targetInfo ? (
+                              <>
+                                <div className={styles.targetContent}>
+                                  <span className={styles.targetTypeBadge}>{targetInfo.type}</span>
+                                  <span className={styles.targetText}>{targetInfo.title}</span>
+                                </div>
+                                <div className={styles.targetMeta}>
+                                  <code className={styles.targetId}>{log.targetId}</code>
+                                  {targetInfo.author !== '-' && (
+                                    <span className={styles.targetAuthor}> · {targetInfo.author}</span>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <code className={styles.targetId}>{log.targetId}</code>
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.cardInfoItem}>
+                          <span className={styles.cardInfoLabel}>상세</span>
+                          <span className={styles.cardInfoValue}>{log.details}</span>
+                        </div>
+                        <div className={styles.cardInfoItem}>
+                          <span className={styles.cardInfoLabel}>시간</span>
+                          <span className={styles.cardInfoValue}>{formatDate(log.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
       </div>
@@ -348,6 +468,7 @@ function NoticeManagement({
         </button>
       </div>
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -397,6 +518,64 @@ function NoticeManagement({
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {notices.length === 0 ? (
+            <div className={styles.emptyCard}>
+              데이터가 없습니다.
+            </div>
+          ) : (
+            notices.map((notice) => (
+              <div key={notice.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>
+                      {notice.isImportant && <span className={styles.importantBadge}>중요</span>}
+                      {notice.title}
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>중요</span>
+                      <span className={styles.cardInfoValue}>
+                        {notice.isImportant ? (
+                          <span className={styles.badge}>✓</span>
+                        ) : (
+                          <span>-</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>작성일</span>
+                      <span className={styles.cardInfoValue}>{formatDate(notice.createdAt)}</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>수정일</span>
+                      <span className={styles.cardInfoValue}>{formatDate(notice.updatedAt)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <button 
+                    className={styles.actionBtn}
+                    onClick={() => handleEditClick(notice)}
+                  >
+                    수정
+                  </button>
+                  <button 
+                    className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                    onClick={() => handleDeleteClick(notice.id)}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -646,6 +825,7 @@ function FAQManagement({
         </button>
       </div>
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -711,6 +891,56 @@ function FAQManagement({
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {faqs.length === 0 ? (
+            <div className={styles.emptyCard}>
+              데이터가 없습니다.
+            </div>
+          ) : (
+            faqs.sort((a, b) => a.order - b.order).map((faq) => (
+              <div key={faq.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>
+                      <span className={styles.category}>{faq.category}</span>
+                      <span style={{ marginLeft: '8px', fontSize: '12px', color: '#999' }}>
+                        순서: {faq.order}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>질문</span>
+                      <span className={styles.cardInfoValue}>{faq.question}</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>답변</span>
+                      <span className={styles.cardInfoValue}>{faq.answer}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <button 
+                    className={styles.actionBtn}
+                    onClick={() => handleEditClick(faq)}
+                  >
+                    수정
+                  </button>
+                  <button 
+                    className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                    onClick={() => handleDeleteClick(faq.id)}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -922,6 +1152,7 @@ function OperatorManagement({
         )}
       </div>
       <div className={styles.content}>
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -971,6 +1202,58 @@ function OperatorManagement({
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {operators.length === 0 ? (
+            <div className={styles.emptyCard}>
+              데이터가 없습니다.
+            </div>
+          ) : (
+            operators.map((op) => (
+              <div key={op.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>{op.nickname}</div>
+                    <div className={styles.cardMeta}>{op.email}</div>
+                  </div>
+                  <div className={styles.cardStatus}>
+                    <span className={`${styles.badge} ${
+                      op.role === 'SUPER_ADMIN' ? styles.superAdmin : styles.admin
+                    }`}>
+                      {op.role}
+                    </span>
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>권한</span>
+                      <span className={styles.cardInfoValue}>{op.permissions.join(', ')}</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>마지막 로그인</span>
+                      <span className={styles.cardInfoValue}>{formatDate(op.lastLoginAt)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  {isSuperAdmin && (
+                    <button 
+                      className={styles.actionBtn}
+                      onClick={() => handleRoleChangeClick(op)}
+                    >
+                      역할 변경
+                    </button>
+                  )}
+                  {!isSuperAdmin && (
+                    <span style={{ color: '#999', fontSize: '12px' }}>변경 불가</span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

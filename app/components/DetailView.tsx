@@ -128,35 +128,20 @@ function LogoutView() {
       </div>
       <div className={styles.content}>
         <div className={styles.card}>
-          <div style={{ padding: '24px', textAlign: 'center' }}>
-            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#666' }}>
-              {user?.email && (
+          <div className={styles.logoutContent}>
+            <p className={styles.logoutMessage}>
+              {user?.email ? (
                 <>
-                  현재 로그인된 계정: <strong>{user.email}</strong>
+                  현재 로그인된 계정:
+                  <strong>{user.email}</strong>
                 </>
+              ) : (
+                '로그아웃 하시겠습니까?'
               )}
             </p>
             <button
               onClick={handleLogout}
-              style={{
-                padding: '12px 24px',
-                background: '#f44336',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#d32f2f'
-                e.currentTarget.style.transform = 'translateY(-2px)'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = '#f44336'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
+              className={styles.logoutButton}
             >
               로그아웃
             </button>

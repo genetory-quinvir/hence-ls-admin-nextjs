@@ -239,6 +239,7 @@ export default function UserList({ menuId }: UserListProps) {
           </div>
         </div>
 
+        {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>
             <thead>
@@ -342,6 +343,101 @@ export default function UserList({ menuId }: UserListProps) {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 카드 리스트 (모바일) */}
+        <div className={styles.cardList}>
+          {filteredUsers.length === 0 ? (
+            <div className={styles.emptyCard}>
+              {(filterStatus !== 'all' || filterNickname) ? (
+                '리스트가 없습니다.'
+              ) : (
+                menuId === 'users-reported'
+                  ? '신고 접수된 사용자가 없습니다.'
+                  : menuId === 'users-sanctions'
+                  ? '제재/정지된 사용자가 없습니다.'
+                  : '사용자가 없습니다.'
+              )}
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <div key={user.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardProfile}>
+                    {user.profileImage ? (
+                      <img src={user.profileImage} alt={user.nickname} />
+                    ) : (
+                      <div className={styles.profilePlaceholder}>
+                        {user.nickname[0]}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.cardTitleSection}>
+                    <div className={styles.cardTitle}>
+                      {user.nickname}
+                      {user.reportedCount > 0 && (
+                        <span className={styles.reportedCountBadge}>
+                          신고 {user.reportedCount}건
+                        </span>
+                      )}
+                    </div>
+                    <div className={styles.cardMeta}>
+                      {getProviderLabel(user.provider)} · 활동지수: {user.activityScore}
+                    </div>
+                  </div>
+                  <div className={styles.cardStatus}>
+                    {getStatusBadge(user)}
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>포인트</span>
+                      <span className={styles.cardInfoValue}>{user.points.toLocaleString()}P</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>가입일</span>
+                      <span className={styles.cardInfoValue}>{formatDate(user.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardFooter}>
+                  <button className={styles.actionBtn}>상세</button>
+                  {!user.isSuspended ? (
+                    <button 
+                      className={`${styles.actionBtn} ${styles.warning}`}
+                      onClick={() => handleSuspend(user)}
+                    >
+                      정지
+                    </button>
+                  ) : (
+                    <button 
+                      className={`${styles.actionBtn} ${styles.success}`}
+                      onClick={() => handleUnsuspend(user)}
+                    >
+                      정지 해제
+                    </button>
+                  )}
+                  {!user.isWarned ? (
+                    <button 
+                      className={styles.actionBtn}
+                      onClick={() => handleWarn(user)}
+                    >
+                      경고
+                    </button>
+                  ) : (
+                    <button 
+                      className={`${styles.actionBtn} ${styles.success}`}
+                      onClick={() => handleUnwarn(user)}
+                    >
+                      경고 해제
+                    </button>
+                  )}
+                  <button className={styles.actionBtn}>로그</button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
