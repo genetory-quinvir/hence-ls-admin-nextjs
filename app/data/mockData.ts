@@ -1,14 +1,20 @@
 // 목업 데이터
 
+export type LiveSpaceCategory = '팝업' | '전시' | '이벤트' | '세일/혜택' | '맛집' | 'HENCE'
+
 export interface LiveSpace {
   id: string
   title: string
   hostNickname: string
   hostId: string
   thumbnail?: string
+  category?: LiveSpaceCategory
   status: 'live' | 'ended'
   createdAt: string
+  startedAt?: string
   endedAt?: string
+  scheduledStartTime?: string
+  scheduledEndTime?: string
   location: {
     lat: number
     lng: number
@@ -22,12 +28,15 @@ export interface LiveSpace {
   isHidden?: boolean
 }
 
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER'
+
 export interface User {
   id: string
   nickname: string
   profileImage?: string
   provider: 'naver' | 'kakao' | 'google' | 'apple'
   email: string
+  role: UserRole
   gender?: 'female' | 'male' | 'private'
   birthDate?: string
   bio?: string
@@ -173,8 +182,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '강남역 카페에서 작업 중',
       hostNickname: '홍길동',
       hostId: 'user-001',
+      category: '맛집',
       status: 'live',
       createdAt: '2025-01-17T10:30:00Z',
+      startedAt: '2025-01-17T10:30:00Z',
       location: {
         lat: 37.4980,
         lng: 127.0276,
@@ -190,8 +201,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '홍대 걷기',
       hostNickname: '김철수',
       hostId: 'user-002',
+      category: '이벤트',
       status: 'live',
       createdAt: '2025-01-17T09:15:00Z',
+      startedAt: '2025-01-17T09:15:00Z',
       location: {
         lat: 37.5563,
         lng: 126.9236,
@@ -207,8 +220,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '',
       hostNickname: '이영희',
       hostId: 'user-003',
+      category: '전시',
       status: 'ended',
       createdAt: '2025-01-16T14:20:00Z',
+      startedAt: '2025-01-16T14:20:00Z',
       endedAt: '2025-01-16T18:20:00Z',
       location: {
         lat: 37.5665,
@@ -225,8 +240,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '잠실 롯데월드 근처',
       hostNickname: '박민수',
       hostId: 'user-004',
+      category: 'HENCE',
       status: 'live',
       createdAt: '2025-01-17T11:00:00Z',
+      startedAt: '2025-01-17T11:00:00Z',
       location: {
         lat: 37.5133,
         lng: 127.1028,
@@ -242,8 +259,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '부적절한 내용의 스페이스',
       hostNickname: '신고대상',
       hostId: 'user-005',
+      category: '팝업',
       status: 'live',
       createdAt: '2025-01-17T08:00:00Z',
+      startedAt: '2025-01-17T08:00:00Z',
       location: {
         lat: 37.5665,
         lng: 126.9780,
@@ -259,8 +278,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '체크인 없는 스페이스',
       hostNickname: '문제사용자',
       hostId: 'user-006',
+      category: '세일/혜택',
       status: 'live',
       createdAt: '2025-01-17T12:00:00Z',
+      startedAt: '2025-01-17T12:00:00Z',
       location: {
         lat: 37.5665,
         lng: 126.9780,
@@ -276,8 +297,10 @@ export const generateMockLiveSpaces = (): LiveSpace[] => {
       title: '과거 신고된 스페이스',
       hostNickname: '과거신고',
       hostId: 'user-007',
+      category: '맛집',
       status: 'ended',
       createdAt: '2025-01-15T10:00:00Z',
+      startedAt: '2025-01-15T10:00:00Z',
       endedAt: '2025-01-15T14:00:00Z',
       location: {
         lat: 37.4980,
@@ -299,6 +322,7 @@ export const generateMockUsers = (): User[] => {
       nickname: '홍길동',
       provider: 'kakao',
       email: 'hong@example.com',
+      role: 'MEMBER',
       gender: 'male',
       bio: '안녕하세요! 강남에서 활동 중입니다.',
       activityScore: 85,
@@ -312,6 +336,7 @@ export const generateMockUsers = (): User[] => {
       nickname: '김철수',
       provider: 'naver',
       email: 'kim@example.com',
+      role: 'MEMBER',
       gender: 'male',
       activityScore: 92,
       points: 2100,
@@ -324,6 +349,7 @@ export const generateMockUsers = (): User[] => {
       nickname: '이영희',
       provider: 'google',
       email: 'lee@example.com',
+      role: 'MEMBER',
       gender: 'female',
       bio: '홍대를 좋아해요 🎨',
       activityScore: 78,
@@ -337,6 +363,7 @@ export const generateMockUsers = (): User[] => {
       nickname: '박민수',
       provider: 'apple',
       email: 'park@example.com',
+      role: 'MEMBER',
       activityScore: 65,
       points: 450,
       createdAt: '2025-01-05T00:00:00Z',
@@ -348,6 +375,7 @@ export const generateMockUsers = (): User[] => {
       nickname: '신고대상',
       provider: 'kakao',
       email: 'reported@example.com',
+      role: 'MEMBER',
       activityScore: 20,
       points: 50,
       createdAt: '2025-01-10T00:00:00Z',

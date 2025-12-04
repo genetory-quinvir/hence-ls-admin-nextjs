@@ -12,6 +12,7 @@ interface FeedListProps {
 
 export default function FeedList({ menuId }: FeedListProps) {
   const { feeds, updateFeeds } = useMockData()
+  const [searchQuery, setSearchQuery] = useState('')
   const [modalState, setModalState] = useState<{
     isOpen: boolean
     type: 'delete' | 'sanction' | null
@@ -24,15 +25,31 @@ export default function FeedList({ menuId }: FeedListProps) {
 
   // menuId에 따라 필터링
   const filteredFeeds = useMemo(() => {
+    let filtered = feeds
+    
     switch (menuId) {
       case 'feed-all':
-        return feeds
+        filtered = feeds
+        break
       case 'feed-reported':
-        return feeds.filter(feed => feed.reportedCount > 0)
+        filtered = feeds.filter(feed => feed.reportedCount > 0)
+        break
       default:
-        return feeds
+        filtered = feeds
     }
-  }, [feeds, menuId])
+
+    // 검색 필터 적용
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(feed => 
+        feed.content.toLowerCase().includes(query) ||
+        feed.authorNickname.toLowerCase().includes(query) ||
+        feed.liveSpaceTitle.toLowerCase().includes(query)
+      )
+    }
+
+    return filtered
+  }, [feeds, menuId, searchQuery])
 
   // 정렬: 신고 건수 많은 순, 그 다음 최신순
   const sortedFeeds = useMemo(() => {
@@ -118,6 +135,20 @@ export default function FeedList({ menuId }: FeedListProps) {
       </div>
 
       <div className={styles.content}>
+        {/* 검색 필터 */}
+        <div className={styles.filters}>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>검색</label>
+            <input
+              type="text"
+              className={styles.filterInput}
+              placeholder="작성자, 내용, Live Space 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>

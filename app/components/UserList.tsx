@@ -13,6 +13,8 @@ interface UserListProps {
 export default function UserList({ menuId }: UserListProps) {
   const { users, updateUsers } = useMockData()
   const [filterNickname, setFilterNickname] = useState('')
+  const [filterEmail, setFilterEmail] = useState('')
+  const [filterRole, setFilterRole] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [modalState, setModalState] = useState<{
     isOpen: boolean
@@ -67,6 +69,16 @@ export default function UserList({ menuId }: UserListProps) {
       )
     }
     
+    if (filterEmail) {
+      filtered = filtered.filter(u => 
+        u.email.toLowerCase().includes(filterEmail.toLowerCase())
+      )
+    }
+    
+    if (filterRole !== 'all') {
+      filtered = filtered.filter(u => u.role === filterRole)
+    }
+    
     if (filterStatus !== 'all') {
       if (filterStatus === 'suspended') {
         filtered = filtered.filter(u => u.isSuspended)
@@ -78,7 +90,7 @@ export default function UserList({ menuId }: UserListProps) {
     }
     
     return filtered
-  }, [users, filterNickname, filterStatus, menuId])
+  }, [users, filterNickname, filterEmail, filterRole, filterStatus, menuId])
 
   const handleSuspend = (user: User) => {
     setModalState({
@@ -225,6 +237,32 @@ export default function UserList({ menuId }: UserListProps) {
           </div>
 
           <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>이메일 검색</label>
+            <input
+              type="text"
+              className={styles.filterInput}
+              placeholder="이메일 검색..."
+              value={filterEmail}
+              onChange={(e) => setFilterEmail(e.target.value)}
+            />
+          </div>
+
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>Role</label>
+            <select 
+              className={styles.filterSelect}
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+            >
+              <option value="all">전체</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="ADMIN">Admin</option>
+              <option value="MEMBER">Member</option>
+              <option value="TESTER">Tester</option>
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
             <label className={styles.filterLabel}>상태</label>
             <select 
               className={styles.filterSelect}
@@ -258,7 +296,7 @@ export default function UserList({ menuId }: UserListProps) {
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className={styles.emptyCell}>
-                    {(filterStatus !== 'all' || filterNickname) ? (
+                    {(filterStatus !== 'all' || filterNickname || filterEmail || filterRole !== 'all') ? (
                       '리스트가 없습니다.'
                     ) : (
                       menuId === 'users-reported'

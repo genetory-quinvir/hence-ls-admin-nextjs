@@ -12,6 +12,7 @@ interface CommentListProps {
 
 export default function CommentList({ menuId }: CommentListProps) {
   const { comments, updateComments, feeds } = useMockData()
+  const [searchQuery, setSearchQuery] = useState('')
   const [modalState, setModalState] = useState<{
     isOpen: boolean
     type: 'delete' | 'warn' | null
@@ -37,15 +38,34 @@ export default function CommentList({ menuId }: CommentListProps) {
 
   // menuId에 따라 필터링
   const filteredComments = useMemo(() => {
+    let filtered = comments
+    
     switch (menuId) {
       case 'comment-all':
-        return comments
+        filtered = comments
+        break
       case 'comment-reported':
-        return comments.filter(comment => comment.reportedCount > 0)
+        filtered = comments.filter(comment => comment.reportedCount > 0)
+        break
       default:
-        return comments
+        filtered = comments
     }
-  }, [comments, menuId])
+
+    // 검색 필터 적용
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(comment => {
+        const matchesContent = comment.content.toLowerCase().includes(query)
+        const matchesAuthor = comment.authorNickname.toLowerCase().includes(query)
+        const feedInfo = getFeedInfo(comment.feedId)
+        const matchesFeed = feedInfo ? feedInfo.content.toLowerCase().includes(query) : false
+        
+        return matchesContent || matchesAuthor || matchesFeed
+      })
+    }
+
+    return filtered
+  }, [comments, menuId, searchQuery, feeds])
 
   // 정렬: 신고 건수 많은 순, 그 다음 최신순
   const sortedComments = useMemo(() => {
@@ -125,6 +145,20 @@ export default function CommentList({ menuId }: CommentListProps) {
       </div>
 
       <div className={styles.content}>
+        {/* 검색 필터 */}
+        <div className={styles.filters}>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>검색</label>
+            <input
+              type="text"
+              className={styles.filterInput}
+              placeholder="작성자, 댓글 내용, 피드 내용 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* 테이블 (데스크탑) */}
         <div className={styles.tableContainer}>
           <table className={styles.table}>

@@ -36,6 +36,115 @@
   overflow-y: auto;
 }
 
+/* KPI 카드 그리드 */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.kpiCard {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.kpiCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.kpiCard:nth-child(1) {
+  border-left-color: #4a9eff;
+}
+
+.kpiCard:nth-child(2) {
+  border-left-color: #4caf50;
+}
+
+.kpiCard:nth-child(3) {
+  border-left-color: #ff9800;
+}
+
+.kpiCard:nth-child(4) {
+  border-left-color: #f44336;
+}
+
+.kpiHeader {
+  margin-bottom: 16px;
+}
+
+.kpiTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpiValue {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+.kpiChange {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.changeIndicator {
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.changeIndicator.positive {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.changeIndicator.negative {
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.changeText {
+  color: #999;
+}
+
+.kpiProgress {
+  width: 100%;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.kpiProgressBar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* 차트 그리드 */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -141,9 +250,20 @@
 }
 
 .chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.chartTimeRange {
+  display: flex;
+  gap: 4px;
+  background: #f5f5f5;
+  padding: 4px;
+  border-radius: 8px;
 }
 
 .chartTitle {
@@ -309,15 +429,16 @@
 }
 
 .timeRangeButton {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: transparent;
   border: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #666;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .timeRangeButton:hover {
@@ -329,6 +450,56 @@
   background: #4a9eff;
   color: #fff;
   box-shadow: 0 2px 4px rgba(74, 158, 255, 0.3);
+}
+
+/* Quick Stats */
+.quickStatsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.quickStatCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.quickStatCard:hover {
+  background: #e9ecef;
+  transform: translateX(4px);
+}
+
+.quickStatCard.selected {
+  background: #e3f2fd;
+  border-color: #4a9eff;
+}
+
+.quickStatIcon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.quickStatInfo {
+  flex: 1;
+}
+
+.quickStatLabel {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.quickStatValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
 .chartContainer {
@@ -352,6 +523,29 @@
 
   .content {
     padding: 16px;
+  }
+
+  .kpiGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpiCard {
+    padding: 16px;
+  }
+
+  .kpiValue {
+    font-size: 28px;
+  }
+
+  .chartsGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .chartTimeRange {
+    flex-wrap: wrap;
   }
 
   .cardGrid {

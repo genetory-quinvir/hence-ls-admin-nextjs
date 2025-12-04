@@ -1,0 +1,231 @@
+.container {
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.successMessage {
+  background: #d4edda;
+  color: #155724;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+  border: 1px solid #c3e6cb;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.required {
+  color: #e74c3c;
+}
+
+.input,
+.select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.select {
+  background: #fff;
+  cursor: pointer;
+}
+
+.input:disabled,
+.select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.mapContainer {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* 지도 위 핀 오버레이 컨테이너 */
+.pinOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pinIcon {
+  width: 100%;
+  height: 100%;
+  /* 흰색 보더 효과 (drop-shadow로 구현) */
+  filter: drop-shadow(0 0 2px white) drop-shadow(0 0 2px white) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mapHint {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #666;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.locationInfo {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  min-width: 200px;
+}
+
+.locationText {
+  font-size: 13px;
+  color: #333;
+}
+
+.locationText strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.locationText div {
+  margin-top: 4px;
+  color: #666;
+}
+
+.address {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+  color: #4a9eff;
+  font-size: 12px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.submitButton {
+  padding: 12px 24px;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.submitButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+    padding-top: 0;
+  }
+
+  .header {
+    margin-bottom: 16px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .form {
+    gap: 16px;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+

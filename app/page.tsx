@@ -18,6 +18,7 @@ const menuItems: MenuItem[] = [
     label: 'Live Space 관리',
     icon: '🎥',
     children: [
+      { id: 'live-space-create', label: '라이브 스페이스 생성' },
       { id: 'live-space-list', label: '전체 목록' },
       { id: 'live-space-force-close', label: '강제 종료 큐' },
       { id: 'live-space-reported', label: '신고 접수된 스페이스' },
@@ -55,14 +56,13 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    id: 'points-rewards',
-    label: '포인트 & 리워드',
-    icon: '🎁',
+    id: 'push-notification',
+    label: '앱 푸시',
+    icon: '📱',
     children: [
-      { id: 'points-policy', label: '포인트 정책(읽기)' },
-      { id: 'rewards-history', label: '리워드 내역' },
-      { id: 'rewards-payment', label: '리워드 지급 관리' },
-      { id: 'phone-auth-log', label: '전화번호 인증 로그' },
+      { id: 'push-all', label: '전체 푸시' },
+      { id: 'push-role', label: 'Role별 푸시' },
+      { id: 'push-individual', label: '개인 푸시' },
     ],
   },
   {

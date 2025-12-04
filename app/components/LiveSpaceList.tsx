@@ -14,6 +14,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   const { liveSpaces, updateLiveSpaces } = useMockData()
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterRegion, setFilterRegion] = useState<string>('all')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   
   // menuId에 따라 초기 필터 설정
@@ -89,6 +90,10 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       filtered = filtered.filter(ls => ls.location.district === filterRegion)
     }
     
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(ls => ls.category === filterCategory)
+    }
+    
     if (searchQuery) {
       filtered = filtered.filter(ls => 
         ls.hostNickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -97,7 +102,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     }
     
     return filtered
-  }, [liveSpaces, filterStatus, filterRegion, searchQuery, menuId])
+  }, [liveSpaces, filterStatus, filterRegion, filterCategory, searchQuery, menuId])
 
   const handleForceClose = (liveSpace: LiveSpace) => {
     setModalState({
@@ -228,6 +233,23 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
           </div>
 
           <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>카테고리</label>
+            <select 
+              className={styles.filterSelect}
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="all">전체</option>
+              <option value="팝업">팝업</option>
+              <option value="전시">전시</option>
+              <option value="이벤트">이벤트</option>
+              <option value="세일/혜택">세일/혜택</option>
+              <option value="맛집">맛집</option>
+              <option value="HENCE">HENCE</option>
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
             <label className={styles.filterLabel}>호스트 검색</label>
             <input
               type="text"
@@ -258,7 +280,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
               {filteredLiveSpaces.length === 0 ? (
                 <tr>
                   <td colSpan={8} className={styles.emptyCell}>
-                    {(filterStatus !== 'all' || filterRegion !== 'all' || searchQuery) ? (
+                    {(filterStatus !== 'all' || filterRegion !== 'all' || filterCategory !== 'all' || searchQuery) ? (
                       '리스트가 없습니다.'
                     ) : (
                       menuId === 'live-space-force-close' 

@@ -2,12 +2,13 @@
 
 import Dashboard from './Dashboard'
 import LiveSpaceList from './LiveSpaceList'
+import LiveSpaceCreate from './LiveSpaceCreate'
 import UserList from './UserList'
 import FeedList from './FeedList'
 import ReportList from './ReportList'
 import CommentList from './CommentList'
-import RewardList from './RewardList'
 import SystemManagement from './SystemManagement'
+import PushNotification from './PushNotification'
 import { useAuth } from '../context/AuthContext'
 import styles from './DetailView.module.css'
 
@@ -39,6 +40,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       case 'live-space-force-close':
       case 'live-space-reported':
         return <LiveSpaceList menuId={menuId} />
+      case 'live-space-create':
+        return <LiveSpaceCreate />
       
       // 사용자 관리
       case 'users-list':
@@ -60,12 +63,11 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       case 'reports-completed':
         return <ReportList menuId={menuId} />
       
-      // 포인트 & 리워드
-      case 'points-policy':
-      case 'rewards-history':
-      case 'rewards-payment':
-      case 'phone-auth-log':
-        return <RewardList menuId={menuId} />
+      // 앱 푸시
+      case 'push-all':
+      case 'push-role':
+      case 'push-individual':
+        return <PushNotification menuId={menuId} />
       
       // 시스템 관리
       case 'system-app-version':

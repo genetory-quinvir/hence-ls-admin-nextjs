@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import styles from './Login.module.css'
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@quinvir.com')
-  const [password, setPassword] = useState('1234')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
@@ -17,12 +17,12 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      const success = await login(email, password)
-      if (!success) {
-        setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+      const result = await login(email, password)
+      if (!result.success) {
+        setError(result.error || '이메일 또는 비밀번호가 올바르지 않습니다.')
       }
     } catch (err) {
-      setError('로그인 중 오류가 발생했습니다.')
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
     }
@@ -82,7 +82,7 @@ export default function Login() {
 
         <div className={styles.loginFooter}>
           <p className={styles.footerText}>
-            이메일: admin@quinvir.com / 비밀번호: 1234
+            Quinvir 직원 이메일(@quinvir.com)로 로그인 가능
           </p>
         </div>
       </div>

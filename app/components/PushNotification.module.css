@@ -1,0 +1,380 @@
+.container {
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.successMessage {
+  background: #d4edda;
+  color: #155724;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+  border: 1px solid #c3e6cb;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.required {
+  color: #e74c3c;
+}
+
+.input,
+.textarea,
+.select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.select {
+  background: #fff;
+  cursor: pointer;
+}
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.userSearchContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.userSearchInputWrapper {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.userSearchInput {
+  flex: 1;
+}
+
+.searchButton {
+  padding: 10px 20px;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.searchButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.searchError {
+  padding: 8px 12px;
+  background: #fee;
+  color: #c33;
+  border-radius: 4px;
+  font-size: 13px;
+  border: 1px solid #fcc;
+}
+
+.searchHint {
+  font-size: 12px;
+  color: #999;
+  padding: 4px 0;
+}
+
+.userDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.userDropdownItem {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s ease;
+}
+
+.userDropdownItem:hover {
+  background: #f8f9fa;
+}
+
+.userDropdownItem.selected {
+  background: #e3f2fd;
+}
+
+.userDropdownItem:last-child {
+  border-bottom: none;
+}
+
+.userDropdownName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.userDropdownEmail {
+  font-size: 12px;
+  color: #666;
+}
+
+.userDropdownRole {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+/* 검색 결과 리스트 */
+.searchResultsContainer {
+  margin-top: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.searchResultsHeader {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.searchResultsTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.searchResultsLoading {
+  padding: 40px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.searchResultsList {
+  overflow-y: auto;
+  max-height: 350px;
+}
+
+.searchResultItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.searchResultItem:hover {
+  background: #f8f9fa;
+}
+
+.searchResultItem.selected {
+  background: #e3f2fd;
+  border-left: 3px solid #4a9eff;
+}
+
+.searchResultItem:last-child {
+  border-bottom: none;
+}
+
+.searchResultInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.searchResultName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.searchResultEmail {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.searchResultRole {
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.searchResultCheck {
+  font-size: 18px;
+  color: #4a9eff;
+  font-weight: bold;
+  margin-left: 12px;
+}
+
+.searchResultsEmpty {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.userDropdownEmpty {
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.selectedUserInfo {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #e3f2fd;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1976d2;
+}
+
+.selectedUserInfo strong {
+  font-weight: 600;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.submitButton {
+  padding: 12px 24px;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.submitButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+    padding-top: 0;
+  }
+
+  .header {
+    margin-bottom: 16px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .form {
+    gap: 16px;
+  }
+
+  .userDropdown {
+    max-height: 200px;
+  }
+
+  .userDropdownItem {
+    padding: 10px 12px;
+  }
+
+  .userDropdownName {
+    font-size: 13px;
+  }
+
+  .userDropdownEmail {
+    font-size: 11px;
+  }
+}
+

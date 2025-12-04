@@ -45,6 +45,44 @@
   overflow-y: auto;
 }
 
+.filters {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.filterLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+}
+
+.filterInput {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  min-width: 250px;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
 .tableContainer {
   background: #fff;
   border-radius: 8px;
@@ -374,6 +412,31 @@
 
   .headerStats {
     width: 100%;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .filters {
+    padding: 16px;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .filterGroup {
+    min-width: 100%;
+  }
+
+  .filterLabel {
+    font-size: 13px;
+  }
+
+  .filterInput {
+    padding: 10px 12px;
+    font-size: 16px; /* iOS 줌 방지 */
+    width: 100%;
+    min-width: 100%;
   }
 
   .statBadge {

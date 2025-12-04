@@ -66,6 +66,73 @@ export default function Dashboard() {
   })
   const failedRewards = rewardHistory.filter(r => r.status === 'cancelled')
 
+  // 이전 기간 데이터 (비교용)
+  const lastPeriodStart = new Date(today)
+  lastPeriodStart.setDate(today.getDate() - 7)
+  const lastPeriodEnd = new Date(today)
+  
+  const lastPeriodLiveSpaces = liveSpaces.filter(ls => {
+    const created = new Date(ls.createdAt)
+    return created >= lastPeriodStart && created < lastPeriodEnd
+  })
+  
+  const lastPeriodUsers = users.filter(u => {
+    const created = new Date(u.createdAt)
+    return created >= lastPeriodStart && created < lastPeriodEnd
+  })
+  
+  const lastPeriodFeeds = feeds.filter(f => {
+    const created = new Date(f.createdAt)
+    return created >= lastPeriodStart && created < lastPeriodEnd
+  })
+  
+  const lastPeriodReports = reports.filter(r => {
+    const created = new Date(r.createdAt)
+    return created >= lastPeriodStart && created < lastPeriodEnd
+  })
+
+  // 증감률 계산 함수
+  const calculateChange = (current: number, previous: number): { value: number; isPositive: boolean } => {
+    if (previous === 0) return { value: current > 0 ? 100 : 0, isPositive: current > 0 }
+    const change = ((current - previous) / previous) * 100
+    return { value: Math.abs(change), isPositive: change >= 0 }
+  }
+
+  // KPI 데이터
+  const kpiData = useMemo(() => {
+    const liveSpaceChange = calculateChange(liveSpaces.length, lastPeriodLiveSpaces.length)
+    const userChange = calculateChange(users.length, lastPeriodUsers.length)
+    const feedChange = calculateChange(feeds.length, lastPeriodFeeds.length)
+    const reportChange = calculateChange(reports.length, lastPeriodReports.length)
+    
+    return {
+      liveSpaces: {
+        current: liveSpaces.length,
+        previous: lastPeriodLiveSpaces.length,
+        change: liveSpaceChange,
+        percentage: (liveCount / liveSpaces.length) * 100 || 0
+      },
+      users: {
+        current: users.length,
+        previous: lastPeriodUsers.length,
+        change: userChange,
+        percentage: (todayUsers.length / users.length) * 100 || 0
+      },
+      feeds: {
+        current: feeds.length,
+        previous: lastPeriodFeeds.length,
+        change: feedChange,
+        percentage: (todayFeeds.length / feeds.length) * 100 || 0
+      },
+      reports: {
+        current: reports.length,
+        previous: lastPeriodReports.length,
+        change: reportChange,
+        percentage: (pendingReports.length / reports.length) * 100 || 0
+      }
+    }
+  }, [liveSpaces, users, feeds, reports, liveCount, todayUsers, todayFeeds, pendingReports, lastPeriodLiveSpaces, lastPeriodUsers, lastPeriodFeeds, lastPeriodReports])
+
   // 날짜별 데이터 그룹화 함수
   const groupDataByDate = <T extends { createdAt: string }>(
     data: T[],
@@ -223,112 +290,283 @@ export default function Dashboard() {
       </div>
 
       <div className={styles.content}>
-        {/* 카드 그리드 */}
-        <div className={styles.cardGrid}>
-          {/* Live Space 카드 */}
-          <div 
-            className={`${styles.statCard} ${selectedCard === 'liveSpace' ? styles.selected : ''}`}
-            onClick={() => setSelectedCard('liveSpace')}
-          >
-            <div className={styles.cardIcon}>🔥</div>
-            <div className={styles.cardContent}>
-              <h3 className={styles.cardTitle}>Live Space</h3>
-              <div className={styles.cardStats}>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>총 개수</span>
-                  <span className={styles.cardStatValue}>{liveSpaces.length}</span>
-                </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>라이브 중</span>
-                  <span className={styles.cardStatValue}>{liveCount}</span>
-                </div>
-              </div>
+        {/* KPI 카드 그리드 */}
+        <div className={styles.kpiGrid}>
+          {/* Live Space KPI 카드 */}
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiHeader}>
+              <h3 className={styles.kpiTitle}>Total Live Spaces</h3>
+            </div>
+            <div className={styles.kpiValue}>{kpiData.liveSpaces.current.toLocaleString()}</div>
+            <div className={styles.kpiChange}>
+              <span className={`${styles.changeIndicator} ${kpiData.liveSpaces.change.isPositive ? styles.positive : styles.negative}`}>
+                {kpiData.liveSpaces.change.isPositive ? '↑' : '↓'}
+                {kpiData.liveSpaces.change.value.toFixed(1)}%
+              </span>
+              <span className={styles.changeText}>vs {kpiData.liveSpaces.previous} last period</span>
+            </div>
+            <div className={styles.kpiProgress}>
+              <div 
+                className={styles.kpiProgressBar} 
+                style={{ width: `${Math.min(kpiData.liveSpaces.percentage, 100)}%`, backgroundColor: '#4a9eff' }}
+              />
             </div>
           </div>
 
-          {/* 신고 카드 */}
-          <div 
-            className={`${styles.statCard} ${selectedCard === 'reports' ? styles.selected : ''}`}
-            onClick={() => setSelectedCard('reports')}
-          >
-            <div className={styles.cardIcon}>🚨</div>
-            <div className={styles.cardContent}>
-              <h3 className={styles.cardTitle}>신고 현황</h3>
-              <div className={styles.cardStats}>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>미처리</span>
-                  <span className={`${styles.cardStatValue} ${styles.urgent}`}>
-                    {pendingReports.length}
-                  </span>
-                </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>긴급</span>
-                  <span className={`${styles.cardStatValue} ${styles.critical}`}>
-                    {urgentReports.length}
-                  </span>
-                </div>
-              </div>
+          {/* Users KPI 카드 */}
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiHeader}>
+              <h3 className={styles.kpiTitle}>Total Users</h3>
+            </div>
+            <div className={styles.kpiValue}>{kpiData.users.current.toLocaleString()}</div>
+            <div className={styles.kpiChange}>
+              <span className={`${styles.changeIndicator} ${kpiData.users.change.isPositive ? styles.positive : styles.negative}`}>
+                {kpiData.users.change.isPositive ? '↑' : '↓'}
+                {kpiData.users.change.value.toFixed(1)}%
+              </span>
+              <span className={styles.changeText}>vs {kpiData.users.previous} last period</span>
+            </div>
+            <div className={styles.kpiProgress}>
+              <div 
+                className={styles.kpiProgressBar} 
+                style={{ width: `${Math.min(kpiData.users.percentage, 100)}%`, backgroundColor: '#4caf50' }}
+              />
             </div>
           </div>
 
-          {/* 사용자 카드 */}
-          <div 
-            className={`${styles.statCard} ${selectedCard === 'users' ? styles.selected : ''}`}
-            onClick={() => setSelectedCard('users')}
-          >
-            <div className={styles.cardIcon}>🧑</div>
-            <div className={styles.cardContent}>
-              <h3 className={styles.cardTitle}>사용자</h3>
-              <div className={styles.cardStats}>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>가입자</span>
-                  <span className={styles.cardStatValue}>{users.length}</span>
-                </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>오늘 가입</span>
-                  <span className={styles.cardStatValue}>{todayUsers.length}</span>
-                </div>
-              </div>
+          {/* Feeds KPI 카드 */}
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiHeader}>
+              <h3 className={styles.kpiTitle}>Total Feeds</h3>
+            </div>
+            <div className={styles.kpiValue}>{kpiData.feeds.current.toLocaleString()}</div>
+            <div className={styles.kpiChange}>
+              <span className={`${styles.changeIndicator} ${kpiData.feeds.change.isPositive ? styles.positive : styles.negative}`}>
+                {kpiData.feeds.change.isPositive ? '↑' : '↓'}
+                {kpiData.feeds.change.value.toFixed(1)}%
+              </span>
+              <span className={styles.changeText}>vs {kpiData.feeds.previous} last period</span>
+            </div>
+            <div className={styles.kpiProgress}>
+              <div 
+                className={styles.kpiProgressBar} 
+                style={{ width: `${Math.min(kpiData.feeds.percentage, 100)}%`, backgroundColor: '#ff9800' }}
+              />
             </div>
           </div>
 
-          {/* 피드 카드 */}
-          <div 
-            className={`${styles.statCard} ${selectedCard === 'feeds' ? styles.selected : ''}`}
-            onClick={() => setSelectedCard('feeds')}
-          >
-            <div className={styles.cardIcon}>📝</div>
-            <div className={styles.cardContent}>
-              <h3 className={styles.cardTitle}>피드</h3>
-              <div className={styles.cardStats}>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>오늘 작성</span>
-                  <span className={styles.cardStatValue}>{todayFeeds.length}</span>
-                </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>신고된</span>
-                  <span className={styles.cardStatValue}>{reportedFeeds.length}</span>
-                </div>
+          {/* Reports KPI 카드 */}
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiHeader}>
+              <h3 className={styles.kpiTitle}>Pending Reports</h3>
+            </div>
+            <div className={styles.kpiValue}>{pendingReports.length.toLocaleString()}</div>
+            <div className={styles.kpiChange}>
+              <span className={`${styles.changeIndicator} ${kpiData.reports.change.isPositive ? styles.positive : styles.negative}`}>
+                {kpiData.reports.change.isPositive ? '↑' : '↓'}
+                {kpiData.reports.change.value.toFixed(1)}%
+              </span>
+              <span className={styles.changeText}>vs {kpiData.reports.previous} last period</span>
+            </div>
+            <div className={styles.kpiProgress}>
+              <div 
+                className={styles.kpiProgressBar} 
+                style={{ width: `${Math.min(kpiData.reports.percentage, 100)}%`, backgroundColor: '#f44336' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 차트 섹션 - 2열 그리드 */}
+        <div className={styles.chartsGrid}>
+          {/* 메인 차트 */}
+          <div className={styles.chartWidget}>
+            <div className={styles.chartHeader}>
+              <h2 className={styles.chartTitle}>
+                {selectedCard === 'liveSpace' && 'Live Space Trend'}
+                {selectedCard === 'reports' && 'Reports Trend'}
+                {selectedCard === 'users' && 'Users Trend'}
+                {selectedCard === 'feeds' && 'Feeds Trend'}
+                {selectedCard === 'rewards' && 'Rewards Trend'}
+              </h2>
+              <div className={styles.chartTimeRange}>
+                <button
+                  className={`${styles.timeRangeButton} ${timeRange === 'daily' ? styles.active : ''}`}
+                  onClick={() => setTimeRange('daily')}
+                >
+                  Daily
+                </button>
+                <button
+                  className={`${styles.timeRangeButton} ${timeRange === 'weekly' ? styles.active : ''}`}
+                  onClick={() => setTimeRange('weekly')}
+                >
+                  Weekly
+                </button>
+                <button
+                  className={`${styles.timeRangeButton} ${timeRange === 'monthly' ? styles.active : ''}`}
+                  onClick={() => setTimeRange('monthly')}
+                >
+                  Monthly
+                </button>
               </div>
+            </div>
+            <div className={styles.chartContent}>
+              {selectedCard === 'liveSpace' && (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={liveSpaceChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
+                    <YAxis stroke="#666" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#4a9eff" 
+                      strokeWidth={3}
+                      name="생성 수"
+                      dot={{ fill: '#4a9eff', r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+              {selectedCard === 'reports' && (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={reportChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
+                    <YAxis stroke="#666" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Bar dataKey="count" fill="#f44336" name="신고 수" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {selectedCard === 'users' && (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={userChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
+                    <YAxis stroke="#666" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#4caf50" 
+                      strokeWidth={3}
+                      name="가입 수"
+                      dot={{ fill: '#4caf50', r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+              {selectedCard === 'feeds' && (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={feedChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
+                    <YAxis stroke="#666" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Bar dataKey="count" fill="#ff9800" name="작성 수" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {selectedCard === 'rewards' && (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={rewardChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
+                    <YAxis stroke="#666" fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#fff', 
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px'
+                      }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#9c27b0" 
+                      strokeWidth={3}
+                      name="교환 수"
+                      dot={{ fill: '#9c27b0', r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
-          {/* 리워드 카드 */}
-          <div 
-            className={`${styles.statCard} ${selectedCard === 'rewards' ? styles.selected : ''}`}
-            onClick={() => setSelectedCard('rewards')}
-          >
-            <div className={styles.cardIcon}>🎁</div>
-            <div className={styles.cardContent}>
-              <h3 className={styles.cardTitle}>리워드</h3>
-              <div className={styles.cardStats}>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>오늘 교환</span>
-                  <span className={styles.cardStatValue}>{todayRewards.length}</span>
+          {/* 카테고리별 분포 차트 */}
+          <div className={styles.chartWidget}>
+            <div className={styles.chartHeader}>
+              <h2 className={styles.chartTitle}>Quick Stats</h2>
+            </div>
+            <div className={styles.quickStatsGrid}>
+              <div 
+                className={`${styles.quickStatCard} ${selectedCard === 'liveSpace' ? styles.selected : ''}`}
+                onClick={() => setSelectedCard('liveSpace')}
+              >
+                <div className={styles.quickStatIcon}>🔥</div>
+                <div className={styles.quickStatInfo}>
+                  <div className={styles.quickStatLabel}>Live Spaces</div>
+                  <div className={styles.quickStatValue}>{liveCount} live</div>
                 </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>실패</span>
-                  <span className={styles.cardStatValue}>{failedRewards.length}</span>
+              </div>
+              <div 
+                className={`${styles.quickStatCard} ${selectedCard === 'users' ? styles.selected : ''}`}
+                onClick={() => setSelectedCard('users')}
+              >
+                <div className={styles.quickStatIcon}>🧑</div>
+                <div className={styles.quickStatInfo}>
+                  <div className={styles.quickStatLabel}>New Users</div>
+                  <div className={styles.quickStatValue}>{todayUsers.length} today</div>
+                </div>
+              </div>
+              <div 
+                className={`${styles.quickStatCard} ${selectedCard === 'feeds' ? styles.selected : ''}`}
+                onClick={() => setSelectedCard('feeds')}
+              >
+                <div className={styles.quickStatIcon}>📝</div>
+                <div className={styles.quickStatInfo}>
+                  <div className={styles.quickStatLabel}>New Feeds</div>
+                  <div className={styles.quickStatValue}>{todayFeeds.length} today</div>
+                </div>
+              </div>
+              <div 
+                className={`${styles.quickStatCard} ${selectedCard === 'reports' ? styles.selected : ''}`}
+                onClick={() => setSelectedCard('reports')}
+              >
+                <div className={styles.quickStatIcon}>🚨</div>
+                <div className={styles.quickStatInfo}>
+                  <div className={styles.quickStatLabel}>Urgent Reports</div>
+                  <div className={styles.quickStatValue}>{urgentReports.length} pending</div>
                 </div>
               </div>
             </div>
