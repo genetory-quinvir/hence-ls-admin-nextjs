@@ -61,7 +61,7 @@ function getInitialAuthState(): {
             email: storedUser.email || 'admin@quinvir.com',
             nickname: storedUser.nickname || 'Admin',
             role: (storedUser.role as UserRole) || 'MEMBER',
-            token: storedUser.accessToken,
+            token: storedUser.accessToken || undefined,
           }
         }
       }
@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: storedUser.email || 'admin@quinvir.com',
         nickname: storedUser.nickname || 'Admin',
         role: (storedUser.role as UserRole) || 'MEMBER',
-        token: storedUser.accessToken,
+        token: storedUser.accessToken || undefined,
       })
       setAuthState(true)
       
