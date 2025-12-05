@@ -98,10 +98,27 @@
   display: flex;
   gap: 8px;
   align-items: stretch;
+  width: 100%;
 }
 
 .userSearchInput {
   flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.userSearchInput:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.userSearchInput:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
 }
 
 .searchButton {
@@ -113,8 +130,12 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .searchButton:hover:not(:disabled) {
@@ -134,12 +155,14 @@
   border-radius: 4px;
   font-size: 13px;
   border: 1px solid #fcc;
+  margin-top: 4px;
 }
 
 .searchHint {
   font-size: 12px;
   color: #999;
   padding: 4px 0;
+  margin-top: 4px;
 }
 
 .userDropdown {

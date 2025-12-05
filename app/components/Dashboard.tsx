@@ -264,7 +264,7 @@ export default function Dashboard() {
     <div className={styles.dashboard}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Dashboard</h1>
+          <h1 className={styles.title}>대시보드</h1>
           <p className={styles.subtitle}>현재 상태를 한눈에 파악하세요</p>
         </div>
         <div className={styles.timeRangeSelector}>
@@ -295,7 +295,7 @@ export default function Dashboard() {
           {/* Live Space KPI 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>Total Live Spaces</h3>
+              <h3 className={styles.kpiTitle}>전체 라이브 스페이스</h3>
             </div>
             <div className={styles.kpiValue}>{kpiData.liveSpaces.current.toLocaleString()}</div>
             <div className={styles.kpiChange}>
@@ -303,7 +303,7 @@ export default function Dashboard() {
                 {kpiData.liveSpaces.change.isPositive ? '↑' : '↓'}
                 {kpiData.liveSpaces.change.value.toFixed(1)}%
               </span>
-              <span className={styles.changeText}>vs {kpiData.liveSpaces.previous} last period</span>
+              <span className={styles.changeText}>vs 이전 기간 {kpiData.liveSpaces.previous}</span>
             </div>
             <div className={styles.kpiProgress}>
               <div 
@@ -316,7 +316,7 @@ export default function Dashboard() {
           {/* Users KPI 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>Total Users</h3>
+              <h3 className={styles.kpiTitle}>전체 사용자</h3>
             </div>
             <div className={styles.kpiValue}>{kpiData.users.current.toLocaleString()}</div>
             <div className={styles.kpiChange}>
@@ -324,7 +324,7 @@ export default function Dashboard() {
                 {kpiData.users.change.isPositive ? '↑' : '↓'}
                 {kpiData.users.change.value.toFixed(1)}%
               </span>
-              <span className={styles.changeText}>vs {kpiData.users.previous} last period</span>
+              <span className={styles.changeText}>vs 이전 기간 {kpiData.users.previous}</span>
             </div>
             <div className={styles.kpiProgress}>
               <div 
@@ -337,7 +337,7 @@ export default function Dashboard() {
           {/* Feeds KPI 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>Total Feeds</h3>
+              <h3 className={styles.kpiTitle}>전체 피드</h3>
             </div>
             <div className={styles.kpiValue}>{kpiData.feeds.current.toLocaleString()}</div>
             <div className={styles.kpiChange}>
@@ -345,7 +345,7 @@ export default function Dashboard() {
                 {kpiData.feeds.change.isPositive ? '↑' : '↓'}
                 {kpiData.feeds.change.value.toFixed(1)}%
               </span>
-              <span className={styles.changeText}>vs {kpiData.feeds.previous} last period</span>
+              <span className={styles.changeText}>vs 이전 기간 {kpiData.feeds.previous}</span>
             </div>
             <div className={styles.kpiProgress}>
               <div 
@@ -358,7 +358,7 @@ export default function Dashboard() {
           {/* Reports KPI 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>Pending Reports</h3>
+              <h3 className={styles.kpiTitle}>대기 중인 신고</h3>
             </div>
             <div className={styles.kpiValue}>{pendingReports.length.toLocaleString()}</div>
             <div className={styles.kpiChange}>
@@ -366,7 +366,7 @@ export default function Dashboard() {
                 {kpiData.reports.change.isPositive ? '↑' : '↓'}
                 {kpiData.reports.change.value.toFixed(1)}%
               </span>
-              <span className={styles.changeText}>vs {kpiData.reports.previous} last period</span>
+              <span className={styles.changeText}>vs 이전 기간 {kpiData.reports.previous}</span>
             </div>
             <div className={styles.kpiProgress}>
               <div 
@@ -383,30 +383,30 @@ export default function Dashboard() {
           <div className={styles.chartWidget}>
             <div className={styles.chartHeader}>
               <h2 className={styles.chartTitle}>
-                {selectedCard === 'liveSpace' && 'Live Space Trend'}
-                {selectedCard === 'reports' && 'Reports Trend'}
-                {selectedCard === 'users' && 'Users Trend'}
-                {selectedCard === 'feeds' && 'Feeds Trend'}
-                {selectedCard === 'rewards' && 'Rewards Trend'}
+                {selectedCard === 'liveSpace' && '라이브 스페이스 추이'}
+                {selectedCard === 'reports' && '신고 추이'}
+                {selectedCard === 'users' && '사용자 추이'}
+                {selectedCard === 'feeds' && '피드 추이'}
+                {selectedCard === 'rewards' && '리워드 추이'}
               </h2>
               <div className={styles.chartTimeRange}>
                 <button
                   className={`${styles.timeRangeButton} ${timeRange === 'daily' ? styles.active : ''}`}
                   onClick={() => setTimeRange('daily')}
                 >
-                  Daily
+                  일간
                 </button>
                 <button
                   className={`${styles.timeRangeButton} ${timeRange === 'weekly' ? styles.active : ''}`}
                   onClick={() => setTimeRange('weekly')}
                 >
-                  Weekly
+                  주간
                 </button>
                 <button
                   className={`${styles.timeRangeButton} ${timeRange === 'monthly' ? styles.active : ''}`}
                   onClick={() => setTimeRange('monthly')}
                 >
-                  Monthly
+                  월간
                 </button>
               </div>
             </div>
@@ -526,7 +526,7 @@ export default function Dashboard() {
           {/* 카테고리별 분포 차트 */}
           <div className={styles.chartWidget}>
             <div className={styles.chartHeader}>
-              <h2 className={styles.chartTitle}>Quick Stats</h2>
+              <h2 className={styles.chartTitle}>빠른 통계</h2>
             </div>
             <div className={styles.quickStatsGrid}>
               <div 
@@ -535,8 +535,8 @@ export default function Dashboard() {
               >
                 <div className={styles.quickStatIcon}>🔥</div>
                 <div className={styles.quickStatInfo}>
-                  <div className={styles.quickStatLabel}>Live Spaces</div>
-                  <div className={styles.quickStatValue}>{liveCount} live</div>
+                  <div className={styles.quickStatLabel}>라이브 스페이스</div>
+                  <div className={styles.quickStatValue}>{liveCount} 진행 중</div>
                 </div>
               </div>
               <div 
@@ -545,8 +545,8 @@ export default function Dashboard() {
               >
                 <div className={styles.quickStatIcon}>🧑</div>
                 <div className={styles.quickStatInfo}>
-                  <div className={styles.quickStatLabel}>New Users</div>
-                  <div className={styles.quickStatValue}>{todayUsers.length} today</div>
+                  <div className={styles.quickStatLabel}>신규 사용자</div>
+                  <div className={styles.quickStatValue}>오늘 {todayUsers.length}명</div>
                 </div>
               </div>
               <div 
@@ -555,8 +555,8 @@ export default function Dashboard() {
               >
                 <div className={styles.quickStatIcon}>📝</div>
                 <div className={styles.quickStatInfo}>
-                  <div className={styles.quickStatLabel}>New Feeds</div>
-                  <div className={styles.quickStatValue}>{todayFeeds.length} today</div>
+                  <div className={styles.quickStatLabel}>신규 피드</div>
+                  <div className={styles.quickStatValue}>오늘 {todayFeeds.length}개</div>
                 </div>
               </div>
               <div 
@@ -565,141 +565,10 @@ export default function Dashboard() {
               >
                 <div className={styles.quickStatIcon}>🚨</div>
                 <div className={styles.quickStatInfo}>
-                  <div className={styles.quickStatLabel}>Urgent Reports</div>
-                  <div className={styles.quickStatValue}>{urgentReports.length} pending</div>
+                  <div className={styles.quickStatLabel}>긴급 신고</div>
+                  <div className={styles.quickStatValue}>{urgentReports.length} 대기 중</div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 선택된 카드의 상세 그래프 */}
-        <div className={styles.chartSection}>
-          <div className={styles.chartWidget}>
-            <div className={styles.chartHeader}>
-              <h2 className={styles.chartTitle}>
-                {selectedCard === 'liveSpace' && '🔥 Live Space 현황'}
-                {selectedCard === 'reports' && '🚨 신고 현황'}
-                {selectedCard === 'users' && '🧑 사용자 현황'}
-                {selectedCard === 'feeds' && '📝 피드 현황'}
-                {selectedCard === 'rewards' && '🎁 리워드 현황'}
-              </h2>
-            </div>
-            <div className={styles.chartContent}>
-              {selectedCard === 'liveSpace' && (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={liveSpaceChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#667eea" 
-                      strokeWidth={3}
-                      name="생성 수"
-                      dot={{ fill: '#667eea', r: 5 }}
-                      activeDot={{ r: 7 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-              {selectedCard === 'reports' && (
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={reportChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Legend />
-                    <Bar dataKey="count" fill="#f44336" name="신고 수" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-              {selectedCard === 'users' && (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={userChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#4caf50" 
-                      strokeWidth={3}
-                      name="가입 수"
-                      dot={{ fill: '#4caf50', r: 5 }}
-                      activeDot={{ r: 7 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-              {selectedCard === 'feeds' && (
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={feedChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Legend />
-                    <Bar dataKey="count" fill="#ff9800" name="작성 수" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-              {selectedCard === 'rewards' && (
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={rewardChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                    <YAxis stroke="#666" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e0e0e0',
-                        borderRadius: '8px'
-                      }} 
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#9c27b0" 
-                      strokeWidth={3}
-                      name="교환 수"
-                      dot={{ fill: '#9c27b0', r: 5 }}
-                      activeDot={{ r: 7 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
             </div>
           </div>
         </div>

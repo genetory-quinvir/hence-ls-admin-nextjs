@@ -299,7 +299,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<LoginRes
 }
 
 // 보안 강화된 저장소 사용 (sessionStorage 기반)
-export {
+import {
   getAccessToken,
   getRefreshToken,
   setAccessToken,
@@ -316,6 +316,24 @@ export {
   clearAuthData,
   getStoredUser,
 } from './authStorage'
+
+export {
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setRefreshToken,
+  setUserRole,
+  getUserRole,
+  setUserEmail,
+  getUserEmail,
+  setUserNickname,
+  getUserNickname,
+  setAuthState,
+  getAuthState,
+  setAuthData,
+  clearAuthData,
+  getStoredUser,
+}
 
 /**
  * @deprecated clearTokens는 clearAuthData를 사용하세요
@@ -437,6 +455,361 @@ export async function searchUsers(query: string, limit: number = 20): Promise<Us
     return {
       success: false,
       error: error instanceof Error ? error.message : '검색 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 사용자 리스트 인터페이스
+ */
+export interface UserListItem {
+  id: string
+  nickname: string
+  profileImage?: string
+  provider: 'naver' | 'kakao' | 'google' | 'apple'
+  email: string
+  role: string
+  gender?: 'female' | 'male' | 'private'
+  birthDate?: string
+  bio?: string
+  activityScore: number
+  points: number
+  createdAt: string
+  reportedCount: number
+  isSuspended: boolean
+  suspensionReason?: string
+  isWarned?: boolean
+  warnedAt?: string
+}
+
+export interface UserListMeta {
+  currentPage: number
+  itemsPerPage: number
+  totalItems: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+export interface UserListResponse {
+  success: boolean
+  data?: UserListItem[]
+  meta?: UserListMeta
+  total?: number
+  error?: string
+}
+
+/**
+ * 전체 사용자 리스트 API 호출
+ */
+export async function getUsersAdmin(
+  page: number = 1, 
+  limit: number = 20,
+  keyword?: string
+): Promise<UserListResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  })
+  
+  if (keyword && keyword.trim()) {
+    params.append('keyword', keyword.trim())
+  }
+  
+  const url = `${API_BASE_URL}/api/v1/users-admin?${params.toString()}`
+  
+  if (isDev) {
+    console.log('[API] 사용자 리스트 요청:', {
+      url,
+      page,
+      limit,
+      keyword,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] 사용자 리스트 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 사용자 리스트 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || `사용자 리스트 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 사용자 리스트 성공:', {
+        responseData,
+        resultCount: responseData.data?.users?.length || 0,
+        total: responseData.data?.meta?.totalItems,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    // API 응답 구조: { data: { users: [...], meta: {...} }, code, message }
+    const users = responseData.data?.users || []
+    const meta = responseData.data?.meta
+    
+    // provider를 소문자로 변환하는 헬퍼 함수
+    const normalizeProvider = (provider: string): 'naver' | 'kakao' | 'google' | 'apple' => {
+      const normalized = provider?.toLowerCase() || 'naver'
+      if (normalized === 'email') return 'naver' // EMAIL은 기본값으로 naver 사용
+      if (['naver', 'kakao', 'google', 'apple'].includes(normalized)) {
+        return normalized as 'naver' | 'kakao' | 'google' | 'apple'
+      }
+      return 'naver'
+    }
+    
+    // gender를 변환하는 헬퍼 함수
+    const normalizeGender = (gender: string): 'female' | 'male' | 'private' | undefined => {
+      if (!gender) return undefined
+      if (gender === 'secret') return 'private'
+      if (['female', 'male', 'private'].includes(gender)) {
+        return gender as 'female' | 'male' | 'private'
+      }
+      return 'private'
+    }
+    
+    // 프로필 이미지 추출 (providerOrigin에서)
+    const getProfileImage = (user: any): string | undefined => {
+      if (user.profileImage) return user.profileImage
+      
+      // providerOrigin에서 이미지 추출
+      if (user.providerOrigin?.providerOrigin) {
+        const origin = user.providerOrigin.providerOrigin
+        if (origin.profile_image_url) return origin.profile_image_url
+        if (origin.picture) return origin.picture
+        if (origin.profile?.profile_image_url) return origin.profile.profile_image_url
+      }
+      
+      return undefined
+    }
+    
+    return {
+      success: true,
+      data: users.map((u: any) => ({
+        id: u.id,
+        nickname: u.nickname || '',
+        profileImage: getProfileImage(u),
+        provider: normalizeProvider(u.provider),
+        email: u.email || '',
+        role: (u.role || 'MEMBER') as UserListItem['role'],
+        gender: normalizeGender(u.gender),
+        birthDate: u.dateOfBirth || undefined,
+        bio: u.introduction || undefined,
+        activityScore: 0, // API에서 제공되지 않음
+        points: 0, // API에서 제공되지 않음
+        createdAt: u.createdAt || new Date().toISOString(),
+        reportedCount: 0, // API에서 제공되지 않음
+        isSuspended: false, // API에서 제공되지 않음
+        suspensionReason: undefined,
+        isWarned: false, // API에서 제공되지 않음
+        warnedAt: undefined,
+      })),
+      meta: meta ? {
+        currentPage: meta.currentPage || page,
+        itemsPerPage: meta.itemsPerPage || limit,
+        totalItems: meta.totalItems || users.length,
+        totalPages: meta.totalPages || Math.ceil((meta.totalItems || users.length) / (meta.itemsPerPage || limit)),
+        hasNext: meta.hasNext || false,
+        hasPrevious: meta.hasPrevious || false,
+      } : undefined,
+      total: meta?.totalItems || users.length,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 사용자 리스트 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '사용자 리스트 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 사용자 상세 정보 인터페이스
+ */
+export interface UserDetail {
+  id: string
+  email: string
+  provider: string
+  providerId: string | null
+  providerOrigin: any | null
+  providerVerifiedAt: string | null
+  contact: string | null
+  name: string | null
+  nickname: string
+  introduction: string | null
+  gender: string
+  dateOfBirth: string | null
+  marketingConsentDate: string | null
+  createdAt: string
+  updatedAt: string
+  lastLoginAt: string | null
+  withdrawalReason: string | null
+  deletedAt: string | null
+}
+
+export interface UserDetailResponse {
+  success: boolean
+  data?: UserDetail
+  error?: string
+}
+
+/**
+ * 사용자 상세 정보 API 호출
+ */
+export async function getUserDetail(userId: string): Promise<UserDetailResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${API_BASE_URL}/api/v1/users-admin/${userId}`
+  
+  if (isDev) {
+    console.log('[API] 사용자 상세 정보 요청:', {
+      url,
+      userId,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] 사용자 상세 정보 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 사용자 상세 정보 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || `사용자 상세 정보 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 사용자 상세 정보 성공:', {
+        data: responseData.data,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    const userData = responseData.data
+    
+    if (!userData) {
+      return {
+        success: false,
+        error: '사용자 정보를 찾을 수 없습니다.',
+      }
+    }
+    
+    return {
+      success: true,
+      data: {
+        id: userData.id,
+        email: userData.email || '',
+        provider: userData.provider || 'EMAIL',
+        providerId: userData.providerId || null,
+        providerOrigin: userData.providerOrigin || null,
+        providerVerifiedAt: userData.providerVerifiedAt || null,
+        contact: userData.contact || null,
+        name: userData.name || null,
+        nickname: userData.nickname || '',
+        introduction: userData.introduction || null,
+        gender: userData.gender || 'secret',
+        dateOfBirth: userData.dateOfBirth || null,
+        marketingConsentDate: userData.marketingConsentDate || null,
+        createdAt: userData.createdAt || new Date().toISOString(),
+        updatedAt: userData.updatedAt || new Date().toISOString(),
+        lastLoginAt: userData.lastLoginAt || null,
+        withdrawalReason: userData.withdrawalReason || null,
+        deletedAt: userData.deletedAt || null,
+      },
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 사용자 상세 정보 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '사용자 상세 정보 조회 중 오류가 발생했습니다.',
     }
   }
 }

@@ -33,6 +33,26 @@
   overflow-y: auto;
 }
 
+.loadingMessage {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.errorMessage {
+  background: #fee;
+  color: #c33;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+  border: 1px solid #fcc;
+  font-size: 14px;
+}
+
 .filters {
   background: #fff;
   border-radius: 8px;
@@ -55,6 +75,65 @@
   font-size: 14px;
   font-weight: 500;
   color: #666;
+}
+
+.filterActions {
+  display: flex;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+.resetFilterButton {
+  padding: 8px 16px;
+  background: #fff;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.resetFilterButton:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.searchInputWrapper {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.searchInputWrapper .filterInput {
+  flex: 1;
+}
+
+.searchButton {
+  padding: 8px 16px;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.searchButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .filterSelect,
@@ -229,6 +308,22 @@
 
 .actionBtn.success:hover {
   background: #e8f5e9;
+}
+
+.providerCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.providerCell .email {
+  font-size: 13px;
+  color: #666;
+}
+
+.providerCell .provider {
+  font-size: 12px;
+  color: #999;
 }
 
 .emptyCell {
@@ -502,5 +597,347 @@
     font-size: 48px;
     margin-bottom: 16px;
   }
+}
+
+/* 페이징 스타일 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.paginationNavButton {
+  padding: 8px 12px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paginationNavButton:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.paginationNavButton:disabled {
+  background: #f5f5f5;
+  color: #ccc;
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+}
+
+.paginationNumbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.paginationNumberButton {
+  padding: 8px 12px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paginationNumberButton:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.paginationNumberButton.active {
+  background: #4a9eff;
+  color: #fff;
+  border-color: #4a9eff;
+  font-weight: 600;
+}
+
+.paginationNumberButton.active:hover {
+  background: #357abd;
+  border-color: #357abd;
+}
+
+.paginationNumberButton:disabled {
+  cursor: not-allowed;
+}
+
+.paginationEllipsis {
+  padding: 8px 4px;
+  color: #999;
+  font-size: 14px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 사용자 상세 정보 Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.detailModal {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.detailModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.detailModalTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.detailModalClose {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.detailModalClose:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.detailModalBody {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* 프로필 섹션 */
+.detailProfileSection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.detailProfile {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.detailProfile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detailProfile img[src=""],
+.detailProfile img:not([src]) {
+  display: none;
+}
+
+.detailProfilePlaceholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #4a9eff 0%, #357abd 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.detailProfileInfo {
+  flex: 1;
+}
+
+.detailProfileName {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 4px 0;
+}
+
+.detailProfileEmail {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.detailInfoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.detailInfoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detailInfoItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detailInfoItemFull {
+  grid-column: 1 / -1;
+}
+
+.detailInfoLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detailInfoValue {
+  font-size: 14px;
+  color: #1a1a1a;
+  word-break: break-word;
+}
+
+.detailModalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.detailModalActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.detailModalActionButton {
+  padding: 10px 24px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detailModalActionButton:hover {
+  background: #f5f5f5;
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.detailModalActionButton.warning {
+  color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.detailModalActionButton.warning:hover {
+  background: #fee;
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+.detailModalActionButton.success {
+  color: #27ae60;
+  border-color: #27ae60;
+}
+
+.detailModalActionButton.success:hover {
+  background: #eafaf1;
+  border-color: #229954;
+  color: #229954;
+}
+
+.detailModalButton {
+  padding: 10px 24px;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detailModalButton:hover {
+  background: #357abd;
 }
 

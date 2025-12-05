@@ -32,6 +32,9 @@ export default function LiveSpaceCreate() {
     thumbnail: '',
   })
   
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number
     lng: number
@@ -81,6 +84,9 @@ export default function LiveSpaceCreate() {
       }
     }
 
+    let checkIntervalId: NodeJS.Timeout | null = null
+    let scriptElement: HTMLScriptElement | null = null
+
     const loadNaverMapScript = () => {
       return new Promise<void>((resolve, reject) => {
         // 이미 로드되어 있으면 바로 resolve
@@ -93,9 +99,12 @@ export default function LiveSpaceCreate() {
         const existingScript = document.querySelector('script[src*="map.naver.com"]')
         if (existingScript) {
           // 스크립트가 있으면 로드 대기
-          const checkInterval = setInterval(() => {
+          checkIntervalId = setInterval(() => {
             if (window.naver && window.naver.maps) {
-              clearInterval(checkInterval)
+              if (checkIntervalId) {
+                clearInterval(checkIntervalId)
+                checkIntervalId = null
+              }
               resolve()
             }
           }, 100)
@@ -105,34 +114,41 @@ export default function LiveSpaceCreate() {
         // 스크립트 동적 추가 (신규 Maps API - NCP)
         // 참고: https://navermaps.github.io/maps.js.ncp/docs/tutorial-2-Getting-Started.html
         // 변경사항: ncpClientId → ncpKeyId로 변경
-        const script = document.createElement('script')
-        script.type = 'text/javascript'
+        scriptElement = document.createElement('script')
+        scriptElement.type = 'text/javascript'
         const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'v1hcn1ics0'
         // 신규 Maps API는 ncpKeyId를 사용합니다
-        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`
-        script.async = true
-        script.defer = true
+        scriptElement.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`
+        scriptElement.async = true
+        scriptElement.defer = true
         
-        script.onload = () => {
+        scriptElement.onload = () => {
           // 스크립트 로드 후 약간의 지연을 두고 확인
-          const checkInterval = setInterval(() => {
+          checkIntervalId = setInterval(() => {
             if (window.naver && window.naver.maps) {
-              clearInterval(checkInterval)
+              if (checkIntervalId) {
+                clearInterval(checkIntervalId)
+                checkIntervalId = null
+              }
               resolve()
             }
           }, 100)
         }
         
-        script.onerror = (error) => {
+        scriptElement.onerror = (error) => {
           console.error('네이버 맵 스크립트 로드 실패:', error)
+          if (checkIntervalId) {
+            clearInterval(checkIntervalId)
+            checkIntervalId = null
+          }
           reject(new Error('네이버 맵 API 스크립트 로드 실패. 네이버 클라우드 플랫폼 콘솔에서 웹 서비스 URL(http://localhost:3000/)을 등록했는지 확인해주세요.'))
         }
         
-        document.head.appendChild(script)
+        document.head.appendChild(scriptElement)
       })
     }
 
-    const initMap = () => {
+    const initMap = (): (() => void) | undefined => {
       if (!window.naver || !window.naver.maps) {
         console.error('네이버 맵 API가 로드되지 않았습니다.')
         if (mapRef.current) {
@@ -143,7 +159,7 @@ export default function LiveSpaceCreate() {
             </div>
           `
         }
-        return
+        return undefined
       }
 
       try {
@@ -162,6 +178,8 @@ export default function LiveSpaceCreate() {
 
         // 지도 중심 좌표 업데이트 함수
         const updateCenterLocation = () => {
+          if (!mapRef.current) return
+          
           const center = map.getCenter()
           const lat = center.lat()
           const lng = center.lng()
@@ -199,12 +217,25 @@ export default function LiveSpaceCreate() {
         // 초기 중심 좌표 설정
         updateCenterLocation()
 
+        // 지도 이벤트 리스너 저장
+        const eventListeners: any[] = []
+        
         // 지도 이동/드래그/줌 시 중심 좌표 업데이트
-        window.naver.maps.Event.addListener(map, 'dragend', updateCenterLocation)
-        window.naver.maps.Event.addListener(map, 'zoom_changed', updateCenterLocation)
-        window.naver.maps.Event.addListener(map, 'idle', updateCenterLocation)
-        // 지도 드래그 중에도 실시간으로 업데이트
-        window.naver.maps.Event.addListener(map, 'drag', updateCenterLocation)
+        const dragendListener = window.naver.maps.Event.addListener(map, 'dragend', updateCenterLocation)
+        const zoomListener = window.naver.maps.Event.addListener(map, 'zoom_changed', updateCenterLocation)
+        const idleListener = window.naver.maps.Event.addListener(map, 'idle', updateCenterLocation)
+        const dragListener = window.naver.maps.Event.addListener(map, 'drag', updateCenterLocation)
+        
+        eventListeners.push(dragendListener, zoomListener, idleListener, dragListener)
+        
+        // cleanup 함수에서 이벤트 리스너 제거를 위해 저장
+        return () => {
+          eventListeners.forEach(listener => {
+            if (listener && window.naver?.maps?.Event) {
+              window.naver.maps.Event.removeListener(listener)
+            }
+          })
+        }
       } catch (error) {
         console.error('네이버 맵 초기화 중 오류:', error)
         if (mapRef.current) {
@@ -215,15 +246,17 @@ export default function LiveSpaceCreate() {
             </div>
           `
         }
-        return
+        return undefined
       }
     }
+
+    let cleanupMap: (() => void) | undefined
 
     // 스크립트 로드 후 맵 초기화
     loadNaverMapScript()
       .then(() => {
         console.log('네이버 맵 스크립트 로드 성공, 맵 초기화 시작')
-        initMap()
+        cleanupMap = initMap()
       })
       .catch((error) => {
         console.error('네이버 맵 초기화 실패:', error)
@@ -268,6 +301,28 @@ export default function LiveSpaceCreate() {
           `
         }
       })
+
+    // Cleanup 함수
+    return () => {
+      // interval 정리
+      if (checkIntervalId) {
+        clearInterval(checkIntervalId)
+        checkIntervalId = null
+      }
+      
+      // 맵 이벤트 리스너 정리
+      if (cleanupMap) {
+        cleanupMap()
+      }
+      
+      // 맵 인스턴스 정리
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null
+      }
+      
+      // 스크립트는 전역적으로 사용되므로 제거하지 않음
+      // (다른 컴포넌트에서도 사용할 수 있음)
+    }
   }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -276,6 +331,50 @@ export default function LiveSpaceCreate() {
       ...prev,
       [name]: value,
     }))
+  }
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // 파일 크기 검증 (예: 5MB 제한)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('파일 크기는 5MB 이하여야 합니다.')
+        return
+      }
+      
+      // 이미지 파일인지 확인
+      if (!file.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드 가능합니다.')
+        return
+      }
+
+      setThumbnailFile(file)
+      
+      // 미리보기 생성
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string)
+        setFormData(prev => ({
+          ...prev,
+          thumbnail: reader.result as string, // base64로 저장
+        }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveThumbnail = () => {
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
+    setFormData(prev => ({
+      ...prev,
+      thumbnail: '',
+    }))
+    // input 파일 선택 초기화
+    const fileInput = document.getElementById('thumbnail') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -349,6 +448,13 @@ export default function LiveSpaceCreate() {
         thumbnail: '',
       })
       setSelectedLocation(null)
+      setThumbnailFile(null)
+      setThumbnailPreview(null)
+      // input 파일 선택 초기화
+      const fileInput = document.getElementById('thumbnail') as HTMLInputElement
+      if (fileInput) {
+        fileInput.value = ''
+      }
       
       setTimeout(() => {
         setShowSuccess(false)
@@ -454,9 +560,11 @@ export default function LiveSpaceCreate() {
               <div ref={mapRef} className={styles.map} />
               {/* 지도 위에 핀 아이콘 오버레이 */}
               <div ref={pinOverlayRef} className={styles.pinOverlay}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.pinIcon}>
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 0.5C14.5196 0.5 16.9362 1.50063 18.7178 3.28223C20.4994 5.06382 21.5 7.48044 21.5 10C21.5 13.7009 19.1331 17.0728 16.8633 19.4688C15.7181 20.6775 14.5744 21.6626 13.7178 22.3447C13.2893 22.686 12.9313 22.9521 12.6797 23.1338C12.5539 23.2247 12.4542 23.2944 12.3857 23.3418C12.3515 23.3655 12.3249 23.3841 12.3066 23.3965C12.2976 23.4026 12.29 23.4069 12.2852 23.4102C12.283 23.4116 12.2803 23.4141 12.2803 23.4141L12.2783 23.415L12.2773 23.416C12.1305 23.5139 11.9447 23.5264 11.7881 23.4531L11.7227 23.416L11.7197 23.4141C11.7197 23.4141 11.717 23.4116 11.7148 23.4102C11.71 23.4069 11.7024 23.4026 11.6934 23.3965C11.6751 23.3841 11.6485 23.3655 11.6143 23.3418C11.5458 23.2944 11.4461 23.2247 11.3203 23.1338C11.0687 22.9521 10.7107 22.686 10.2822 22.3447C9.42561 21.6626 8.28189 20.6775 7.13672 19.4688C4.86689 17.0728 2.5 13.7009 2.5 10C2.5 7.48044 3.50063 5.06382 5.28223 3.28223C7.06382 1.50063 9.48044 0.5 12 0.5ZM12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7Z" fill="#FF0000" stroke="#FFFFFF" strokeWidth="1"/>
-                </svg>
+                <img 
+                  src="/images/icon_aim.png" 
+                  alt="위치 선택" 
+                  className={styles.pinIcon}
+                />
               </div>
               {selectedLocation && (
                 <div className={styles.locationInfo}>
@@ -480,18 +588,55 @@ export default function LiveSpaceCreate() {
 
           <div className={styles.formGroup}>
             <label htmlFor="thumbnail" className={styles.label}>
-              썸네일 URL (선택)
+              썸네일 이미지 (선택)
             </label>
-            <input
-              id="thumbnail"
-              name="thumbnail"
-              type="url"
-              value={formData.thumbnail}
-              onChange={handleInputChange}
-              className={styles.input}
-              placeholder="https://example.com/image.jpg"
-              disabled={isSubmitting}
-            />
+            {!thumbnailPreview ? (
+              <div className={styles.fileUploadContainer}>
+                <input
+                  id="thumbnail"
+                  name="thumbnail"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailChange}
+                  className={styles.fileInput}
+                  disabled={isSubmitting}
+                />
+                <label htmlFor="thumbnail" className={styles.fileUploadLabel}>
+                  <span className={styles.fileUploadIcon}>📷</span>
+                  <span className={styles.fileUploadText}>이미지 파일 선택</span>
+                  <span className={styles.fileUploadHint}>(최대 5MB)</span>
+                </label>
+              </div>
+            ) : (
+              <div className={styles.thumbnailPreviewContainer}>
+                <div className={styles.thumbnailPreview}>
+                  <img src={thumbnailPreview} alt="썸네일 미리보기" />
+                  <button
+                    type="button"
+                    onClick={handleRemoveThumbnail}
+                    className={styles.removeThumbnailButton}
+                    disabled={isSubmitting}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className={styles.thumbnailInfo}>
+                  {thumbnailFile && (
+                    <div className={styles.thumbnailFileName}>
+                      {thumbnailFile.name} ({(thumbnailFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleRemoveThumbnail}
+                    className={styles.changeThumbnailButton}
+                    disabled={isSubmitting}
+                  >
+                    다른 이미지 선택
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={styles.formActions}>

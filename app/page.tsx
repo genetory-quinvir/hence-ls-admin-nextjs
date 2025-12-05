@@ -10,13 +10,13 @@ import styles from './page.module.css'
 const menuItems: MenuItem[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: '대시보드',
     icon: '📊',
   },
   {
     id: 'live-space',
     label: 'Live Space 관리',
-    icon: '🎥',
+    icon: '📍',
     children: [
       { id: 'live-space-create', label: '라이브 스페이스 생성' },
       { id: 'live-space-list', label: '전체 목록' },
@@ -27,7 +27,7 @@ const menuItems: MenuItem[] = [
   {
     id: 'users',
     label: '사용자 관리',
-    icon: '👥',
+    icon: '👫🏼',
     children: [
       { id: 'users-list', label: '전체 사용자 리스트' },
       { id: 'users-reported', label: '신고 접수된 사용자' },
