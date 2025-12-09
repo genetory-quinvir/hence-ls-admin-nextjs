@@ -53,6 +53,7 @@ const menuItems: MenuItem[] = [
       { id: 'reports-all', label: '전체 신고 내역' },
       { id: 'reports-pending', label: '처리 대기(미처리)' },
       { id: 'reports-completed', label: '처리 완료' },
+      { id: 'customer-voice', label: '고객의 소리' },
     ],
   },
   {

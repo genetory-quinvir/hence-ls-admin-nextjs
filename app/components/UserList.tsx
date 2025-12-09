@@ -6,6 +6,7 @@ import { User } from '../data/mockData'
 import { getUsersAdmin, UserListMeta, getUserDetail, UserDetail } from '../lib/api'
 import Modal from './Modal'
 import styles from './UserList.module.css'
+import * as XLSX from 'xlsx'
 
 interface UserListProps {
   menuId: string
@@ -17,6 +18,8 @@ export default function UserList({ menuId }: UserListProps) {
   const [keyword, setKeyword] = useState<string | undefined>(undefined) // 실제 API 호출에 사용되는 keyword
   const [filterRole, setFilterRole] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterMarketingConsent, setFilterMarketingConsent] = useState<string>('all')
+  const [filterJoinPeriod, setFilterJoinPeriod] = useState<string>('all')
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -34,6 +37,20 @@ export default function UserList({ menuId }: UserListProps) {
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null)
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [profileImageError, setProfileImageError] = useState(false)
+  const [sortField, setSortField] = useState<'nickname' | 'email' | 'createdAt' | 'activityScore' | 'points' | 'provider' | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  
+  // 정렬 핸들러
+  const handleSort = (field: 'nickname' | 'email' | 'createdAt' | 'activityScore' | 'points' | 'provider') => {
+    if (sortField === field) {
+      // 같은 필드를 클릭하면 정렬 순서 토글
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      // 다른 필드를 클릭하면 해당 필드로 정렬 (기본 오름차순)
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
   
   // 검색 버튼 클릭 핸들러
   const handleSearch = () => {
@@ -80,6 +97,7 @@ export default function UserList({ menuId }: UserListProps) {
             suspensionReason: u.suspensionReason,
             isWarned: u.isWarned,
             warnedAt: u.warnedAt,
+            marketingConsentDate: u.marketingConsentDate || null,
           }))
           
           // API에서 받은 데이터를 직접 사용 (완료되면 그때 화면 업데이트)
@@ -125,6 +143,8 @@ export default function UserList({ menuId }: UserListProps) {
     setSearchKeyword('')
     setKeyword(undefined)
     setFilterRole('all')
+    setFilterMarketingConsent('all')
+    setFilterJoinPeriod('all')
   }, [menuId])
   
   // 필터 변경 시 첫 페이지로 리셋 (페이지 이동 시에는 필터 유지)
@@ -132,13 +152,15 @@ export default function UserList({ menuId }: UserListProps) {
     if (menuId === 'users-list') {
       setCurrentPage(1)
     }
-  }, [filterRole, filterStatus, menuId])
+  }, [filterRole, filterStatus, filterMarketingConsent, filterJoinPeriod, menuId])
   
   // 필터 초기화 함수
   const handleResetFilters = () => {
     setSearchKeyword('')
     setKeyword(undefined)
     setFilterRole('all')
+    setFilterMarketingConsent('all')
+    setFilterJoinPeriod('all')
     if (menuId === 'users-reported') {
       setFilterStatus('all')
     } else if (menuId === 'users-sanctions') {
@@ -147,6 +169,60 @@ export default function UserList({ menuId }: UserListProps) {
       setFilterStatus('all')
     }
     setCurrentPage(1)
+  }
+  
+  // Excel 다운로드 함수
+  const handleDownloadExcel = () => {
+    try {
+      // 현재 필터링된 사용자 리스트를 Excel 형식으로 변환
+      const excelData = displayedUsers.map((user) => ({
+        '닉네임': user.nickname,
+        '이메일': user.email,
+        '프로바이더': getProviderLabel(user.provider),
+        '활동지수': user.activityScore,
+        '포인트': user.points,
+        '상태': user.isSuspended ? '정지' : user.isWarned ? '경고' : '정상',
+        '가입일': formatDate(user.createdAt),
+        '마케팅 활용 동의': user.marketingConsentDate ? '동의' : '미동의',
+        '성별': user.gender === 'male' ? '남성' : user.gender === 'female' ? '여성' : '비공개',
+        '생년월일': user.birthDate || '-',
+        '신고 횟수': user.reportedCount,
+      }))
+      
+      // 워크시트 생성
+      const worksheet = XLSX.utils.json_to_sheet(excelData)
+      
+      // 워크북 생성
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, '회원 리스트')
+      
+      // 컬럼 너비 설정
+      const columnWidths = [
+        { wch: 20 }, // 닉네임
+        { wch: 30 }, // 이메일
+        { wch: 12 }, // 프로바이더
+        { wch: 10 }, // 활동지수
+        { wch: 12 }, // 포인트
+        { wch: 10 }, // 상태
+        { wch: 15 }, // 가입일
+        { wch: 15 }, // 마케팅 활용 동의
+        { wch: 10 }, // 성별
+        { wch: 12 }, // 생년월일
+        { wch: 10 }, // 신고 횟수
+      ]
+      worksheet['!cols'] = columnWidths
+      
+      // 파일명 생성 (현재 날짜 포함)
+      const now = new Date()
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      const fileName = `회원리스트_${dateStr}.xlsx`
+      
+      // Excel 파일 다운로드
+      XLSX.writeFile(workbook, fileName)
+    } catch (error) {
+      console.error('Excel 다운로드 중 오류 발생:', error)
+      alert('Excel 파일 다운로드 중 오류가 발생했습니다.')
+    }
   }
   
   const getTitle = () => {
@@ -161,51 +237,138 @@ export default function UserList({ menuId }: UserListProps) {
         return '사용자 리스트'
     }
   }
+
+  const getProviderLabel = (provider: string) => {
+    const labels: Record<string, string> = {
+      naver: '네이버',
+      kakao: '카카오',
+      google: '구글',
+      apple: '애플'
+    }
+    return labels[provider] || provider
+  }
   
   // 표시할 사용자 리스트 결정
   const displayedUsers = useMemo(() => {
     // 전체 사용자 리스트는 API에서 받은 데이터 사용
+    let filtered: User[]
     if (menuId === 'users-list') {
-      return apiUsers
-    }
-    
-    // 다른 메뉴는 Mock 데이터 사용 (기존 로직 유지)
-    let filtered = [...users]
-    
-    // menuId에 따른 기본 필터
-    if (menuId === 'users-reported') {
-      // 신고 접수된 사용자: 신고가 있는 모든 사용자
-      filtered = filtered.filter(u => u.reportedCount > 0)
-    } else if (menuId === 'users-sanctions') {
-      // 제재/정지 관리: 정지된 사용자만
-      filtered = filtered.filter(u => u.isSuspended)
-    }
-    
-    // 추가 필터 적용
-    if (searchKeyword) {
-      const keywordLower = searchKeyword.toLowerCase()
-      filtered = filtered.filter(u => 
-        u.nickname.toLowerCase().includes(keywordLower) ||
-        u.email.toLowerCase().includes(keywordLower)
-      )
-    }
-    
-    if (filterRole !== 'all') {
-      filtered = filtered.filter(u => u.role === filterRole)
-    }
-    
-    if (filterStatus !== 'all') {
-      if (filterStatus === 'suspended') {
+      filtered = [...apiUsers]
+    } else {
+      // 다른 메뉴는 Mock 데이터 사용 (기존 로직 유지)
+      filtered = [...users]
+      
+      // menuId에 따른 기본 필터
+      if (menuId === 'users-reported') {
+        // 신고 접수된 사용자: 신고가 있는 모든 사용자
+        filtered = filtered.filter(u => u.reportedCount > 0)
+      } else if (menuId === 'users-sanctions') {
+        // 제재/정지 관리: 정지된 사용자만
         filtered = filtered.filter(u => u.isSuspended)
-      } else if (filterStatus === 'active') {
-        filtered = filtered.filter(u => !u.isSuspended && !u.isWarned)
-      } else if (filterStatus === 'warned') {
-        filtered = filtered.filter(u => u.isWarned)
+      }
+      
+      // 추가 필터 적용
+      if (searchKeyword) {
+        const keywordLower = searchKeyword.toLowerCase()
+        filtered = filtered.filter(u => 
+          u.nickname.toLowerCase().includes(keywordLower) ||
+          u.email.toLowerCase().includes(keywordLower)
+        )
+      }
+      
+      if (filterRole !== 'all') {
+        filtered = filtered.filter(u => u.role === filterRole)
+      }
+      
+      if (filterStatus !== 'all') {
+        if (filterStatus === 'suspended') {
+          filtered = filtered.filter(u => u.isSuspended)
+        } else if (filterStatus === 'active') {
+          filtered = filtered.filter(u => !u.isSuspended && !u.isWarned)
+        } else if (filterStatus === 'warned') {
+          filtered = filtered.filter(u => u.isWarned)
+        }
+      }
+      
+      if (filterMarketingConsent !== 'all') {
+        if (filterMarketingConsent === 'consented') {
+          filtered = filtered.filter(u => u.marketingConsentDate !== null && u.marketingConsentDate !== undefined)
+        } else if (filterMarketingConsent === 'notConsented') {
+          filtered = filtered.filter(u => !u.marketingConsentDate || u.marketingConsentDate === null)
+        }
       }
     }
     
+    // 가입 기간 필터 적용 (모든 메뉴에 공통)
+    if (filterJoinPeriod !== 'all') {
+      const now = new Date()
+      let startDate: Date
+      switch (filterJoinPeriod) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+          break
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          break
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          break
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+          break
+        case '1year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+          break
+        default:
+          startDate = new Date(0) // 모든 날짜
+      }
+      
+      filtered = filtered.filter(u => {
+        const createdAt = new Date(u.createdAt)
+        return createdAt >= startDate
+      })
+    }
+    
+    // 정렬 적용 (모든 메뉴에 공통 적용)
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let aValue: string | number
+        let bValue: string | number
+        
+        if (sortField === 'nickname') {
+          aValue = a.nickname.toLowerCase()
+          bValue = b.nickname.toLowerCase()
+        } else if (sortField === 'email') {
+          aValue = a.email.toLowerCase()
+          bValue = b.email.toLowerCase()
+        } else if (sortField === 'createdAt') {
+          aValue = new Date(a.createdAt).getTime()
+          bValue = new Date(b.createdAt).getTime()
+        } else if (sortField === 'activityScore') {
+          aValue = a.activityScore
+          bValue = b.activityScore
+        } else if (sortField === 'points') {
+          aValue = a.points
+          bValue = b.points
+        } else if (sortField === 'provider') {
+          aValue = getProviderLabel(a.provider).toLowerCase()
+          bValue = getProviderLabel(b.provider).toLowerCase()
+        } else {
+          return 0
+        }
+        
+        if (aValue < bValue) {
+          return sortOrder === 'asc' ? -1 : 1
+        }
+        if (aValue > bValue) {
+          return sortOrder === 'asc' ? 1 : -1
+        }
+        return 0
+      })
+    }
+    
     return filtered
-  }, [apiUsers, users, searchKeyword, filterRole, filterStatus, menuId])
+  }, [apiUsers, users, searchKeyword, filterRole, filterStatus, filterMarketingConsent, filterJoinPeriod, menuId, sortField, sortOrder])
 
   const handleDetail = async (user: User) => {
     setIsLoadingDetail(true)
@@ -344,17 +507,13 @@ export default function UserList({ menuId }: UserListProps) {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('ko-KR')
-  }
-
-  const getProviderLabel = (provider: string) => {
-    const labels: Record<string, string> = {
-      naver: '네이버',
-      kakao: '카카오',
-      google: '구글',
-      apple: '애플'
-    }
-    return labels[provider] || provider
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
   }
 
   return (
@@ -430,6 +589,35 @@ export default function UserList({ menuId }: UserListProps) {
             </select>
           </div>
 
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>마케팅 활용 동의</label>
+            <select 
+              className={styles.filterSelect}
+              value={filterMarketingConsent}
+              onChange={(e) => setFilterMarketingConsent(e.target.value)}
+            >
+              <option value="all">전체</option>
+              <option value="consented">동의</option>
+              <option value="notConsented">미동의</option>
+            </select>
+          </div>
+
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel}>가입 기간</label>
+            <select 
+              className={styles.filterSelect}
+              value={filterJoinPeriod}
+              onChange={(e) => setFilterJoinPeriod(e.target.value)}
+            >
+              <option value="all">전체</option>
+              <option value="today">오늘</option>
+              <option value="7days">최근 7일</option>
+              <option value="30days">최근 30일</option>
+              <option value="90days">최근 90일</option>
+              <option value="1year">최근 1년</option>
+            </select>
+          </div>
+
           <div className={styles.filterActions}>
             <button
               type="button"
@@ -437,6 +625,14 @@ export default function UserList({ menuId }: UserListProps) {
               onClick={handleResetFilters}
             >
               필터 초기화
+            </button>
+            <button
+              type="button"
+              className={styles.downloadButton}
+              onClick={handleDownloadExcel}
+              disabled={displayedUsers.length === 0}
+            >
+              Excel 다운로드
             </button>
           </div>
         </div>
@@ -447,21 +643,94 @@ export default function UserList({ menuId }: UserListProps) {
             <thead>
               <tr>
                 <th>프로필</th>
-                <th>닉네임</th>
-                <th>이메일</th>
-                <th>프로바이더</th>
-                <th>활동지수</th>
-                <th>포인트</th>
+                <th>
+                  <button 
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('nickname')}
+                  >
+                    닉네임
+                    {sortField === 'nickname' && (
+                      <span className={styles.sortIcon}>
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th>
+                  <button 
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('email')}
+                  >
+                    이메일
+                    {sortField === 'email' && (
+                      <span className={styles.sortIcon}>
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th>
+                  <button 
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('provider')}
+                  >
+                    프로바이더
+                    {sortField === 'provider' && (
+                      <span className={styles.sortIcon}>
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th>
+                  <button 
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('activityScore')}
+                  >
+                    활동지수
+                    {sortField === 'activityScore' && (
+                      <span className={styles.sortIcon}>
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th>
+                  <button 
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('points')}
+                  >
+                    포인트
+                    {sortField === 'points' && (
+                      <span className={styles.sortIcon}>
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                </th>
                 <th>상태</th>
-                <th>가입일</th>
+                <th>
+                  <button 
+                    className={styles.sortableHeader}
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    가입일
+                    {sortField === 'createdAt' && (
+                      <span className={styles.sortIcon}>
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th>마케팅 활용 동의</th>
                 <th>액션</th>
               </tr>
             </thead>
             <tbody>
               {displayedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className={styles.emptyCell}>
-                    {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all') ? (
+                  <td colSpan={10} className={styles.emptyCell}>
+                    {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all' || filterMarketingConsent !== 'all') ? (
                       '리스트가 없습니다.'
                     ) : (
                       menuId === 'users-reported'
@@ -508,6 +777,13 @@ export default function UserList({ menuId }: UserListProps) {
                     </td>
                     <td>{getStatusBadge(user)}</td>
                     <td>{formatDate(user.createdAt)}</td>
+                    <td>
+                      {user.marketingConsentDate ? (
+                        <span className={styles.consentBadge}>동의</span>
+                      ) : (
+                        <span className={styles.noConsentBadge}>미동의</span>
+                      )}
+                    </td>
                     <td>
                       <div className={styles.actions}>
                         <button 
@@ -560,7 +836,7 @@ export default function UserList({ menuId }: UserListProps) {
         <div className={styles.cardList}>
           {displayedUsers.length === 0 ? (
             <div className={styles.emptyCard}>
-              {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all') ? (
+              {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all' || filterMarketingConsent !== 'all') ? (
                 '리스트가 없습니다.'
               ) : (
                 menuId === 'users-reported'
@@ -609,6 +885,16 @@ export default function UserList({ menuId }: UserListProps) {
                     <div className={styles.cardInfoItem}>
                       <span className={styles.cardInfoLabel}>가입일</span>
                       <span className={styles.cardInfoValue}>{formatDate(user.createdAt)}</span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>마케팅 활용 동의</span>
+                      <span className={styles.cardInfoValue}>
+                        {user.marketingConsentDate ? (
+                          <span className={styles.consentBadge}>동의</span>
+                        ) : (
+                          <span className={styles.noConsentBadge}>미동의</span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>

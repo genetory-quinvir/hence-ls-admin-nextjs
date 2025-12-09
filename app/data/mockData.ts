@@ -48,6 +48,7 @@ export interface User {
   suspensionReason?: string
   isWarned?: boolean
   warnedAt?: string
+  marketingConsentDate?: string | null
 }
 
 export interface Feed {

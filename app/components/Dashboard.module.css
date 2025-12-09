@@ -39,9 +39,10 @@
 /* KPI 카드 그리드 */
 .kpiGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 16px;
   margin-bottom: 32px;
+  overflow-x: auto;
 }
 
 .kpiCard {
@@ -74,8 +75,27 @@
   font-size: 32px;
   font-weight: 700;
   color: #1a1a1a;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   line-height: 1.2;
+}
+
+.kpiSubValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.subValueLabel {
+  color: #666;
+  font-size: 13px;
+}
+
+.subValueNumber {
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 18px;
 }
 
 .kpiChange {
@@ -123,7 +143,7 @@
 /* 차트 그리드 */
 .chartsGrid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-bottom: 32px;
 }
@@ -230,6 +250,27 @@
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  outline: none;
+}
+
+.chartWidget:focus {
+  outline: none;
+}
+
+.chartWidget svg {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  outline: none;
+}
+
+.chartWidget svg:focus {
+  outline: none;
 }
 
 .chartHeader {
@@ -258,6 +299,37 @@
 
 .chartContent {
   width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  outline: none;
+}
+
+.chartContent:focus {
+  outline: none;
+}
+
+.chartContent * {
+  outline: none;
+}
+
+.chartContent *:focus {
+  outline: none;
+}
+
+.chartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.growthRateChart {
+  padding-bottom: 0;
+}
+
+.mainChart {
+  padding-top: 0;
 }
 
 .widgetGrid {
@@ -491,6 +563,298 @@
   border-top: 1px solid #e0e0e0;
 }
 
+.chartInfo {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.chartInfoLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chartInfoText {
+  font-size: 13px;
+  color: #666;
+}
+
+.chartInfoStats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.chartInfoStatItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chartInfoStatLabel {
+  font-size: 12px;
+  color: #666;
+}
+
+.chartInfoStatValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.chartInfoStatDivider {
+  width: 1px;
+  height: 40px;
+  background: #e0e0e0;
+}
+
+/* 알림 패널 */
+.notificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notificationItem {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #4a9eff;
+  transition: background 0.2s ease;
+}
+
+.notificationItem:hover {
+  background: #e9ecef;
+}
+
+.notificationCategory {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notificationContent {
+  font-size: 14px;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.importantBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #f44336;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.notificationDate {
+  font-size: 12px;
+  color: #999;
+}
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+/* 라이브 스페이스 수 카드 */
+.liveSpaceStats {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 0;
+}
+
+.liveSpaceStatRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.liveSpaceStatItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.liveSpaceStatLabel {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.liveSpaceStatValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.liveSpaceStatDivider {
+  width: 1px;
+  height: 50px;
+  background: #e0e0e0;
+}
+
+/* 하단 섹션 */
+.bottomSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.memberStatsCard {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.memberStatsHeader {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.memberStatsTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.memberStatsContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 24px;
+}
+
+.memberStatItem {
+  flex: 1;
+  text-align: center;
+}
+
+.memberStatLabel {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.memberStatValue {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.memberStatSubtext {
+  font-size: 12px;
+  color: #999;
+}
+
+.memberStatDivider {
+  width: 1px;
+  height: 60px;
+  background: #e0e0e0;
+}
+
+/* 랭킹 위젯 */
+.rankingWidget {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.rankingSubtitle {
+  font-size: 13px;
+  color: #666;
+  font-weight: 400;
+}
+
+.rankingTable {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.rankingTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rankingTable thead {
+  background: #f8f9fa;
+}
+
+.rankingTable th {
+  padding: 12px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.rankingTable td {
+  padding: 12px;
+  font-size: 14px;
+  color: #1a1a1a;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.rankingTable tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.rankingTable tbody tr.hasIssue {
+  background: #fff3e0;
+}
+
+.rankingTable tbody tr.hasIssue:hover {
+  background: #ffe0b2;
+}
+
+.rankingTitle {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.issueBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: #f44336;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.totalScore {
+  font-weight: 700;
+  color: #4a9eff;
+}
+
 /* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */
 @media (max-width: 768px) {
   .header {
@@ -577,6 +941,36 @@
 
   .chartTitle {
     font-size: 18px;
+  }
+
+  .bottomSection {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .memberStatsContent {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .memberStatDivider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .rankingTable {
+    font-size: 12px;
+  }
+
+  .rankingTable th,
+  .rankingTable td {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .notificationsList {
+    max-height: 300px;
   }
 }
 

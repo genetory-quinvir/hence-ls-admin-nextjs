@@ -480,6 +480,7 @@ export interface UserListItem {
   suspensionReason?: string
   isWarned?: boolean
   warnedAt?: string
+  marketingConsentDate?: string | null
 }
 
 export interface UserListMeta {
@@ -642,6 +643,7 @@ export async function getUsersAdmin(
         suspensionReason: undefined,
         isWarned: false, // API에서 제공되지 않음
         warnedAt: undefined,
+        marketingConsentDate: u.marketingConsentDate || null,
       })),
       meta: meta ? {
         currentPage: meta.currentPage || page,

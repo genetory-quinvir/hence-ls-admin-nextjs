@@ -9,6 +9,7 @@ import ReportList from './ReportList'
 import CommentList from './CommentList'
 import SystemManagement from './SystemManagement'
 import PushNotification from './PushNotification'
+import CustomerVoice from './CustomerVoice'
 import { useAuth } from '../context/AuthContext'
 import styles from './DetailView.module.css'
 
@@ -62,6 +63,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       case 'reports-pending':
       case 'reports-completed':
         return <ReportList menuId={menuId} />
+      case 'customer-voice':
+        return <CustomerVoice />
       
       // 앱 푸시
       case 'push-all':
