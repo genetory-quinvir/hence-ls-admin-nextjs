@@ -1,16 +1,18 @@
 'use client'
 
+import { ReactNode } from 'react'
 import styles from './Modal.module.css'
 
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title: string
-  message: string
+  message?: string
   confirmText?: string
   cancelText?: string
-  onConfirm: () => void
+  onConfirm?: () => void
   type?: 'danger' | 'warning' | 'info'
+  children?: ReactNode
 }
 
 export default function Modal({
@@ -21,13 +23,16 @@ export default function Modal({
   confirmText = '확인',
   cancelText = '취소',
   onConfirm,
-  type = 'info'
+  type = 'info',
+  children
 }: ModalProps) {
   if (!isOpen) return null
 
   const handleConfirm = () => {
-    onConfirm()
-    onClose()
+    if (onConfirm) {
+      onConfirm()
+      onClose()
+    }
   }
 
   return (
@@ -38,22 +43,24 @@ export default function Modal({
           <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
         <div className={styles.body}>
-          <p className={styles.message}>{message}</p>
+          {children ? children : message && <p className={styles.message}>{message}</p>}
         </div>
-        <div className={styles.footer}>
-          <button 
-            className={`${styles.button} ${styles.cancelButton}`}
-            onClick={onClose}
-          >
-            {cancelText}
-          </button>
-          <button 
-            className={`${styles.button} ${styles.confirmButton} ${styles[type]}`}
-            onClick={handleConfirm}
-          >
-            {confirmText}
-          </button>
-        </div>
+        {onConfirm && (
+          <div className={styles.footer}>
+            <button 
+              className={`${styles.button} ${styles.cancelButton}`}
+              onClick={onClose}
+            >
+              {cancelText}
+            </button>
+            <button 
+              className={`${styles.button} ${styles.confirmButton} ${styles[type]}`}
+              onClick={handleConfirm}
+            >
+              {confirmText}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
