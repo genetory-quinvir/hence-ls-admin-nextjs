@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMockData } from '../context/MockDataContext'
+import { getDashboardSummary, DashboardSummary } from '../lib/api'
 import styles from './Dashboard.module.css'
 import {
   LineChart,
@@ -14,7 +15,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  LabelList
 } from 'recharts'
 
 type TimeRange = 'daily' | 'weekly' | 'monthly'
@@ -33,6 +35,81 @@ export default function Dashboard() {
   
   const [timeRange, setTimeRange] = useState<TimeRange>('daily')
   const [selectedCard, setSelectedCard] = useState<CardType>('liveSpace')
+  const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  // API에서 대시보드 데이터 불러오기
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+      
+      try {
+        // period와 range 매핑: timeRange를 API에 맞게 변환
+        const now = new Date()
+        let periodFrom: Date
+        let periodTo: Date
+        let range: string
+        
+        if (timeRange === 'daily') {
+          // 최근 7일
+          periodFrom = new Date(now)
+          periodFrom.setDate(now.getDate() - 6) // 7일 전부터
+          periodFrom.setHours(0, 0, 0, 0)
+          periodTo = new Date(now)
+          periodTo.setHours(23, 59, 59, 599)
+          range = '7d' // 7일
+        } else if (timeRange === 'weekly') {
+          // 최근 4주
+          periodFrom = new Date(now)
+          periodFrom.setDate(now.getDate() - 27) // 28일 전부터
+          periodFrom.setHours(0, 0, 0, 0)
+          periodTo = new Date(now)
+          periodTo.setHours(23, 59, 59, 599)
+          range = '4w' // 4주
+        } else {
+          // 최근 6개월
+          periodFrom = new Date(now)
+          periodFrom.setMonth(now.getMonth() - 5) // 6개월 전부터
+          periodFrom.setDate(1) // 해당 월의 1일
+          periodFrom.setHours(0, 0, 0, 0)
+          periodTo = new Date(now)
+          periodTo.setHours(23, 59, 59, 599)
+          range = '6m' // 6개월
+        }
+        
+        // ISO 형식으로 변환
+        const periodFromStr = periodFrom.toISOString().slice(0, 19) // '2025-11-10T00:00:00'
+        const periodToStr = periodTo.toISOString().slice(0, 19) + '.599' // '2025-12-10T23:59:59.599'
+        
+        const response = await getDashboardSummary(periodFromStr, periodToStr, range)
+        
+        if (response.success && response.data) {
+          setDashboardData(response.data)
+        } else {
+          setLoadError(response.error || '대시보드 데이터를 불러오는데 실패했습니다.')
+        }
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : '대시보드 데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadDashboardData()
+  }, [timeRange]) // timeRange가 변경되면 다시 로드
+
+  // API 데이터에서 값 가져오기, 없으면 Mock 데이터 사용
+  const freshmen = dashboardData?.users?.freshmen ?? 0 // 신규 가입자
+  const withdrawalUsers = dashboardData?.users?.withdrawalUsers ?? 0 // 탈퇴자
+  const cumulativeUsers = dashboardData?.users?.cumulativeUsers ?? users.length // 누적 가입자
+  const newFeeds = dashboardData?.feeds?.newFeeds ?? 0 // 신규 게시물
+  const cumulativeFeeds = dashboardData?.feeds?.cumulativeFeeds ?? feeds.length // 누적 게시물
+  const memberCount = dashboardData?.spaces?.memberCount ?? 0 // 스페이스 게시 회원수
+  const newSpace = dashboardData?.spaces?.newSpace ?? 0 // 신규 라이브 스페이스 수
+  const liveSpace = dashboardData?.spaces?.liveSpace ?? 0 // 진행중인 스페이스 수
+  const cumulativeSpace = dashboardData?.spaces?.cumulativeSpace ?? liveSpaces.length // 전체 누적 스페이스 수
 
   // 오늘 날짜 기준 계산
   const today = new Date()
@@ -101,8 +178,41 @@ export default function Dashboard() {
     return { value: Math.abs(change), isPositive: change >= 0 }
   }
 
-  // KPI 데이터
+  // KPI 데이터: API 데이터 우선 사용
   const kpiData = useMemo(() => {
+    // API 데이터가 있으면 사용
+    if (dashboardData) {
+      // API에서는 trend 데이터를 통해 증감률을 계산할 수 있지만, 여기서는 기본값 사용
+      // 실제로는 trend.today와 이전 기간의 total을 비교해야 함
+      return {
+        liveSpaces: {
+          current: cumulativeSpace, // 전체 누적 스페이스 수
+          previous: cumulativeSpace - newSpace, // 추정값 (이전 = 현재 - 신규)
+          change: { value: 0, isPositive: true }, // API trend 데이터로 계산 필요
+          percentage: (liveSpace / cumulativeSpace) * 100 || 0 // 진행중인 스페이스 비율
+        },
+        users: {
+          current: cumulativeUsers, // 누적 가입자
+          previous: cumulativeUsers - freshmen, // 추정값 (이전 = 현재 - 신규)
+          change: { value: 0, isPositive: true }, // API trend 데이터로 계산 필요
+          percentage: (freshmen / cumulativeUsers) * 100 || 0 // 신규 가입자 비율
+        },
+        feeds: {
+          current: cumulativeFeeds, // 누적 게시물
+          previous: cumulativeFeeds - newFeeds, // 추정값 (이전 = 현재 - 신규)
+          change: { value: 0, isPositive: true }, // API trend 데이터로 계산 필요
+          percentage: (newFeeds / cumulativeFeeds) * 100 || 0 // 신규 게시물 비율
+        },
+        reports: {
+          current: reports.length, // Mock 데이터 유지
+          previous: lastPeriodReports.length,
+          change: calculateChange(reports.length, lastPeriodReports.length),
+          percentage: (pendingReports.length / reports.length) * 100 || 0
+        }
+      }
+    }
+    
+    // API 데이터가 없으면 기존 로직 (Mock 데이터 기반)
     const liveSpaceChange = calculateChange(liveSpaces.length, lastPeriodLiveSpaces.length)
     const userChange = calculateChange(users.length, lastPeriodUsers.length)
     const feedChange = calculateChange(feeds.length, lastPeriodFeeds.length)
@@ -134,7 +244,7 @@ export default function Dashboard() {
         percentage: (pendingReports.length / reports.length) * 100 || 0
       }
     }
-  }, [liveSpaces, users, feeds, reports, liveCount, todayUsers, todayFeeds, pendingReports, lastPeriodLiveSpaces, lastPeriodUsers, lastPeriodFeeds, lastPeriodReports])
+  }, [dashboardData, cumulativeSpace, newSpace, liveSpace, cumulativeUsers, freshmen, cumulativeFeeds, newFeeds, liveSpaces, users, feeds, reports, liveCount, todayUsers, todayFeeds, pendingReports, lastPeriodLiveSpaces, lastPeriodUsers, lastPeriodFeeds, lastPeriodReports])
 
   // 날짜별 데이터 그룹화 함수
   const groupDataByDate = <T extends { createdAt: string }>(
@@ -265,14 +375,42 @@ export default function Dashboard() {
 
   // 가입자 추이 데이터 (가입자 수 막대 그래프 + 성장률 선 그래프)
   const userTrendData = useMemo(() => {
-    // 목업 데이터 생성
+    // API 데이터가 있으면 사용
+    if (dashboardData?.users?.trend?.points && dashboardData.users.trend.points.length > 0) {
+      const trendPoints = dashboardData.users.trend.points
+      
+      // 성장률 계산: 전일/전주/전월 대비 증가율 (%)
+      return trendPoints.map((point, index) => {
+        const signups = point.count || 0
+        const label = point.label || ''
+        
+        // 이전 기간 가입자 수
+        const previousSignups = index > 0 ? (trendPoints[index - 1].count || 0) : signups
+        
+        // 성장률 계산: (현재 가입자 - 이전 가입자) / 이전 가입자 * 100
+        let growthRate = 0
+        if (previousSignups > 0) {
+          growthRate = ((signups - previousSignups) / previousSignups) * 100
+        } else if (signups > 0) {
+          growthRate = 100
+        }
+        
+        // 성장률 반올림
+        const roundedGrowthRate = Math.round(growthRate)
+        
+        return {
+          date: label,
+          signups,
+          "가입자 수": signups,
+          growthRate: roundedGrowthRate,
+          "성장률": roundedGrowthRate
+        }
+      })
+    }
+    
+    // API 데이터가 없으면 기존 Mock 데이터 사용
     const now = new Date()
     let mockData: { date: string; signups: number }[] = []
-    
-    // 누적 가입자 수를 342320명으로 맞추기 위한 데이터
-    // 일간: 하루 평균 약 490명 (342320 / 700일 가정)
-    // 주간: 주당 평균 약 3423명
-    // 월간: 월 평균 약 57053명
     
     if (timeRange === 'daily') {
       // 최근 7일 목업 데이터
@@ -339,15 +477,47 @@ export default function Dashboard() {
         "성장률": roundedGrowthRate
       }
     })
-  }, [timeRange])
+  }, [dashboardData, timeRange])
 
   // 라이브 스페이스 추이 데이터 (라이브 스페이스 생성 수 막대 그래프 + 성장률 선 그래프)
   const liveSpaceTrendData = useMemo(() => {
-    // 목업 데이터 생성
+    // API 데이터가 있으면 사용
+    if (dashboardData?.spaces?.trend?.points && dashboardData.spaces.trend.points.length > 0) {
+      const trendPoints = dashboardData.spaces.trend.points
+      
+      // 성장률 계산: 전일/전주/전월 대비 증가율 (%)
+      return trendPoints.map((point, index) => {
+        const created = point.count || 0
+        const label = point.label || ''
+        
+        // 이전 기간 생성 수
+        const previousCreated = index > 0 ? (trendPoints[index - 1].count || 0) : created
+        
+        // 성장률 계산: (현재 생성 수 - 이전 생성 수) / 이전 생성 수 * 100
+        let growthRate = 0
+        if (previousCreated > 0) {
+          growthRate = ((created - previousCreated) / previousCreated) * 100
+        } else if (created > 0) {
+          growthRate = 100
+        }
+        
+        // 성장률 반올림
+        const roundedGrowthRate = Math.round(growthRate)
+        
+        return {
+          date: label,
+          created,
+          "스페이스 생성": created,
+          growthRate: roundedGrowthRate,
+          "성장률": roundedGrowthRate
+        }
+      })
+    }
+    
+    // API 데이터가 없으면 기존 Mock 데이터 사용
     const now = new Date()
     let mockData: { date: string; created: number }[] = []
     
-    // 누적 라이브 스페이스 수를 고려한 데이터
     if (timeRange === 'daily') {
       // 최근 7일 목업 데이터
       const dailyCreated = [12, 18, 15, 20, 14, 19, 16] // 일별 생성 수
@@ -413,14 +583,23 @@ export default function Dashboard() {
         "성장률": roundedGrowthRate
       }
     })
-  }, [timeRange])
+  }, [dashboardData, timeRange])
 
-  // 라이브 스페이스 게시 회원수 계산
+  // 라이브 스페이스 게시 회원수: API 데이터 사용, 없으면 기존 로직 사용
   const liveSpacePostUsers = useMemo(() => {
-    // 라이브 스페이스를 게시한 회원 ID 집합
+    // API 데이터가 있으면 사용
+    if (dashboardData?.spaces?.memberCount !== undefined) {
+      return {
+        new: newSpace, // 신규 라이브 스페이스 수
+        total: memberCount, // 스페이스 게시 회원수
+        totalUsers: cumulativeUsers, // 누적 가입자
+        percentage: (memberCount / cumulativeUsers) * 100 || 0
+      }
+    }
+    
+    // 없으면 기존 로직 (Mock 데이터 기반)
     const postedUserIds = new Set(liveSpaces.map(ls => ls.hostId))
     
-    // 오늘 게시한 회원
     const todayPostedUserIds = new Set(
       liveSpaces
         .filter(ls => {
@@ -436,10 +615,16 @@ export default function Dashboard() {
       totalUsers: users.length,
       percentage: (postedUserIds.size / users.length) * 100 || 0
     }
-  }, [liveSpaces, users, today])
+  }, [dashboardData, memberCount, newSpace, cumulativeUsers, liveSpaces, users, today])
 
-  // 라이브 스페이스 랭킹 계산 (체크인수 + 코멘트 + 댓글 + 피드 게시)
+  // 라이브 스페이스 랭킹: API에서 받은 popularSpace 사용, 없으면 기존 로직 사용
   const liveSpaceRanking = useMemo(() => {
+    // API에서 받은 인기 라이브 스페이스가 있으면 사용 (popularSpace 필드명 주의)
+    if (dashboardData?.spaces?.popularSpace && dashboardData.spaces.popularSpace.length > 0) {
+      return dashboardData.spaces.popularSpace.slice(0, 10)
+    }
+    
+    // 없으면 기존 로직 (Mock 데이터 기반)
     return liveSpaces.map(ls => {
       // 해당 라이브 스페이스의 피드들
       const spaceFeeds = feeds.filter(f => f.liveSpaceId === ls.id)
@@ -464,10 +649,16 @@ export default function Dashboard() {
     })
       .sort((a, b) => b.score - a.score)
       .slice(0, 10) // 상위 10개
-  }, [liveSpaces, feeds, comments])
+  }, [dashboardData, liveSpaces, feeds, comments])
 
-  // 인기 피드 랭킹 계산 (좋아요 수 + 댓글 수 기준)
+  // 인기 피드 랭킹: API에서 받은 popularFeeds 사용, 없으면 기존 로직 사용
   const popularFeedsRanking = useMemo(() => {
+    // API에서 받은 인기 피드가 있으면 사용
+    if (dashboardData?.feeds?.popularFeeds && dashboardData.feeds.popularFeeds.length > 0) {
+      return dashboardData.feeds.popularFeeds.slice(0, 10)
+    }
+    
+    // 없으면 기존 로직 (Mock 데이터 기반)
     return feeds.map(feed => {
       // 점수 계산: 좋아요 수 + 댓글 수
       const score = feed.likeCount + feed.commentCount
@@ -479,7 +670,7 @@ export default function Dashboard() {
     })
       .sort((a, b) => b.score - a.score)
       .slice(0, 10) // 상위 10개
-  }, [feeds])
+  }, [dashboardData, feeds])
 
   // 알림 데이터 (최근 공지사항)
   const recentNotices = useMemo(() => {
@@ -487,6 +678,11 @@ export default function Dashboard() {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 8)
   }, [notices])
+
+  // 로딩 중이면 빈 화면 표시
+  if (isLoading) {
+    return null
+  }
 
   return (
     <div className={styles.dashboard}>
@@ -525,7 +721,7 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>신규 가입자</h3>
             </div>
-            <div className={styles.kpiValue}>{todayUsers.length.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{freshmen.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
@@ -539,7 +735,7 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>탈퇴자</h3>
             </div>
-            <div className={styles.kpiValue}>0</div>
+            <div className={styles.kpiValue}>{withdrawalUsers.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
@@ -553,7 +749,7 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>누적 가입자</h3>
             </div>
-            <div className={styles.kpiValue}>342,320</div>
+            <div className={styles.kpiValue}>{cumulativeUsers.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
@@ -567,11 +763,11 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>신규 게시물</h3>
             </div>
-            <div className={styles.kpiValue}>{todayFeeds.length.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{newFeeds.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
-                style={{ width: `${Math.min((todayFeeds.length / feeds.length) * 100, 100)}%`, backgroundColor: '#ff9800' }}
+                style={{ width: `${Math.min((newFeeds / cumulativeFeeds) * 100, 100)}%`, backgroundColor: '#ff9800' }}
               />
             </div>
           </div>
@@ -581,7 +777,7 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>스페이스 게시 회원수</h3>
             </div>
-            <div className={styles.kpiValue}>{liveSpacePostUsers.new.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{memberCount.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
@@ -595,7 +791,7 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>누적 게시물</h3>
             </div>
-            <div className={styles.kpiValue}>{feeds.length.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{cumulativeFeeds.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
@@ -609,11 +805,11 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>신규 라이브 스페이스 수</h3>
             </div>
-            <div className={styles.kpiValue}>{todayLiveSpaces.length.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{newSpace.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
-                style={{ width: `${Math.min((todayLiveSpaces.length / liveSpaces.length) * 100, 100)}%`, backgroundColor: '#e91e63' }}
+                style={{ width: `${Math.min((newSpace / cumulativeSpace) * 100, 100)}%`, backgroundColor: '#e91e63' }}
               />
             </div>
           </div>
@@ -623,11 +819,11 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>진행 중인 스페이스 수</h3>
             </div>
-            <div className={styles.kpiValue}>{liveCount.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{liveSpace.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
-                style={{ width: `${Math.min((liveCount / liveSpaces.length) * 100, 100)}%`, backgroundColor: '#ff5722' }}
+                style={{ width: `${Math.min((liveSpace / cumulativeSpace) * 100, 100)}%`, backgroundColor: '#ff5722' }}
               />
             </div>
           </div>
@@ -637,7 +833,7 @@ export default function Dashboard() {
             <div className={styles.kpiHeader}>
               <h3 className={styles.kpiTitle}>전체 누적 스페이스 수</h3>
             </div>
-            <div className={styles.kpiValue}>{liveSpaces.length.toLocaleString()}</div>
+            <div className={styles.kpiValue}>{cumulativeSpace.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
               <div 
                 className={styles.kpiProgressBar} 
@@ -683,12 +879,12 @@ export default function Dashboard() {
                   <div className={styles.chartInfoStats}>
                     <div className={styles.chartInfoStatItem}>
                       <span className={styles.chartInfoStatLabel}>오늘 가입자</span>
-                      <span className={styles.chartInfoStatValue}>{todayUsers.length.toLocaleString()}</span>
+                      <span className={styles.chartInfoStatValue}>{freshmen.toLocaleString()}</span>
                     </div>
                     <div className={styles.chartInfoStatDivider}></div>
                     <div className={styles.chartInfoStatItem}>
                       <span className={styles.chartInfoStatLabel}>누적 가입자</span>
-                      <span className={styles.chartInfoStatValue}>342,320</span>
+                      <span className={styles.chartInfoStatValue}>{cumulativeUsers.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -731,7 +927,7 @@ export default function Dashboard() {
                 {/* 가입자 수 막대 그래프 (하단) */}
                 <div className={styles.mainChart}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={userTrendData} margin={{ top: 0, right: 5, left: 5, bottom: 5 }} barCategoryGap="20%">
+                    <BarChart data={userTrendData} margin={{ top: 20, right: 5, left: 5, bottom: 5 }} barCategoryGap="20%">
                       <XAxis 
                         dataKey="date" 
                         type="category"
@@ -753,7 +949,14 @@ export default function Dashboard() {
                         dataKey="가입자 수" 
                         fill="#ff9800" 
                         barSize={40}
-                      />
+                      >
+                        <LabelList 
+                          dataKey="가입자 수" 
+                          position="top" 
+                          style={{ fill: '#666', fontSize: '12px', fontWeight: '500' }}
+                          formatter={(value: any) => typeof value === 'number' ? value.toLocaleString() : value}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -795,12 +998,12 @@ export default function Dashboard() {
                   <div className={styles.chartInfoStats}>
                     <div className={styles.chartInfoStatItem}>
                       <span className={styles.chartInfoStatLabel}>오늘 생성</span>
-                      <span className={styles.chartInfoStatValue}>{todayLiveSpaces.length.toLocaleString()}</span>
+                      <span className={styles.chartInfoStatValue}>{newSpace.toLocaleString()}</span>
                     </div>
                     <div className={styles.chartInfoStatDivider}></div>
                     <div className={styles.chartInfoStatItem}>
                       <span className={styles.chartInfoStatLabel}>전체</span>
-                      <span className={styles.chartInfoStatValue}>1,002,423</span>
+                      <span className={styles.chartInfoStatValue}>{cumulativeSpace.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -843,7 +1046,7 @@ export default function Dashboard() {
                 {/* 생성 수 막대 그래프 (하단) */}
                 <div className={styles.mainChart}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={liveSpaceTrendData} margin={{ top: 0, right: 5, left: 5, bottom: 5 }} barCategoryGap="20%">
+                    <BarChart data={liveSpaceTrendData} margin={{ top: 20, right: 5, left: 5, bottom: 5 }} barCategoryGap="20%">
                       <XAxis 
                         dataKey="date" 
                         type="category"
@@ -865,7 +1068,14 @@ export default function Dashboard() {
                         dataKey="스페이스 생성" 
                         fill="#4a9eff" 
                         barSize={40}
-                      />
+                      >
+                        <LabelList 
+                          dataKey="스페이스 생성" 
+                          position="top" 
+                          style={{ fill: '#666', fontSize: '12px', fontWeight: '500' }}
+                          formatter={(value: any) => typeof value === 'number' ? value.toLocaleString() : value}
+                        />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -899,23 +1109,58 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {liveSpaceRanking.map((ls, index) => (
-                    <tr key={ls.id} className={ls.reportedCount > 0 ? styles.hasIssue : ''}>
-                      <td>{index + 1}</td>
-                      <td className={styles.rankingTitle}>
-                        {ls.title || '(제목 없음)'}
-                        {ls.reportedCount > 0 && (
-                          <span className={styles.issueBadge}>이슈</span>
-                        )}
-                      </td>
-                      <td>{ls.hostNickname}</td>
-                      <td>{ls.checkInCount}</td>
-                      <td>{ls.commentCount}</td>
-                      <td>{ls.replyCount}</td>
-                      <td>{ls.feedCount}</td>
-                      <td className={styles.totalScore}>{ls.score}</td>
-                    </tr>
-                  ))}
+                  {liveSpaceRanking.map((ls, index) => {
+                    // API 응답 구조 확인: PopularSpace 타입인지 확인
+                    const isPopularSpace = 'rank' in ls && 'participantCount' in ls
+                    
+                    if (isPopularSpace) {
+                      // API 응답 (PopularSpace 타입)
+                      const space = ls as any
+                      const title = space.title || '(제목 없음)'
+                      const hostNickname = space.nickname || '알 수 없음'
+                      const participantCount = space.participantCount || 0
+                      const feedCommentCount = space.feedCommentCount || 0
+                      const feedCount = space.feedCount || 0
+                      const score = space.score || 0
+                      const displayRank = space.rank || index + 1
+                      
+                      return (
+                        <tr key={space.id || index}>
+                          <td>{displayRank}</td>
+                          <td className={styles.rankingTitle}>{title}</td>
+                          <td>{hostNickname}</td>
+                          <td>{participantCount}</td>
+                          <td>{feedCommentCount}</td>
+                          <td>{0}</td>
+                          <td>{feedCount}</td>
+                          <td className={styles.totalScore}>{score}</td>
+                        </tr>
+                      )
+                    } else {
+                      // Mock 데이터 구조
+                      const space = ls as any
+                      const title = space.title || '(제목 없음)'
+                      const hostNickname = space.hostNickname || '알 수 없음'
+                      const checkInCount = space.checkInCount || 0
+                      const commentCount = space.commentCount || 0
+                      const replyCount = space.replyCount || 0
+                      const feedCount = space.feedCount || 0
+                      const score = space.score || (checkInCount + commentCount + replyCount + feedCount)
+                      
+                      return (
+                        <tr key={space.id || index}>
+                          <td>{index + 1}</td>
+                          <td className={styles.rankingTitle}>{title}</td>
+                          <td>{hostNickname}</td>
+                          <td>{checkInCount}</td>
+                          <td>{commentCount}</td>
+                          <td>{replyCount}</td>
+                          <td>{feedCount}</td>
+                          <td className={styles.totalScore}>{score}</td>
+                        </tr>
+                      )
+                    }
+                  })}
                 </tbody>
               </table>
             </div>
@@ -943,22 +1188,62 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {popularFeedsRanking.map((feed, index) => (
-                    <tr key={feed.id} className={feed.reportedCount > 0 ? styles.hasIssue : ''}>
-                      <td>{index + 1}</td>
-                      <td className={styles.rankingTitle}>
-                        {feed.content.length > 30 ? `${feed.content.substring(0, 30)}...` : feed.content}
-                        {feed.reportedCount > 0 && (
-                          <span className={styles.issueBadge}>이슈</span>
-                        )}
-                      </td>
-                      <td>{feed.authorNickname}</td>
-                      <td>{feed.liveSpaceTitle}</td>
-                      <td>{feed.likeCount}</td>
-                      <td>{feed.commentCount}</td>
-                      <td className={styles.totalScore}>{feed.score}</td>
-                    </tr>
-                  ))}
+                  {popularFeedsRanking.map((feed, index) => {
+                    // API 응답 구조 확인: PopularFeed 타입인지 확인
+                    const isPopularFeed = 'rank' in feed && 'nickname' in feed
+                    
+                    if (isPopularFeed) {
+                      // API 응답 (PopularFeed 타입): title은 라이브 스페이스 제목
+                      const feedData = feed as any
+                      const title = feedData.title || '(제목 없음)'
+                      const authorNickname = feedData.nickname || '알 수 없음'
+                      const likeCount = feedData.likeCount || 0
+                      const commentCount = feedData.commentCount || 0
+                      const score = feedData.score || 0
+                      const displayRank = feedData.rank || index + 1
+                      
+                      return (
+                        <tr key={feedData.id || index}>
+                          <td>{displayRank}</td>
+                          <td className={styles.rankingTitle}>
+                            {title.length > 30 ? `${title.substring(0, 30)}...` : title}
+                          </td>
+                          <td>{authorNickname}</td>
+                          <td>{title}</td>
+                          <td>{likeCount}</td>
+                          <td>{commentCount}</td>
+                          <td className={styles.totalScore}>{score}</td>
+                        </tr>
+                      )
+                    } else {
+                      // Mock 데이터 구조
+                      const feedData = feed as any
+                      const content = feedData.content || feedData.text || '(내용 없음)'
+                      const authorNickname = feedData.authorNickname || '알 수 없음'
+                      const liveSpaceTitle = feedData.liveSpaceTitle || '-'
+                      const likeCount = feedData.likeCount || 0
+                      const commentCount = feedData.commentCount || 0
+                      const reportedCount = feedData.reportedCount || 0
+                      const score = feedData.score || (likeCount + commentCount)
+                      
+                      return (
+                        <tr key={feedData.id || index} className={reportedCount > 0 ? styles.hasIssue : ''}>
+                          <td>{index + 1}</td>
+                          <td className={styles.rankingTitle}>
+                            {content.length > 30 ? `${content.substring(0, 30)}...` : content}
+                            {reportedCount > 0 && (
+                              <span className={styles.issueBadge}>이슈</span>
+                            )}
+                          </td>
+                          <td>{authorNickname}</td>
+                          <td>{liveSpaceTitle}</td>
+                          <td>{likeCount}</td>
+                          <td>{commentCount}</td>
+                          <td className={styles.totalScore}>{score}</td>
+                        </tr>
+                      )
+                    }
+                  })}
                 </tbody>
               </table>
             </div>

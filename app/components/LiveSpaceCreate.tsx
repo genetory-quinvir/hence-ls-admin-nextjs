@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useMockData } from '../context/MockDataContext'
 import { LiveSpaceCategory } from '../data/mockData'
+import { createLiveSpaceAdmin, CreateLiveSpaceRequest, uploadLiveSpaceThumbnail } from '../lib/api'
 import Modal from './Modal'
 import styles from './LiveSpaceCreate.module.css'
 
@@ -24,6 +25,8 @@ export default function LiveSpaceCreate() {
   // 폼 상태
   const [formData, setFormData] = useState({
     title: '',
+    placeName: '',
+    description: '',
     category: '' as LiveSpaceCategory | '',
     scheduledStartTime: '',
     scheduledEndTime: '',
@@ -386,6 +389,11 @@ export default function LiveSpaceCreate() {
       return
     }
     
+    if (!formData.placeName.trim()) {
+      alert('장소명을 입력해주세요.')
+      return
+    }
+    
     if (!formData.category) {
       alert('카테고리를 선택해주세요.')
       return
@@ -395,51 +403,68 @@ export default function LiveSpaceCreate() {
       alert('지도에서 위치를 선택해주세요.')
       return
     }
+    
+    if (!formData.scheduledStartTime) {
+      alert('예정 시작 시간을 입력해주세요.')
+      return
+    }
+    
+    if (!formData.scheduledEndTime) {
+      alert('예정 종료 시간을 입력해주세요.')
+      return
+    }
 
     setIsSubmitting(true)
 
     try {
-      // 실제로는 API 호출
-      // await createLiveSpace(formData)
-      
-      // 시뮬레이션
       const lat = parseFloat(formData.lat)
       const lng = parseFloat(formData.lng)
+      const address = selectedLocation?.address || ''
       
-      // 위도/경도로부터 구/군 추정 (간단한 로직, 실제로는 역지오코딩 사용)
-      const districts = ['강남구', '마포구', '중구', '송파구', '강동구', '서초구']
-      const district = districts[Math.floor(Math.random() * districts.length)]
+      // ISO 8601 형식으로 변환
+      const startsAt = new Date(formData.scheduledStartTime).toISOString()
+      const endsAt = new Date(formData.scheduledEndTime).toISOString()
       
-      const newLiveSpace = {
-        id: `ls-${Date.now()}`,
-        title: formData.title,
-        hostNickname: 'Admin',
-        hostId: 'admin-001',
-        category: formData.category as LiveSpaceCategory,
-        status: 'live' as const,
-        createdAt: new Date().toISOString(),
-        scheduledStartTime: formData.scheduledStartTime || undefined,
-        scheduledEndTime: formData.scheduledEndTime || undefined,
-        location: {
-          lat,
-          lng,
-          address: selectedLocation?.address || `위도: ${lat}, 경도: ${lng}`,
-          district,
-        },
-        checkInCount: 0,
-        feedCount: 0,
-        reportedCount: 0,
-        thumbnail: formData.thumbnail || undefined,
+      // 썸네일 이미지가 있으면 먼저 업로드
+      let thumbnailImageId: string | undefined = undefined
+      if (thumbnailFile) {
+        const uploadResult = await uploadLiveSpaceThumbnail(thumbnailFile)
+        if (!uploadResult.success) {
+          alert(uploadResult.error || '썸네일 이미지 업로드 중 오류가 발생했습니다.')
+          setIsSubmitting(false)
+          return
+        }
+        thumbnailImageId = uploadResult.thumbnailImageId
       }
-
-      // Mock 데이터에 추가
-      updateLiveSpaces((prev) => [...prev, newLiveSpace])
+      
+      // API 요청 데이터 준비
+      const requestData: CreateLiveSpaceRequest = {
+        title: formData.title,
+        placeName: formData.placeName,
+        address: address,
+        longitude: lng,
+        latitude: lat,
+        description: formData.description || undefined,
+        startsAt: startsAt,
+        endsAt: endsAt,
+        categoryId: formData.category, // 일단 카테고리 문자열을 ID로 사용 (나중에 매핑 필요할 수 있음)
+        thumbnailImageId: thumbnailImageId,
+      }
+      
+      const result = await createLiveSpaceAdmin(requestData)
+      
+      if (!result.success) {
+        alert(result.error || '라이브 스페이스 생성 중 오류가 발생했습니다.')
+        return
+      }
       
       setShowSuccess(true)
       
       // 폼 초기화
       setFormData({
         title: '',
+        placeName: '',
+        description: '',
         category: '' as LiveSpaceCategory | '',
         scheduledStartTime: '',
         scheduledEndTime: '',
@@ -460,6 +485,7 @@ export default function LiveSpaceCreate() {
         setShowSuccess(false)
       }, 3000)
     } catch (error) {
+      console.error('라이브 스페이스 생성 오류:', error)
       alert('라이브 스페이스 생성 중 오류가 발생했습니다.')
     } finally {
       setIsSubmitting(false)
@@ -498,6 +524,23 @@ export default function LiveSpaceCreate() {
           </div>
 
           <div className={styles.formGroup}>
+            <label htmlFor="placeName" className={styles.label}>
+              장소명 <span className={styles.required}>*</span>
+            </label>
+            <input
+              id="placeName"
+              name="placeName"
+              type="text"
+              value={formData.placeName}
+              onChange={handleInputChange}
+              className={styles.input}
+              placeholder="장소명을 입력하세요"
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
             <label htmlFor="category" className={styles.label}>
               카테고리 <span className={styles.required}>*</span>
             </label>
@@ -520,10 +563,26 @@ export default function LiveSpaceCreate() {
             </select>
           </div>
 
+          <div className={styles.formGroup}>
+            <label htmlFor="description" className={styles.label}>
+              설명 (선택)
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              className={styles.textarea}
+              placeholder="라이브 스페이스에 대한 설명을 입력하세요"
+              rows={4}
+              disabled={isSubmitting}
+            />
+          </div>
+
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="scheduledStartTime" className={styles.label}>
-                예정 시작 시간
+                예정 시작 시간 <span className={styles.required}>*</span>
               </label>
               <input
                 id="scheduledStartTime"
@@ -532,13 +591,14 @@ export default function LiveSpaceCreate() {
                 value={formData.scheduledStartTime}
                 onChange={handleInputChange}
                 className={styles.input}
+                required
                 disabled={isSubmitting}
               />
             </div>
 
             <div className={styles.formGroup}>
               <label htmlFor="scheduledEndTime" className={styles.label}>
-                예정 종료 시간
+                예정 종료 시간 <span className={styles.required}>*</span>
               </label>
               <input
                 id="scheduledEndTime"
@@ -547,6 +607,7 @@ export default function LiveSpaceCreate() {
                 value={formData.scheduledEndTime}
                 onChange={handleInputChange}
                 className={styles.input}
+                required
                 disabled={isSubmitting}
               />
             </div>

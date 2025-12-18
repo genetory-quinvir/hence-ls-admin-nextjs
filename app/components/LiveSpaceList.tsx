@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useMockData } from '../context/MockDataContext'
 import { LiveSpace } from '../data/mockData'
+import { getLiveSpacesAdmin, LiveSpaceListMeta, deleteLiveSpaceAdmin } from '../lib/api'
 import Modal from './Modal'
 import styles from './LiveSpaceList.module.css'
 
@@ -16,9 +17,167 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   const [filterRegion, setFilterRegion] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [paginationMeta, setPaginationMeta] = useState<LiveSpaceListMeta | null>(null)
+  const [apiLiveSpaces, setApiLiveSpaces] = useState<LiveSpace[]>([])
   
-  // menuId에 따라 초기 필터 설정
+  // 중복 API 호출 방지를 위한 ref
+  const lastApiCallRef = useRef<{
+    menuId: string | null
+    currentPage: number
+  } | null>(null)
+  const isLoadingRef = useRef<boolean>(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  
+  // API에서 Live Space 리스트 불러오기 (재사용 가능하도록 외부 함수로 분리)
+  const loadLiveSpaces = async (page: number = currentPage, skipDuplicateCheck: boolean = false) => {
+    if (menuId !== 'live-space-list') {
+      return
+    }
+
+    // 중복 체크 스킵이 아닌 경우에만 확인
+    if (!skipDuplicateCheck) {
+      // 이전 호출과 동일한 파라미터인지 확인
+      if (
+        lastApiCallRef.current &&
+        lastApiCallRef.current.menuId === menuId &&
+        lastApiCallRef.current.currentPage === page
+      ) {
+        return
+      }
+      
+      // 이미 로딩 중이면 중복 호출 방지
+      if (isLoadingRef.current) {
+        return
+      }
+    }
+    
+    // 이전 요청이 있으면 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // 새로운 AbortController 생성
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+    
+    // 현재 호출 정보 저장
+    lastApiCallRef.current = {
+      menuId,
+      currentPage: page,
+    }
+    
+    // 로딩 플래그 설정
+    isLoadingRef.current = true
+
+    try {
+      setIsLoading(true)
+      setLoadError(null)
+      
+      const response = await getLiveSpacesAdmin(page, 20)
+      
+      if (abortController.signal.aborted) {
+        return
+      }
+      
+      if (response.success && response.data) {
+          // API 데이터를 LiveSpace 타입으로 변환
+          const convertedSpaces: LiveSpace[] = response.data
+            .filter(s => !s.deletedAt) // 삭제된 항목만 제외
+            .map((s) => {
+              // status 결정 (endsAt이 있고 현재 시간보다 이전이면 ended, 아니면 live)
+              const now = new Date()
+              const endsAt = s.endsAt ? new Date(s.endsAt) : null
+              const status: 'live' | 'ended' = endsAt && endsAt < now ? 'ended' : 'live'
+              
+              // district 추출 (address에서)
+              const district = s.address 
+                ? (s.address.match(/(\S+구|\S+시|\S+군)/)?.[0] || '')
+                : ''
+              
+              return {
+                id: s.id,
+                title: s.title || '',
+                hostNickname: s.hostNickname || '알 수 없음',
+                hostId: s.hostId,
+                thumbnail: s.thumbnail,
+                category: s.categoryName as LiveSpace['category'],
+                status,
+                createdAt: s.createdAt,
+                startedAt: s.startsAt,
+                endedAt: s.endsAt,
+                scheduledStartTime: s.startsAt,
+                scheduledEndTime: s.endsAt,
+                location: {
+                  lat: s.location.lat,
+                  lng: s.location.lng,
+                  address: s.address || s.placeName || '',
+                  district,
+                },
+                checkInCount: s.participantCount,
+                feedCount: s.feedCount,
+                reportedCount: 0, // API에서 제공되지 않음
+                isForceClosed: false, // API에서 제공되지 않음
+                isHidden: false, // API에서 이미 displayStatus로 필터링했으므로 항상 false
+              }
+            })
+          
+          console.log('[LiveSpaceList] API 데이터 변환 완료:', {
+            originalCount: response.data.length,
+            convertedCount: convertedSpaces.length,
+            convertedSpaces: convertedSpaces.slice(0, 3), // 처음 3개만 로그
+            timestamp: new Date().toISOString(),
+          })
+          
+          setApiLiveSpaces(convertedSpaces)
+          
+        if (response.meta) {
+          setPaginationMeta(response.meta)
+        } else {
+          setPaginationMeta(null)
+        }
+      } else {
+        setLoadError(response.error || 'Live Space 리스트를 불러오는데 실패했습니다.')
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        return
+      }
+      if (!abortController.signal.aborted) {
+        setLoadError(error instanceof Error ? error.message : 'Live Space 리스트를 불러오는 중 오류가 발생했습니다.')
+      }
+    } finally {
+      if (!abortController.signal.aborted) {
+        setIsLoading(false)
+        isLoadingRef.current = false
+      }
+    }
+  }
+
+  // API에서 Live Space 리스트 불러오기 (live-space-list만)
   useEffect(() => {
+    loadLiveSpaces(currentPage)
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      isLoadingRef.current = false
+    }
+  }, [menuId, currentPage])
+  
+  // menuId 변경 시 첫 페이지로 리셋
+  useEffect(() => {
+    if (menuId === 'live-space-list') {
+      setCurrentPage(1)
+      setPaginationMeta(null)
+      setApiLiveSpaces([])
+      lastApiCallRef.current = null
+    }
+    
+    // menuId에 따라 초기 필터 설정
     if (menuId === 'live-space-force-close') {
       setFilterStatus('live') // 강제 종료 큐는 라이브 상태만
     } else if (menuId === 'live-space-reported') {
@@ -51,40 +210,46 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   })
   
   const filteredLiveSpaces = useMemo(() => {
-    let filtered = [...liveSpaces]
-    
-    // menuId에 따른 기본 필터
-    if (menuId === 'live-space-force-close') {
-      // 강제 종료 큐: 라이브 상태이면서 다음 중 하나:
-      // 1. 신고가 3건 이상 (심각한 신고)
-      // 2. 체크인이 0 (비정상적인 스페이스)
-      // 3. 신고가 있고 체크인이 1 이하 (문제가 있는 스페이스)
-      filtered = filtered.filter(ls => 
-        !ls.isHidden &&
-        ls.status === 'live' && (
-          ls.reportedCount >= 3 || 
-          ls.checkInCount === 0 ||
-          (ls.reportedCount > 0 && ls.checkInCount <= 1)
-        )
-      )
-    } else if (menuId === 'live-space-reported') {
-      // 신고 접수된 스페이스: 신고가 있는 모든 스페이스 (라이브든 종료든 상관없이)
-      filtered = filtered.filter(ls => !ls.isHidden && ls.reportedCount > 0)
-    }
-    
-    // 추가 필터 적용
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(ls => {
-        if (filterStatus === 'live') return ls.status === 'live' && !ls.isHidden
-        if (filterStatus === 'ended') return ls.status === 'ended' && !ls.isHidden
-        if (filterStatus === 'force-closed') return ls.isForceClosed === true
-        if (filterStatus === 'hidden') return ls.isHidden === true
-        return true
+    // live-space-list는 API에서 받은 데이터 사용
+    let filtered: LiveSpace[]
+    if (menuId === 'live-space-list') {
+      filtered = [...apiLiveSpaces]
+      console.log('[LiveSpaceList] 필터링 전 apiLiveSpaces:', {
+        count: apiLiveSpaces.length,
+        sample: apiLiveSpaces.slice(0, 2),
       })
     } else {
-      // 필터가 'all'일 때도 숨김 처리된 항목은 기본적으로 제외
-      filtered = filtered.filter(ls => !ls.isHidden)
+      filtered = [...liveSpaces]
+      
+      // menuId에 따른 기본 필터
+      if (menuId === 'live-space-force-close') {
+        // 강제 종료 큐: 라이브 상태이면서 다음 중 하나:
+        // 1. 신고가 3건 이상 (심각한 신고)
+        // 2. 체크인이 0 (비정상적인 스페이스)
+        // 3. 신고가 있고 체크인이 1 이하 (문제가 있는 스페이스)
+        filtered = filtered.filter(ls => 
+          ls.status === 'live' && (
+            ls.reportedCount >= 3 || 
+            ls.checkInCount === 0 ||
+            (ls.reportedCount > 0 && ls.checkInCount <= 1)
+          )
+        )
+      } else if (menuId === 'live-space-reported') {
+        // 신고 접수된 스페이스: 신고가 있는 모든 스페이스 (라이브든 종료든 상관없이)
+        filtered = filtered.filter(ls => ls.reportedCount > 0)
+      }
     }
+    
+    // 추가 필터 적용 (모든 메뉴에 공통)
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(ls => {
+        if (filterStatus === 'live') return ls.status === 'live'
+        if (filterStatus === 'ended') return ls.status === 'ended'
+        if (filterStatus === 'force-closed') return ls.isForceClosed === true
+        return true
+      })
+    }
+    // live-space-list는 API에서 이미 displayStatus로 필터링된 데이터이므로 isHidden 체크 불필요
     
     if (filterRegion !== 'all') {
       filtered = filtered.filter(ls => ls.location.district === filterRegion)
@@ -101,8 +266,19 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       )
     }
     
+    console.log('[LiveSpaceList] 필터링 후 결과:', {
+      menuId,
+      filterStatus,
+      filterRegion,
+      filterCategory,
+      searchQuery,
+      beforeFilter: menuId === 'live-space-list' ? apiLiveSpaces.length : liveSpaces.length,
+      afterFilter: filtered.length,
+      filtered: filtered.slice(0, 3),
+    })
+    
     return filtered
-  }, [liveSpaces, filterStatus, filterRegion, filterCategory, searchQuery, menuId])
+  }, [apiLiveSpaces, liveSpaces, filterStatus, filterRegion, filterCategory, searchQuery, menuId])
 
   const handleForceClose = (liveSpace: LiveSpace) => {
     setModalState({
@@ -112,15 +288,15 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     })
   }
 
-  const handleHide = (liveSpace: LiveSpace) => {
+  const handleForceTerminate = (liveSpace: LiveSpace) => {
     setModalState({
       isOpen: true,
-      type: 'hide',
+      type: 'forceTerminate',
       liveSpace,
     })
   }
 
-  const confirmAction = () => {
+  const confirmAction = async () => {
     if (!modalState.liveSpace) return
 
     const targetId = modalState.liveSpace.id
@@ -141,18 +317,23 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       setTimeout(() => {
         alert('라이브 스페이스가 강제 종료되었습니다.')
       }, 100)
-    } else if (actionType === 'hide') {
-      updateLiveSpaces((prev) => {
-        const updated = prev.map((ls) =>
-          ls.id === targetId
-            ? { ...ls, isHidden: true }
-            : ls
-        )
-        return updated
-      })
-      setTimeout(() => {
-        alert('라이브 스페이스가 숨김 처리되었습니다.')
-      }, 100)
+    } else if (actionType === 'forceTerminate') {
+      // API 호출하여 강제 종료 (삭제)
+      const result = await deleteLiveSpaceAdmin(targetId)
+      
+      if (result.success) {
+        // API에서 데이터를 다시 불러옴
+        if (menuId === 'live-space-list') {
+          // 현재 페이지의 데이터 다시 로드 (중복 체크 스킵)
+          await loadLiveSpaces(currentPage, true)
+        } else {
+          // Mock 데이터 업데이트
+          updateLiveSpaces((prev) => prev.filter((ls) => ls.id !== targetId))
+        }
+        alert('라이브 스페이스가 강제 종료되었습니다.')
+      } else {
+        alert(`강제 종료 실패: ${result.error || '알 수 없는 오류가 발생했습니다.'}`)
+      }
     }
   }
 
@@ -200,6 +381,16 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       </div>
 
       <div className={styles.content}>
+        {loadError && (
+          <div style={{ background: '#fee', color: '#c33', padding: '12px 16px', borderRadius: '4px', marginBottom: '24px' }}>
+            {loadError}
+          </div>
+        )}
+        {isLoading && (
+          <div style={{ background: '#e3f2fd', color: '#1976d2', padding: '12px 16px', borderRadius: '4px', marginBottom: '24px', textAlign: 'center' }}>
+            Live Space 리스트를 불러오는 중...
+          </div>
+        )}
         {/* 필터 섹션 */}
         <div className={styles.filters}>
           <div className={styles.filterGroup}>
@@ -213,7 +404,6 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
               <option value="live">라이브</option>
               <option value="ended">종료</option>
               <option value="force-closed">강제 종료</option>
-              <option value="hidden">숨김</option>
             </select>
           </div>
 
@@ -352,10 +542,10 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                           </button>
                         )}
                         <button 
-                          className={styles.actionBtn}
-                          onClick={() => handleHide(ls)}
+                          className={`${styles.actionBtn} ${styles.danger}`}
+                          onClick={() => handleForceTerminate(ls)}
                         >
-                          숨김
+                          강제종료
                         </button>
                       </div>
                     </td>
@@ -455,10 +645,10 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                     </button>
                   )}
                   <button 
-                    className={styles.actionBtn}
-                    onClick={() => handleHide(ls)}
+                    className={`${styles.actionBtn} ${styles.danger}`}
+                    onClick={() => handleForceTerminate(ls)}
                   >
-                    숨김
+                    강제종료
                   </button>
                 </div>
               </div>
@@ -473,17 +663,19 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         title={
           modalState.type === 'forceClose'
             ? '라이브 스페이스 강제 종료'
-            : '라이브 스페이스 숨김'
+            : modalState.type === 'forceTerminate'
+            ? '라이브 스페이스 강제 종료'
+            : '라이브 스페이스 강제 종료'
         }
         message={
           modalState.type === 'forceClose'
             ? `"${modalState.liveSpace?.title || modalState.liveSpace?.hostNickname + '의 라이브스페이스'}"를 강제 종료하시겠습니까?\n\n해당 스페이스는 즉시 종료됩니다.\n사용자에게 '운영정책 위반으로 종료' 안내가 발송됩니다.`
-            : `"${modalState.liveSpace?.title || modalState.liveSpace?.hostNickname + '의 라이브스페이스'}"를 숨김 처리하시겠습니까?`
+            : `"${modalState.liveSpace?.title || modalState.liveSpace?.hostNickname + '의 라이브스페이스'}"를 강제 종료하시겠습니까?\n\n해당 스페이스는 삭제됩니다.`
         }
         confirmText="확인"
         cancelText="취소"
         onConfirm={confirmAction}
-        type={modalState.type === 'forceClose' ? 'danger' : 'warning'}
+        type="danger"
       />
     </div>
   )

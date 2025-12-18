@@ -15,7 +15,7 @@ const menuItems: MenuItem[] = [
   },
   {
     id: 'live-space',
-    label: 'Live Space 관리',
+    label: '라이브 스페이스 관리',
     icon: '📍',
     children: [
       { id: 'live-space-create', label: '라이브 스페이스 생성' },
