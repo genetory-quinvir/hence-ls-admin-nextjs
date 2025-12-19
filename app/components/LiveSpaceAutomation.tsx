@@ -224,35 +224,18 @@ export default function LiveSpaceAutomation() {
         })
         
         // 진행 상황 표시 시작
-        let currentProgress = 0
         const totalSpaces = spaces.length
-        const estimatedTimePerSpace = 15 // 초 (쓰로틀 대기 시간 포함)
         
         setPublishingProgress({
           current: 0,
           total: totalSpaces,
-          message: '일괄 발행 시작... (쓰로틀 방지를 위해 각 스페이스 생성 사이에 15초 대기)',
+          message: '일괄 발행 시작...',
         })
-        
-        // 진행 상황 업데이트를 위한 인터벌
-        const progressInterval = setInterval(() => {
-          currentProgress += 1
-          if (currentProgress <= totalSpaces) {
-            setPublishingProgress(prev => prev ? {
-              ...prev,
-              current: currentProgress,
-              message: `스페이스 ${currentProgress} 생성 중... (${totalSpaces - currentProgress}개 남음)`,
-            } : null)
-          }
-        }, estimatedTimePerSpace * 1000) // 15초마다 진행 상황 업데이트
         
         // 백그라운드로 처리 (비동기) - await 없이 실행
         ;(async () => {
           try {
             const result = await batchCreateLiveSpaces(spaces)
-            
-            // 인터벌 정리
-            clearInterval(progressInterval)
             
             if (result.success && result.summary) {
               const { successCount, failCount } = result.summary
@@ -279,13 +262,11 @@ export default function LiveSpaceAutomation() {
                 alert(`모든 Live Space가 성공적으로 발행되었습니다. (${successCount}개)\n\n한 회원으로 ${successCount}개의 스페이스가 생성되었습니다.`)
               }
             } else {
-              clearInterval(progressInterval)
               setPublishingProgress(null)
               alert(result.error || '일괄 발행 중 오류가 발생했습니다.')
             }
           } catch (error) {
             console.error('일괄 발행 오류:', error)
-            clearInterval(progressInterval)
             setPublishingProgress(null)
             alert('일괄 발행 중 오류가 발생했습니다.')
           } finally {
@@ -1424,7 +1405,7 @@ export default function LiveSpaceAutomation() {
               완성률: <strong style={{ color: '#4a9eff' }}>{Math.round((publishingProgress.current / publishingProgress.total) * 100)}%</strong>
             </div>
             <div style={{ fontSize: '12px', color: '#999' }}>
-              예상 소요: 약 {Math.ceil((publishingProgress.total - publishingProgress.current) * 15 / 60)}분
+              진행 중...
             </div>
           </div>
           

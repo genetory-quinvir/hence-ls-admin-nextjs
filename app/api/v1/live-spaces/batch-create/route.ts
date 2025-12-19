@@ -330,15 +330,6 @@ export async function POST(request: NextRequest) {
           success: true,
           data: spaceResponseData,
         })
-        
-        // 쓰로틀 방지를 위해 다음 스페이스 생성 전 15초 대기 (마지막 스페이스는 제외)
-        if (i < body.spaces.length - 1) {
-          console.log(`⏳ [Internal API] 쓰로틀 방지 대기 중 (스페이스 ${i + 1} 완료 후 15초 대기)...`, {
-            nextSpaceIndex: i + 2,
-            timestamp: new Date().toISOString(),
-          })
-          await new Promise(resolve => setTimeout(resolve, 15000)) // 15초 대기
-        }
       } catch (error) {
         console.error(`❌ [Internal API] 스페이스 ${i + 1} 생성 예외:`, {
           error,
