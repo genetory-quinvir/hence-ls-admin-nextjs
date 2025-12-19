@@ -911,7 +911,7 @@ export default function UserList({ menuId }: UserListProps) {
                     포인트
                     {sortField === 'points' && (
                       <span className={styles.sortIcon}>
-                        {sortOrder === 'asc' ? '↑' : '↓'}
+                        {sortOrder === 'ASC' ? '↑' : '↓'}
                       </span>
                     )}
                   </button>
