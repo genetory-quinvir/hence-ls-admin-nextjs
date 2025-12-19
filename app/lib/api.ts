@@ -502,7 +502,7 @@ export interface UserListFilterOptions {
   joinStartDate?: string // 가입 시작 날짜 (YYYY-MM-DD 형식)
   joinEndDate?: string // 가입 종료 날짜 (YYYY-MM-DD 형식)
   status?: 'ALL' | 'NORMAL' | 'SUSPEND' | 'WARNING' // 상태 필터
-  orderBy?: 'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' // 정렬 기준
+  orderBy?: 'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | 'points' // 정렬 기준
   direction?: 'ASC' | 'DESC' // 정렬 방향
 }
 
