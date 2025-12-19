@@ -203,7 +203,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   }
   const [modalState, setModalState] = useState<{
     isOpen: boolean
-    type: 'forceClose' | 'hide' | null
+    type: 'forceClose' | 'hide' | 'forceTerminate' | null
     liveSpace: LiveSpace | null
   }>({
     isOpen: false,
