@@ -768,7 +768,7 @@ export default function LiveSpaceAutomation() {
                 alt="OpenAI"
                 style={{ width: '20px', height: '20px', objectFit: 'contain' }}
               />
-              <span>OpenAI (GPT-4o-mini 지윤's 지갑에서 돈 나감..)</span>
+              <span>OpenAI (GPT-4o-mini) <span style={{ color: 'red', fontWeight: 'bold' }}>지윤's 지갑에서 돈 나감..</span></span>
             </label>
           </div>
         </div>
