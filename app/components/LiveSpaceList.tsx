@@ -22,6 +22,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [paginationMeta, setPaginationMeta] = useState<LiveSpaceListMeta | null>(null)
   const [apiLiveSpaces, setApiLiveSpaces] = useState<LiveSpace[]>([])
+  const [selectedLiveSpace, setSelectedLiveSpace] = useState<LiveSpace | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   
   // 중복 API 호출 방지를 위한 ref
   const lastApiCallRef = useRef<{
@@ -296,6 +298,16 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     })
   }
 
+  const handleDetail = (liveSpace: LiveSpace) => {
+    setSelectedLiveSpace(liveSpace)
+    setShowDetailModal(true)
+  }
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false)
+    setSelectedLiveSpace(null)
+  }
+
   const confirmAction = async () => {
     if (!modalState.liveSpace) return
 
@@ -532,21 +544,29 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                     </td>
                     <td>
                       <div className={styles.actions}>
-                        <button className={styles.actionBtn}>상세</button>
-                        {ls.status === 'live' && (
+                        <button 
+                          className={styles.actionBtn}
+                          onClick={() => handleDetail(ls)}
+                        >
+                          상세
+                        </button>
+                        {menuId === 'live-space-list' ? (
+                          // 전체 목록은 API 호출하는 강제종료만 사용
+                          <button 
+                            className={`${styles.actionBtn} ${styles.danger}`}
+                            onClick={() => handleForceTerminate(ls)}
+                          >
+                            강제종료
+                          </button>
+                        ) : ls.status === 'live' ? (
+                          // 다른 메뉴는 Mock 데이터용 강제종료 사용
                           <button 
                             className={`${styles.actionBtn} ${styles.danger}`}
                             onClick={() => handleForceClose(ls)}
                           >
                             강제종료
                           </button>
-                        )}
-                        <button 
-                          className={`${styles.actionBtn} ${styles.danger}`}
-                          onClick={() => handleForceTerminate(ls)}
-                        >
-                          강제종료
-                        </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -635,27 +655,172 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                   </div>
                 </div>
                 <div className={styles.cardFooter}>
-                  <button className={styles.actionBtn}>상세</button>
-                  {ls.status === 'live' && (
+                  <button 
+                    className={styles.actionBtn}
+                    onClick={() => handleDetail(ls)}
+                  >
+                    상세
+                  </button>
+                  {menuId === 'live-space-list' ? (
+                    // 전체 목록은 API 호출하는 강제종료만 사용
+                    <button 
+                      className={`${styles.actionBtn} ${styles.danger}`}
+                      onClick={() => handleForceTerminate(ls)}
+                    >
+                      강제종료
+                    </button>
+                  ) : ls.status === 'live' ? (
+                    // 다른 메뉴는 Mock 데이터용 강제종료 사용
                     <button 
                       className={`${styles.actionBtn} ${styles.danger}`}
                       onClick={() => handleForceClose(ls)}
                     >
                       강제종료
                     </button>
-                  )}
-                  <button 
-                    className={`${styles.actionBtn} ${styles.danger}`}
-                    onClick={() => handleForceTerminate(ls)}
-                  >
-                    강제종료
-                  </button>
+                  ) : null}
                 </div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Live Space 상세 정보 Modal */}
+      {showDetailModal && selectedLiveSpace && (
+        <div 
+          className={styles.modalOverlay}
+          onClick={handleCloseDetailModal}
+        >
+          <div className={styles.detailModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.detailModalHeader}>
+              <h3 className={styles.detailModalTitle}>Live Space 상세 정보</h3>
+              <button 
+                className={styles.detailModalClose}
+                onClick={handleCloseDetailModal}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.detailModalBody}>
+              {/* 썸네일 섹션 */}
+              {selectedLiveSpace.thumbnail && (
+                <div className={styles.detailThumbnailSection}>
+                  <div className={styles.detailThumbnail}>
+                    <img 
+                      src={selectedLiveSpace.thumbnail} 
+                      alt={selectedLiveSpace.title}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* 정보 그리드 (2열) */}
+              <div className={styles.detailInfoGrid}>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>ID</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.id}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>제목</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.title}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>호스트 ID</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.hostId}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>호스트 닉네임</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.hostNickname || '-'}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>카테고리</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.category || '-'}</span>
+                </div>
+                <div className={`${styles.detailInfoItem} ${styles.detailInfoItemFull}`}>
+                  <span className={styles.detailInfoLabel}>주소</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.location?.address || '-'}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>위도</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.location?.lat?.toFixed(6) || '-'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>경도</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.location?.lng?.toFixed(6) || '-'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>시작 시간</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.startedAt || selectedLiveSpace.scheduledStartTime ? formatDate(selectedLiveSpace.startedAt || selectedLiveSpace.scheduledStartTime!) : '-'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>종료 시간</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.endedAt || selectedLiveSpace.scheduledEndTime ? formatDate(selectedLiveSpace.endedAt || selectedLiveSpace.scheduledEndTime!) : '-'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>피드 수</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.feedCount || 0}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>참가자 수</span>
+                  <span className={styles.detailInfoValue}>{selectedLiveSpace.checkInCount || 0}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>상태</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.status === 'live' ? '라이브' : '종료'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>생성일</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.createdAt ? formatDate(selectedLiveSpace.createdAt) : '-'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>지역</span>
+                  <span className={styles.detailInfoValue}>
+                    {selectedLiveSpace.location?.district || '-'}
+                  </span>
+                </div>
+                {selectedLiveSpace.isForceClosed && (
+                  <div className={styles.detailInfoItem}>
+                    <span className={styles.detailInfoLabel}>강제 종료</span>
+                    <span className={styles.detailInfoValue}>예</span>
+                  </div>
+                )}
+                {selectedLiveSpace.isHidden && (
+                  <div className={styles.detailInfoItem}>
+                    <span className={styles.detailInfoLabel}>숨김</span>
+                    <span className={styles.detailInfoValue}>예</span>
+                  </div>
+                )}
+                {selectedLiveSpace.reportedCount > 0 && (
+                  <div className={styles.detailInfoItem}>
+                    <span className={styles.detailInfoLabel}>신고 건수</span>
+                    <span className={styles.detailInfoValue}>{selectedLiveSpace.reportedCount}건</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className={styles.detailModalFooter}>
+              <button
+                className={styles.detailModalButton}
+                onClick={handleCloseDetailModal}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Modal
         isOpen={modalState.isOpen}

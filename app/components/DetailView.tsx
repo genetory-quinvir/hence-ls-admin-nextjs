@@ -3,6 +3,7 @@
 import Dashboard from './Dashboard'
 import LiveSpaceList from './LiveSpaceList'
 import LiveSpaceCreate from './LiveSpaceCreate'
+import LiveSpaceAutomation from './LiveSpaceAutomation'
 import UserList from './UserList'
 import FeedList from './FeedList'
 import ReportList from './ReportList'
@@ -43,6 +44,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
         return <LiveSpaceList menuId={menuId} />
       case 'live-space-create':
         return <LiveSpaceCreate />
+      case 'live-space-automation':
+        return <LiveSpaceAutomation />
       
       // 사용자 관리
       case 'users-list':

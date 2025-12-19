@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Sidebar, { MenuItem } from './components/Sidebar'
 import DetailView from './components/DetailView'
 import Login from './components/Login'
@@ -18,10 +19,11 @@ const menuItems: MenuItem[] = [
     label: '라이브 스페이스 관리',
     icon: '📍',
     children: [
-      { id: 'live-space-create', label: '라이브 스페이스 생성' },
       { id: 'live-space-list', label: '전체 목록' },
       { id: 'live-space-force-close', label: '강제 종료 큐' },
       { id: 'live-space-reported', label: '신고 접수된 스페이스' },
+      { id: 'live-space-create', label: '라이브 스페이스 생성' },
+      { id: 'live-space-automation', label: '라이브 스페이스 자동화' },
     ],
   },
   {
@@ -93,20 +95,40 @@ const menuItems: MenuItem[] = [
 
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuth()
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // 로그인 시 대시보드를 기본으로 표시
+  // URL에서 menuId 읽어오기
+  const urlMenuId = searchParams.get('menuId')
+  
+  // activeMenuId 초기화: URL에서 읽어오거나 기본값 사용
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(urlMenuId || null)
+
+  // URL과 state 동기화 (URL이 변경되면 state도 업데이트)
   useEffect(() => {
-    if (isAuthenticated && !activeMenuId) {
+    if (urlMenuId && urlMenuId !== activeMenuId) {
+      setActiveMenuId(urlMenuId)
+    }
+  }, [urlMenuId])
+
+  // 로그인 시 대시보드를 기본으로 표시 (URL에 menuId가 없을 때만)
+  useEffect(() => {
+    if (isAuthenticated && !activeMenuId && !urlMenuId) {
       setActiveMenuId('dashboard')
+      // URL도 업데이트
+      router.replace('?menuId=dashboard')
     } else if (!isAuthenticated) {
       setActiveMenuId(null)
+      // 로그아웃 시 URL 파라미터 제거
+      router.replace('/')
     }
-  }, [isAuthenticated, activeMenuId])
+  }, [isAuthenticated, activeMenuId, urlMenuId, router])
 
   const handleMenuClick = (menuId: string) => {
     setActiveMenuId(menuId)
+    // URL 업데이트 (새로고침 시 복원 가능하도록)
+    router.replace(`?menuId=${menuId}`)
     // 모바일에서 메뉴 클릭 시 사이드바 닫기
     setSidebarOpen(false)
   }

@@ -772,20 +772,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* 라이브 스페이스 게시 회원수 카드 */}
-          <div className={styles.kpiCard}>
-            <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>스페이스 게시 회원수</h3>
-            </div>
-            <div className={styles.kpiValue}>{memberCount.toLocaleString()}</div>
-            <div className={styles.kpiProgress}>
-              <div 
-                className={styles.kpiProgressBar} 
-                style={{ width: `${Math.min(liveSpacePostUsers.percentage, 100)}%`, backgroundColor: '#9c27b0' }}
-              />
-            </div>
-          </div>
-
           {/* 누적 게시물 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
@@ -800,10 +786,24 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* 라이브 스페이스 게시 회원수 카드 */}
+          <div className={styles.kpiCard}>
+            <div className={styles.kpiHeader}>
+              <h3 className={styles.kpiTitle}>스페이스 게시 회원</h3>
+            </div>
+            <div className={styles.kpiValue}>{memberCount.toLocaleString()}</div>
+            <div className={styles.kpiProgress}>
+              <div 
+                className={styles.kpiProgressBar} 
+                style={{ width: `${Math.min(liveSpacePostUsers.percentage, 100)}%`, backgroundColor: '#9c27b0' }}
+              />
+            </div>
+          </div>
+
           {/* 신규 라이브 스페이스 수 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>신규 라이브 스페이스 수</h3>
+              <h3 className={styles.kpiTitle}>신규 스페이스</h3>
             </div>
             <div className={styles.kpiValue}>{newSpace.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
@@ -817,7 +817,7 @@ export default function Dashboard() {
           {/* 진행 중인 라이브 스페이스 수 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>진행 중인 스페이스 수</h3>
+              <h3 className={styles.kpiTitle}>현재 진행중 스페이스</h3>
             </div>
             <div className={styles.kpiValue}>{liveSpace.toLocaleString()}</div>
             <div className={styles.kpiProgress}>
@@ -831,7 +831,7 @@ export default function Dashboard() {
           {/* 전체 누적 라이브 스페이스 수 카드 */}
           <div className={styles.kpiCard}>
             <div className={styles.kpiHeader}>
-              <h3 className={styles.kpiTitle}>전체 누적 스페이스 수</h3>
+              <h3 className={styles.kpiTitle}>전체 누적 스페이스</h3>
             </div>
             <div className={styles.kpiValue}>{cumulativeSpace.toLocaleString()}</div>
             <div className={styles.kpiProgress}>

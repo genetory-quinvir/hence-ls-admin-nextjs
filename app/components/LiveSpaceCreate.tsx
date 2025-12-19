@@ -421,9 +421,19 @@ export default function LiveSpaceCreate() {
       const lng = parseFloat(formData.lng)
       const address = selectedLocation?.address || ''
       
-      // ISO 8601 형식으로 변환
-      const startsAt = new Date(formData.scheduledStartTime).toISOString()
-      const endsAt = new Date(formData.scheduledEndTime).toISOString()
+      // 날짜를 YYYY-MM-DDTHH:mm:ss 형식으로 변환 (밀리초와 타임존 제거)
+      const formatDateTime = (date: Date): string => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+      }
+      
+      const startsAt = formatDateTime(new Date(formData.scheduledStartTime))
+      const endsAt = formatDateTime(new Date(formData.scheduledEndTime))
       
       // 썸네일 이미지가 있으면 먼저 업로드
       let thumbnailImageId: string | undefined = undefined

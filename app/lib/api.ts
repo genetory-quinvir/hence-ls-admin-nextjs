@@ -31,14 +31,12 @@ function createBasicAuthHeader(email: string, password: string): string {
 export async function loginAdmin(email: string, password: string): Promise<LoginResponse> {
   const url = `${API_BASE_URL}/api/v1/auth-admin/login`
   
-  if (isDev) {
-    console.log('[API] 로그인 요청:', {
-      url,
-      email,
-      method: 'POST',
-      timestamp: new Date().toISOString(),
-    })
-  }
+  console.log('📤 [API] 로그인 요청:', {
+    url,
+    email,
+    method: 'POST',
+    timestamp: new Date().toISOString(),
+  })
 
   try {
     const response = await fetch(url, {
@@ -49,28 +47,24 @@ export async function loginAdmin(email: string, password: string): Promise<Login
       },
     })
 
-    if (isDev) {
-      console.log('[API] 로그인 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('📥 [API] 로그인 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries()),
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
       let errorMessage = `로그인 실패 (${response.status})`
       try {
         const errorData = await response.json()
         
-        if (isDev) {
-          console.error('[API] 로그인 에러 응답:', {
-            status: response.status,
-            errorData,
-            timestamp: new Date().toISOString(),
-          })
-        }
+        console.error('❌ [API] 로그인 에러 응답:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
         
         errorMessage = errorData.message || errorData.error || errorMessage
         
@@ -80,9 +74,7 @@ export async function loginAdmin(email: string, password: string): Promise<Login
         }
       } catch (parseError) {
         // JSON 파싱 실패 시 기본 메시지 사용
-        if (isDev) {
-          console.error('[API] 에러 응답 파싱 실패:', parseError)
-        }
+        console.error('❌ [API] 에러 응답 파싱 실패:', parseError)
         if (response.status === 401) {
           errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.'
         }
@@ -96,14 +88,12 @@ export async function loginAdmin(email: string, password: string): Promise<Login
 
     const data = await response.json()
     
-    if (isDev) {
-      console.log('[API] 로그인 성공 응답 데이터 (전체):', {
-        data,
-        dataKeys: Object.keys(data),
-        dataStringified: JSON.stringify(data, null, 2),
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('✅ [API] 로그인 성공 응답 데이터 (전체):', {
+      data,
+      dataKeys: Object.keys(data),
+      dataStringified: JSON.stringify(data, null, 2),
+      timestamp: new Date().toISOString(),
+    })
     
     // API 응답 구조에 따라 다양한 형태 지원
     // 다양한 가능한 경로에서 토큰 추출 시도
@@ -598,42 +588,45 @@ export async function getUsersAdmin(
       },
     })
 
-    if (isDev) {
-      console.log('[API] 사용자 리스트 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('📥 [API] 사용자 리스트 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      
-      if (isDev) {
-        console.error('[API] 사용자 리스트 에러:', {
-          status: response.status,
-          errorData,
-          timestamp: new Date().toISOString(),
-        })
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
       }
+      
+      console.error('❌ [API] 사용자 리스트 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        errorText,
+        url,
+        timestamp: new Date().toISOString(),
+      })
       
       return {
         success: false,
-        error: errorData.message || `사용자 리스트 조회 실패 (${response.status})`,
+        error: errorData.message || errorData.error || errorText || `사용자 리스트 조회 실패 (${response.status})`,
       }
     }
 
     const responseData = await response.json()
     
-    if (isDev) {
-      console.log('[API] 사용자 리스트 성공:', {
-        responseData,
-        resultCount: responseData.data?.users?.length || 0,
-        total: responseData.data?.meta?.totalItems,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('✅ [API] 사용자 리스트 성공:', {
+      responseData,
+      resultCount: responseData.data?.users?.length || 0,
+      total: responseData.data?.meta?.totalItems,
+      timestamp: new Date().toISOString(),
+    })
     
     // API 응답 구조: { data: { users: [...], meta: {...} }, code, message }
     const users = responseData.data?.users || []
@@ -715,13 +708,11 @@ export async function getUsersAdmin(
       total: meta?.totalItems || users.length,
     }
   } catch (error) {
-    if (isDev) {
-      console.error('[API] 사용자 리스트 네트워크 에러:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.error('❌ [API] 사용자 리스트 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: false,
@@ -1102,14 +1093,12 @@ export async function getLiveSpacesAdmin(
   
   const url = `${API_BASE_URL}/api/v1/space-admin?${params.toString()}`
   
-  if (isDev) {
-    console.log('[API] Live Space 리스트 요청:', {
-      url,
-      page,
-      limit,
-      timestamp: new Date().toISOString(),
-    })
-  }
+  console.log('📤 [API] Live Space 리스트 요청:', {
+    url,
+    page,
+    limit,
+    timestamp: new Date().toISOString(),
+  })
 
   try {
     const response = await fetch(url, {
@@ -1120,25 +1109,21 @@ export async function getLiveSpacesAdmin(
       },
     })
 
-    if (isDev) {
-      console.log('[API] Live Space 리스트 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('📥 [API] Live Space 리스트 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       
-      if (isDev) {
-        console.error('[API] Live Space 리스트 에러:', {
-          status: response.status,
-          errorData,
-          timestamp: new Date().toISOString(),
-        })
-      }
+      console.error('❌ [API] Live Space 리스트 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
       
       return {
         success: false,
@@ -1148,14 +1133,12 @@ export async function getLiveSpacesAdmin(
 
     const responseData = await response.json()
     
-    if (isDev) {
-      console.log('[API] Live Space 리스트 성공:', {
-        responseData,
-        resultCount: responseData.data?.spaces?.length || 0,
-        total: responseData.data?.meta?.totalItems,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('✅ [API] Live Space 리스트 성공:', {
+      responseData,
+      resultCount: responseData.data?.spaces?.length || 0,
+      total: responseData.data?.meta?.totalItems,
+      timestamp: new Date().toISOString(),
+    })
     
     // API 응답 구조: { data: { spaces: [...], meta: {...} }, code, message }
     const spaces = responseData.data?.spaces || []
@@ -1219,13 +1202,11 @@ export async function getLiveSpacesAdmin(
       total: meta?.totalItems || spaces.length,
     }
   } catch (error) {
-    if (isDev) {
-      console.error('[API] Live Space 리스트 네트워크 에러:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.error('❌ [API] Live Space 리스트 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: false,
@@ -1265,16 +1246,29 @@ export async function createLiveSpaceAdmin(
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/space-admin`
+  const url = `${API_BASE_URL}/api/v1/space`
   
-  if (isDev) {
-    console.log('[API] Live Space 생성 요청:', {
-      url,
-      method: 'POST',
-      data,
-      timestamp: new Date().toISOString(),
-    })
+  // thumbnailImageId가 있으면 포함, 없으면 제외
+  const requestBody: any = {
+    title: data.title,
+    placeName: data.placeName,
+    address: data.address,
+    longitude: data.longitude,
+    latitude: data.latitude,
+    startsAt: data.startsAt,
+    endsAt: data.endsAt,
+    categoryId: data.categoryId,
+    ...(data.description && { description: data.description }),
+    ...(data.thumbnailImageId && { thumbnailImageId: data.thumbnailImageId }),
   }
+  
+  console.log('📤 [API] Live Space 생성 요청:', {
+    url,
+    method: 'POST',
+    data: requestBody,
+    hasThumbnailImageId: !!data.thumbnailImageId,
+    timestamp: new Date().toISOString(),
+  })
 
   try {
     const response = await fetch(url, {
@@ -1283,55 +1277,67 @@ export async function createLiveSpaceAdmin(
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(requestBody),
     })
 
-    if (isDev) {
-      console.log('[API] Live Space 생성 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('📥 [API] Live Space 생성 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      
-      if (isDev) {
-        console.error('[API] Live Space 생성 에러:', {
-          status: response.status,
-          errorData,
-          timestamp: new Date().toISOString(),
-        })
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
       }
+      
+      console.error('❌ [API] Live Space 생성 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: errorData,
+        errorText: errorText,
+        requestData: requestBody,
+        url: url,
+        timestamp: new Date().toISOString(),
+      })
+      // 에러 데이터 상세 출력
+      console.error('❌ [API] Live Space 생성 에러 상세:', {
+        message: errorData.message,
+        error: errorData.error,
+        code: errorData.code,
+        customErrorCode: errorData.customErrorCode,
+        data: errorData.data,
+        fullErrorData: JSON.stringify(errorData, null, 2),
+        fullErrorText: errorText,
+      })
       
       return {
         success: false,
-        error: errorData.message || `Live Space 생성 실패 (${response.status})`,
+        error: errorData.message || errorData.error || errorText || `Live Space 생성 실패 (${response.status})`,
       }
     }
 
     const responseData = await response.json().catch(() => ({}))
     
-    if (isDev) {
-      console.log('[API] Live Space 생성 성공:', {
-        data: responseData,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('✅ [API] Live Space 생성 성공:', {
+      data: responseData,
+      timestamp: new Date().toISOString(),
+    })
 
     return {
       success: true,
       data: responseData,
     }
   } catch (error) {
-    if (isDev) {
-      console.error('[API] Live Space 생성 예외:', {
-        error,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.error('❌ [API] Live Space 생성 예외:', {
+      error,
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: false,
@@ -1341,11 +1347,93 @@ export async function createLiveSpaceAdmin(
 }
 
 /**
- * Live Space 썸네일 이미지 업로드
+ * Live Space 썸네일 이미지 업로드 (자동 회원가입된 토큰 사용)
+ * 내부 API 라우트를 통해 자동 회원가입 후 업로드
  */
 export async function uploadLiveSpaceThumbnail(
-  file: File
+  file: File,
+  useAutoRegistration: boolean = false
 ): Promise<{ success: boolean; error?: string; thumbnailImageId?: string }> {
+  // 자동 회원가입 사용 시 내부 API 라우트 사용
+  if (useAutoRegistration) {
+    const url = '/api/v1/live-spaces/upload-thumbnail'
+    
+    console.log('📤 [API] Live Space 썸네일 이미지 업로드 요청 (자동 회원가입):', {
+      url,
+      method: 'POST',
+      fileName: file.name,
+      fileSize: file.size,
+      timestamp: new Date().toISOString(),
+    })
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const responseText = await response.text().catch(() => '')
+      
+      console.log('📥 [API] Live Space 썸네일 이미지 업로드 응답 (자동 회원가입):', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+
+      if (!response.ok) {
+        let errorData: any = {}
+        try {
+          if (responseText) {
+            errorData = JSON.parse(responseText)
+          }
+        } catch (e) {
+          errorData = { message: responseText || '알 수 없는 오류' }
+        }
+        
+        console.error('❌ [API] Live Space 썸네일 이미지 업로드 에러 (자동 회원가입):', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          errorText: responseText,
+          timestamp: new Date().toISOString(),
+        })
+        
+        return {
+          success: false,
+          error: errorData.error || errorData.message || responseText || `썸네일 이미지 업로드 실패 (${response.status})`,
+        }
+      }
+
+      const responseData = JSON.parse(responseText)
+      
+      console.log('✅ [API] Live Space 썸네일 이미지 업로드 성공 (자동 회원가입):', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+
+      return {
+        success: true,
+        thumbnailImageId: responseData.thumbnailImageId,
+      }
+    } catch (error) {
+      console.error('❌ [API] Live Space 썸네일 이미지 업로드 예외 (자동 회원가입):', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '썸네일 이미지 업로드 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  // 기존 방식 (어드민 토큰 사용)
   const accessToken = getAccessToken()
   
   if (!accessToken) {
@@ -1359,24 +1447,47 @@ export async function uploadLiveSpaceThumbnail(
   
   // FormData 생성 (API DTO: files, description, displayOrder)
   const formData = new FormData()
-  formData.append('files', file)
+  
+  // 파일명이 안전하지 않으면 안전한 파일명으로 변경
+  // (한글, 특수문자 제거)
+  let safeFileName = file.name
+  if (!/^[a-zA-Z0-9._-]+$/.test(file.name)) {
+    const ext = file.name.split('.').pop() || 'webp'
+    const timestamp = Date.now()
+    const randomStr = Math.random().toString(36).substring(2, 8)
+    safeFileName = `thumbnail_${timestamp}_${randomStr}.${ext}`
+  }
+  
+  // 안전한 파일명으로 새 File 객체 생성
+  const safeFile = new File([file], safeFileName, {
+    type: file.type,
+    lastModified: file.lastModified,
+  })
+  
+  formData.append('files', safeFile)
   // description과 displayOrder는 선택사항이므로 생략 가능
   // 필요하면 추가: formData.append('description', '')
   // 필요하면 추가: formData.append('displayOrder', '0')
   
-  if (isDev) {
-    console.log('[API] Live Space 썸네일 이미지 업로드 요청:', {
-      url,
-      method: 'POST',
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      timestamp: new Date().toISOString(),
-    })
-    
-    // FormData 내용 확인 (디버깅용)
-    for (const [key, value] of formData.entries()) {
-      console.log('[API] FormData 항목:', key, value instanceof File ? `File: ${value.name}` : value)
+  console.log('📤 [API] Live Space 썸네일 이미지 업로드 요청:', {
+    url,
+    method: 'POST',
+    originalFileName: file.name,
+    safeFileName: safeFileName,
+    fileSize: file.size,
+    fileSizeMB: (file.size / (1024 * 1024)).toFixed(2) + 'MB',
+    fileType: file.type,
+    hasAccessToken: !!accessToken,
+    timestamp: new Date().toISOString(),
+  })
+  
+  // FormData 내용 확인 (디버깅용)
+  console.log('📤 [API] FormData 내용:')
+  for (const [key, value] of formData.entries()) {
+    if (value instanceof File) {
+      console.log(`  - ${key}: File(name="${value.name}", size=${value.size}, type=${value.type})`)
+    } else {
+      console.log(`  - ${key}:`, value)
     }
   }
 
@@ -1390,14 +1501,252 @@ export async function uploadLiveSpaceThumbnail(
       body: formData,
     })
 
-    if (isDev) {
-      console.log('[API] Live Space 썸네일 이미지 업로드 응답:', {
+    const responseText = await response.text().catch(() => '')
+    
+    console.log('📥 [API] Live Space 썸네일 이미지 업로드 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      responseText: responseText.substring(0, 200), // 처음 200자만 로깅
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      let errorData: any = {}
+      try {
+        if (responseText) {
+          errorData = JSON.parse(responseText)
+        }
+      } catch (e) {
+        errorData = { message: responseText || '알 수 없는 오류' }
+      }
+      
+      console.error('❌ [API] Live Space 썸네일 이미지 업로드 에러:', {
         status: response.status,
         statusText: response.statusText,
-        ok: response.ok,
+        errorData,
+        errorText: responseText,
         timestamp: new Date().toISOString(),
       })
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || responseText || `썸네일 이미지 업로드 실패 (${response.status})`,
+      }
     }
+
+    // 성공 응답 파싱
+    let responseData: any = {}
+    try {
+      if (responseText) {
+        responseData = JSON.parse(responseText)
+      }
+    } catch (e) {
+      console.error('❌ [API] Live Space 썸네일 이미지 업로드 응답 파싱 오류:', {
+        error: e,
+        responseText,
+        timestamp: new Date().toISOString(),
+      })
+      return {
+        success: false,
+        error: '응답 파싱 오류',
+      }
+    }
+    
+    console.log('✅ [API] Live Space 썸네일 이미지 업로드 성공:', {
+      code: responseData.code,
+      data: responseData.data,
+      uploadedFiles: responseData.data?.uploadedFiles,
+      timestamp: new Date().toISOString(),
+    })
+
+    // 응답에서 thumbnailImageId 추출 (entityId 사용)
+    // 응답 구조: { code: "201", data: { uploadedFiles: [{ id: "...", entityId: "...", ... }, ...] }, message: "..." }
+    const uploadedFiles = responseData.data?.uploadedFiles || []
+    const thumbnailImageId = uploadedFiles[0]?.id
+
+    if (!thumbnailImageId) {
+      console.error('❌ [API] Live Space 썸네일 이미지 업로드 응답에 id가 없음:', {
+        responseData,
+        uploadedFiles,
+        firstFile: uploadedFiles[0],
+        timestamp: new Date().toISOString(),
+      })
+      return {
+        success: false,
+        error: '응답에서 이미지 entityId를 찾을 수 없습니다.',
+      }
+    }
+
+    console.log('✅ [API] thumbnailImageId 추출 완료 (entityId 사용):', {
+      thumbnailImageId,
+      fileId: uploadedFiles[0]?.id,
+      timestamp: new Date().toISOString(),
+    })
+
+    return {
+      success: true,
+      thumbnailImageId: thumbnailImageId,
+    }
+  } catch (error) {
+    console.error('❌ [API] Live Space 썸네일 이미지 업로드 예외:', {
+      error,
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '썸네일 이미지 업로드 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 자동 Live Space 생성 요청 인터페이스
+ */
+export interface GenerateAndCreateLiveSpaceRequest {
+  title?: string
+  placeName?: string
+  address?: string
+  longitude?: number
+  latitude?: number
+  startsAt?: string
+  thumbnailImageId?: string
+}
+
+/**
+ * 자동 Live Space 생성 (내부 API 라우트 사용)
+ */
+/**
+ * LLM을 사용하여 Live Space 미리보기 데이터 생성
+ */
+export interface GenerateLiveSpacePreviewRequest {
+  count: number
+  title?: string
+  startsAt?: string
+  customPrompt?: string
+  characterPrompt?: string
+  provider?: 'openai' | 'xai'
+}
+
+export interface GeneratedLiveSpace {
+  title: string
+  placeName: string
+  address: string
+  longitude: number
+  latitude: number
+  startsAt: string
+}
+
+export interface GenerateLiveSpacePreviewResponse {
+  success: boolean
+  data?: GeneratedLiveSpace[]
+  error?: string
+}
+
+export async function generateLiveSpacePreview(
+  data: GenerateLiveSpacePreviewRequest
+): Promise<GenerateLiveSpacePreviewResponse> {
+  const url = '/api/v1/live-spaces/generate'
+  
+  console.log('📤 [API] LLM Live Space 미리보기 생성 요청:', {
+    url,
+    method: 'POST',
+    data,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    console.log('📥 [API] LLM Live Space 미리보기 생성 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+
+      console.error('❌ [API] LLM Live Space 미리보기 생성 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
+
+      return {
+        success: false,
+        error: errorData.error || errorData.message || `미리보기 생성 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+
+    console.log('✅ [API] LLM Live Space 미리보기 생성 성공:', {
+      count: responseData.data?.length || 0,
+      timestamp: new Date().toISOString(),
+    })
+
+    return {
+      success: true,
+      data: responseData.data,
+    }
+  } catch (error) {
+    console.error('❌ [API] LLM Live Space 미리보기 생성 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '미리보기 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function generateAndCreateLiveSpace(
+  data?: GenerateAndCreateLiveSpaceRequest
+): Promise<{ success: boolean; error?: string; data?: any }> {
+  // 내부 API 라우트 호출 (인증은 서버 사이드에서 처리)
+  const url = '/api/v1/live-spaces/generate-and-create'
+  
+  console.log('📤 [API] 자동 Live Space 생성 요청 (내부):', {
+    url,
+    method: 'POST',
+    data: data || {},
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    // 내부 API가 자체적으로 자동 회원가입을 수행하므로 토큰 전송 불필요
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data || {}),
+    })
+
+    console.log('📥 [API] 자동 Live Space 생성 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '')
@@ -1408,49 +1757,184 @@ export async function uploadLiveSpaceThumbnail(
         errorData = { message: errorText || '알 수 없는 오류' }
       }
       
-      if (isDev) {
-        console.error('[API] Live Space 썸네일 이미지 업로드 에러:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData,
-          errorText,
-          timestamp: new Date().toISOString(),
-        })
-      }
+      console.error('❌ [API] 자동 Live Space 생성 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: errorData,
+        errorText: errorText,
+        requestData: data,
+        url: url,
+        timestamp: new Date().toISOString(),
+      })
+      // 에러 데이터 상세 출력
+      console.error('❌ [API] 자동 Live Space 생성 에러 상세:', {
+        message: errorData.message,
+        error: errorData.error,
+        code: errorData.code,
+        customErrorCode: errorData.customErrorCode,
+        data: errorData.data,
+        fullErrorData: JSON.stringify(errorData, null, 2),
+        fullErrorText: errorText,
+      })
       
       return {
         success: false,
-        error: errorData.message || errorData.error || errorText || `썸네일 이미지 업로드 실패 (${response.status})`,
+        error: errorData.message || errorData.error || errorText || `자동 Live Space 생성 실패 (${response.status})`,
       }
     }
 
     const responseData = await response.json().catch(() => ({}))
     
-    if (isDev) {
-      console.log('[API] Live Space 썸네일 이미지 업로드 성공:', {
-        data: responseData,
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    // 응답에서 thumbnailImageId 추출 (응답 구조에 따라 수정 필요할 수 있음)
-    const thumbnailImageId = responseData.id || responseData.thumbnailImageId || responseData.data?.id || responseData.data?.thumbnailImageId
+    console.log('✅ [API] 자동 Live Space 생성 성공:', {
+      data: responseData,
+      timestamp: new Date().toISOString(),
+    })
 
     return {
       success: true,
-      thumbnailImageId: thumbnailImageId,
+      data: responseData,
     }
   } catch (error) {
-    if (isDev) {
-      console.error('[API] Live Space 썸네일 이미지 업로드 예외:', {
-        error,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.error('❌ [API] 자동 Live Space 생성 예외:', {
+      error,
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: false,
-      error: error instanceof Error ? error.message : '썸네일 이미지 업로드 중 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : '자동 Live Space 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Live Space 상세 정보 인터페이스
+ */
+export interface LiveSpaceDetail {
+  id: string
+  title: string
+  hostId: string
+  hostNickname: string
+  categoryId: string
+  categoryName: string
+  placeName: string
+  address: string
+  location: {
+    type: string
+    coordinates: [number, number] // [lng, lat]
+  }
+  description?: string
+  startsAt: string
+  endsAt: string
+  feedCount: number
+  participantCount: number
+  images?: {
+    id: string
+    fileType: string
+    entityType: string
+    entityId: string
+    owner: string
+    fileUrl: string
+    cdnUrl: string
+    thumbnailUrl: string
+    displayOrder: number
+  }
+  createdAt: string
+  updatedAt: string
+  checkIn?: boolean
+  hostActivityScore?: number
+  displayStatus?: string | boolean
+  deletedAt?: string | null
+}
+
+export interface LiveSpaceDetailResponse {
+  success: boolean
+  data?: LiveSpaceDetail
+  error?: string
+}
+
+/**
+ * Live Space 상세 정보 API 호출
+ */
+export async function getLiveSpaceDetail(spaceId: string): Promise<LiveSpaceDetailResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${API_BASE_URL}/api/v1/space-admin/${spaceId}`
+  
+  console.log('📤 [API] Live Space 상세 정보 요청:', {
+    url,
+    spaceId,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Live Space 상세 정보 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      console.error('❌ [API] Live Space 상세 정보 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || `Live Space 상세 정보 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    console.log('✅ [API] Live Space 상세 정보 성공:', {
+      data: responseData.data,
+      timestamp: new Date().toISOString(),
+    })
+    
+    const spaceData = responseData.data || responseData
+    
+    if (!spaceData) {
+      return {
+        success: false,
+        error: 'Live Space 정보를 찾을 수 없습니다.',
+      }
+    }
+    
+    return {
+      success: true,
+      data: spaceData as LiveSpaceDetail,
+    }
+  } catch (error) {
+    console.error('❌ [API] Live Space 상세 정보 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Live Space 상세 정보 조회 중 오류가 발생했습니다.',
     }
   }
 }
@@ -1470,14 +1954,12 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
 
   const url = `${API_BASE_URL}/api/v1/space-admin/${spaceId}`
   
-  if (isDev) {
-    console.log('[API] Live Space 강제 종료 요청:', {
-      url,
-      spaceId,
-      method: 'DELETE',
-      timestamp: new Date().toISOString(),
-    })
-  }
+  console.log('📤 [API] Live Space 강제 종료 요청:', {
+    url,
+    spaceId,
+    method: 'DELETE',
+    timestamp: new Date().toISOString(),
+  })
 
   try {
     const response = await fetch(url, {
@@ -1500,13 +1982,11 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       
-      if (isDev) {
-        console.error('[API] Live Space 강제 종료 에러:', {
-          status: response.status,
-          errorData,
-          timestamp: new Date().toISOString(),
-        })
-      }
+      console.error('❌ [API] Live Space 강제 종료 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
       
       return {
         success: false,
@@ -1514,24 +1994,20 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
       }
     }
 
-    if (isDev) {
-      console.log('[API] Live Space 강제 종료 성공:', {
-        spaceId,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('✅ [API] Live Space 강제 종료 성공:', {
+      spaceId,
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: true,
     }
   } catch (error) {
-    if (isDev) {
-      console.error('[API] Live Space 강제 종료 네트워크 에러:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.error('❌ [API] Live Space 강제 종료 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: false,
@@ -1636,16 +2112,14 @@ export async function getDashboardSummary(
   
   const url = `${API_BASE_URL}/api/v1/dashboard/summary?${params.toString()}`
   
-  if (isDev) {
-    console.log('[API] 대시보드 Summary 요청:', {
-      url,
-      method: 'GET',
-      periodFrom,
-      periodTo,
-      range,
-      timestamp: new Date().toISOString(),
-    })
-  }
+  console.log('📤 [API] 대시보드 Summary 요청:', {
+    url,
+    method: 'GET',
+    periodFrom,
+    periodTo,
+    range,
+    timestamp: new Date().toISOString(),
+  })
 
   try {
     const response = await fetch(url, {
@@ -1656,25 +2130,21 @@ export async function getDashboardSummary(
       },
     })
 
-    if (isDev) {
-      console.log('[API] 대시보드 Summary 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('📥 [API] 대시보드 Summary 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       
-      if (isDev) {
-        console.error('[API] 대시보드 Summary 에러:', {
-          status: response.status,
-          errorData,
-          timestamp: new Date().toISOString(),
-        })
-      }
+      console.error('❌ [API] 대시보드 Summary 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
       
       return {
         success: false,
@@ -1684,12 +2154,10 @@ export async function getDashboardSummary(
 
     const responseData = await response.json()
     
-    if (isDev) {
-      console.log('[API] 대시보드 Summary 성공:', {
-        responseData,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('✅ [API] 대시보드 Summary 성공:', {
+      responseData,
+      timestamp: new Date().toISOString(),
+    })
     
     // API 응답 구조에 맞게 변환 (실제 응답 구조에 맞게 수정 필요)
     return {
@@ -1697,13 +2165,11 @@ export async function getDashboardSummary(
       data: responseData.data || responseData,
     }
   } catch (error) {
-    if (isDev) {
-      console.error('[API] 대시보드 Summary 네트워크 에러:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.error('❌ [API] 대시보드 Summary 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
     
     return {
       success: false,
