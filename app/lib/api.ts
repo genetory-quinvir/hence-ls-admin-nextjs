@@ -1232,7 +1232,8 @@ export interface CreateLiveSpaceRequest {
 }
 
 /**
- * Live Space 생성
+ * Live Space 생성 (Admin용)
+ * 일반 생성 화면에서 사용: admin 토큰으로 /api/v1/space-admin 사용
  */
 export async function createLiveSpaceAdmin(
   data: CreateLiveSpaceRequest
@@ -1246,7 +1247,7 @@ export async function createLiveSpaceAdmin(
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/space`
+  const url = `${API_BASE_URL}/api/v1/space-admin`
   
   // thumbnailImageId가 있으면 포함, 없으면 제외
   const requestBody: any = {
@@ -1267,8 +1268,27 @@ export async function createLiveSpaceAdmin(
     method: 'POST',
     data: requestBody,
     hasThumbnailImageId: !!data.thumbnailImageId,
+    requestBodyKeys: Object.keys(requestBody),
+    requestBodyValues: Object.values(requestBody).map(v => typeof v === 'string' ? v.substring(0, 50) : v),
     timestamp: new Date().toISOString(),
   })
+  
+  // 필수 필드 검증
+  if (!data.title || !data.placeName || !data.address || !data.startsAt || !data.endsAt || !data.categoryId) {
+    console.error('❌ [API] Live Space 생성 필수 필드 누락:', {
+      hasTitle: !!data.title,
+      hasPlaceName: !!data.placeName,
+      hasAddress: !!data.address,
+      hasStartsAt: !!data.startsAt,
+      hasEndsAt: !!data.endsAt,
+      hasCategoryId: !!data.categoryId,
+      timestamp: new Date().toISOString(),
+    })
+    return {
+      success: false,
+      error: '필수 필드가 누락되었습니다. (title, placeName, address, startsAt, endsAt, categoryId)',
+    }
+  }
 
   try {
     const response = await fetch(url, {
@@ -1312,13 +1332,22 @@ export async function createLiveSpaceAdmin(
         code: errorData.code,
         customErrorCode: errorData.customErrorCode,
         data: errorData.data,
+        categoryId: requestBody.categoryId,
+        categoryIdType: typeof requestBody.categoryId,
         fullErrorData: JSON.stringify(errorData, null, 2),
         fullErrorText: errorText,
       })
       
+      // QueryFailedError는 데이터베이스 쿼리 실패를 의미 (제약 조건 위반, 잘못된 데이터 형식 등)
+      let errorMessage = errorData.message || errorData.error || errorText || `Live Space 생성 실패 (${response.status})`
+      
+      if (errorData.error === 'QueryFailedError') {
+        errorMessage = `데이터베이스 오류: ${errorData.message || '요청 데이터가 서버의 제약 조건을 만족하지 않습니다. 카테고리 ID, 날짜 형식 등을 확인해주세요.'}`
+      }
+      
       return {
         success: false,
-        error: errorData.message || errorData.error || errorText || `Live Space 생성 실패 (${response.status})`,
+        error: errorMessage,
       }
     }
 
@@ -1433,7 +1462,7 @@ export async function uploadLiveSpaceThumbnail(
     }
   }
 
-  // 기존 방식 (어드민 토큰 사용)
+  // Admin용: admin 토큰으로 /api/v1/space-admin/thumbnail-image 사용 (일반 생성 화면용)
   const accessToken = getAccessToken()
   
   if (!accessToken) {
@@ -1603,6 +1632,7 @@ export async function uploadLiveSpaceThumbnail(
 
 /**
  * 자동 Live Space 생성 요청 인터페이스
+ * 자동화 화면에서만 사용: 내부 API 라우트를 통해 자동 회원가입 후 /api/v1/space 사용
  */
 export interface GenerateAndCreateLiveSpaceRequest {
   title?: string
@@ -1612,13 +1642,12 @@ export interface GenerateAndCreateLiveSpaceRequest {
   latitude?: number
   startsAt?: string
   thumbnailImageId?: string
+  thumbnailFile?: File // 이미지 파일 (thumbnailImageId 대신 사용 가능)
 }
 
 /**
  * 자동 Live Space 생성 (내부 API 라우트 사용)
- */
-/**
- * LLM을 사용하여 Live Space 미리보기 데이터 생성
+ * 이미지 파일이 있으면 FormData로 전송, 없으면 JSON으로 전송
  */
 export interface GenerateLiveSpacePreviewRequest {
   count: number
@@ -1718,28 +1747,55 @@ export async function generateLiveSpacePreview(
   }
 }
 
+/**
+ * 자동 Live Space 생성 (자동화 화면용)
+ * 내부 API 라우트를 통해 자동 회원가입 후 일반 사용자 토큰으로 /api/v1/space 사용
+ * 일반 생성 화면(createLiveSpaceAdmin)과 명확하게 분리됨
+ */
 export async function generateAndCreateLiveSpace(
   data?: GenerateAndCreateLiveSpaceRequest
 ): Promise<{ success: boolean; error?: string; data?: any }> {
-  // 내부 API 라우트 호출 (인증은 서버 사이드에서 처리)
+  // 내부 API 라우트 호출 (서버 사이드에서 자동 회원가입 후 일반 사용자 토큰으로 생성)
   const url = '/api/v1/live-spaces/generate-and-create'
+  
+  // 이미지 파일이 있으면 FormData, 없으면 JSON으로 전송
+  const hasImageFile = data?.thumbnailFile && data.thumbnailFile instanceof File
   
   console.log('📤 [API] 자동 Live Space 생성 요청 (내부):', {
     url,
     method: 'POST',
-    data: data || {},
+    hasImageFile,
+    data: data ? { ...data, thumbnailFile: hasImageFile ? '[File]' : undefined } : {},
     timestamp: new Date().toISOString(),
   })
 
   try {
-    // 내부 API가 자체적으로 자동 회원가입을 수행하므로 토큰 전송 불필요
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data || {}),
-    })
+    let response: Response
+    
+    if (hasImageFile && data?.thumbnailFile) {
+      // FormData로 전송 (이미지 파일 포함)
+      const formData = new FormData()
+      
+      // JSON 데이터 (파일 제외)
+      const { thumbnailFile, ...jsonData } = data
+      formData.append('data', JSON.stringify(jsonData))
+      formData.append('file', thumbnailFile)
+      
+      response = await fetch(url, {
+        method: 'POST',
+        body: formData, // Content-Type은 자동으로 설정됨
+      })
+    } else {
+      // JSON으로 전송 (기존 방식)
+      const { thumbnailFile, ...jsonData } = data || {}
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(jsonData),
+      })
+    }
 
     console.log('📥 [API] 자동 Live Space 생성 응답:', {
       status: response.status,

@@ -218,15 +218,12 @@ export default function UserList({ menuId }: UserListProps) {
           menuId,
           success: response.success,
           dataLength: response.data?.length,
+          isAborted: abortController.signal.aborted,
           timestamp: new Date().toISOString(),
         })
         
-        // AbortSignal이 취소되었는지 확인
-        if (abortController.signal.aborted) {
-          console.log('[UserList] 요청이 취소됨')
-          return
-        }
-        
+        // 응답이 성공적으로 받아졌다면 abort 상태와 관계없이 처리
+        // (cleanup이 실행되어도 이미 받은 응답은 처리해야 함)
         if (response.success && response.data) {
           // API 데이터를 User 타입으로 변환
           const apiUsers: User[] = response.data.map((u: any) => ({
@@ -259,30 +256,34 @@ export default function UserList({ menuId }: UserListProps) {
           } else {
             setPaginationMeta(null)
           }
+          // 성공 시 에러 상태 초기화
+          setLoadError(null)
         } else {
-          setLoadError(response.error || '사용자 리스트를 불러오는데 실패했습니다.')
+          // 실패 시 에러 상태 설정 (abort 상태가 아닐 때만)
+          if (!abortController.signal.aborted) {
+            setLoadError(response.error || '사용자 리스트를 불러오는데 실패했습니다.')
+          }
         }
       } catch (error: any) {
         // AbortError는 무시 (의도적인 취소)
         if (error?.name === 'AbortError') {
+          console.log('[UserList] 요청이 AbortError로 취소됨')
           return
         }
+        // abort 상태가 아닐 때만 에러 설정
         if (!abortController.signal.aborted) {
           setLoadError(error instanceof Error ? error.message : '사용자 리스트를 불러오는 중 오류가 발생했습니다.')
         }
       } finally {
-        if (!abortController.signal.aborted) {
-          setIsLoading(false)
-          isLoadingRef.current = false
-          console.log('[UserList] API 호출 완료:', {
-            menuId,
-            currentPage,
-            timestamp: new Date().toISOString(),
-          })
-        } else {
-          console.log('[UserList] API 호출 취소됨 (finally)')
-          isLoadingRef.current = false
-        }
+        // abort 상태와 관계없이 로딩 상태는 항상 해제
+        setIsLoading(false)
+        isLoadingRef.current = false
+        console.log('[UserList] API 호출 완료:', {
+          menuId,
+          currentPage,
+          isAborted: abortController.signal.aborted,
+          timestamp: new Date().toISOString(),
+        })
       }
     }
     
@@ -701,7 +702,29 @@ export default function UserList({ menuId }: UserListProps) {
       <div className={styles.content}>
         {loadError && (
           <div className={styles.errorMessage}>
-            {loadError}
+            <div>{loadError}</div>
+            <button
+              onClick={() => {
+                setLoadError(null)
+                setApiUsers([])
+                // useEffect가 트리거되도록 하기 위해 lastApiCallRef 초기화
+                lastApiCallRef.current = null
+                // 현재 페이지를 다시 설정하여 useEffect 재실행
+                setCurrentPage(prev => prev)
+              }}
+              style={{
+                marginTop: '8px',
+                padding: '6px 12px',
+                background: '#4a9eff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              다시 시도
+            </button>
           </div>
         )}
         <div className={styles.filters}>
@@ -912,7 +935,19 @@ export default function UserList({ menuId }: UserListProps) {
               </tr>
             </thead>
             <tbody>
-              {displayedUsers.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={10} className={styles.emptyCell}>
+                    로딩 중...
+                  </td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={10} className={styles.emptyCell}>
+                    데이터를 불러오는 중 오류가 발생했습니다. 위의 에러 메시지를 확인하세요.
+                  </td>
+                </tr>
+              ) : displayedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={10} className={styles.emptyCell}>
                     {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all' || filterMarketingConsent !== 'all') ? (
@@ -1019,7 +1054,15 @@ export default function UserList({ menuId }: UserListProps) {
 
         {/* 카드 리스트 (모바일) */}
         <div className={styles.cardList}>
-          {displayedUsers.length === 0 ? (
+          {isLoading ? (
+            <div className={styles.emptyCard}>
+              로딩 중...
+            </div>
+          ) : loadError ? (
+            <div className={styles.emptyCard}>
+              데이터를 불러오는 중 오류가 발생했습니다. 위의 에러 메시지를 확인하세요.
+            </div>
+          ) : displayedUsers.length === 0 ? (
             <div className={styles.emptyCard}>
               {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all' || filterMarketingConsent !== 'all') ? (
                 '리스트가 없습니다.'

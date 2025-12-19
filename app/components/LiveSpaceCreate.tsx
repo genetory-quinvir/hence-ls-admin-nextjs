@@ -22,6 +22,17 @@ export default function LiveSpaceCreate() {
   const mapInstanceRef = useRef<any>(null)
   const pinOverlayRef = useRef<HTMLDivElement>(null)
   
+  // 카테고리 매핑 (이름 -> ID)
+  const categoryMap: Record<string, string> = {
+    '팝업': '59c76d5f-df90-49e3-91be-fb074d6d2635',
+    '전시': '07841371-a660-47f0-b72e-99a188b428e9',
+    '이벤트': '564388d8-b577-4897-b53d-51c5391b8e88',
+    '세일/혜택': 'b6ded660-6911-42c6-a869-348146ba6623',
+    '맛집': '13119e08-caab-498d-a92d-af3ccbfc8bbf',
+    '핀': '15d7417c-ab1f-4c9a-a1ee-718e9357698b',
+    'HENCE': '15d7417c-ab1f-4c9a-a1ee-718e9357698b', // HENCE는 핀과 동일하게 처리
+  }
+
   // 폼 상태
   const [formData, setFormData] = useState({
     title: '',
@@ -435,10 +446,10 @@ export default function LiveSpaceCreate() {
       const startsAt = formatDateTime(new Date(formData.scheduledStartTime))
       const endsAt = formatDateTime(new Date(formData.scheduledEndTime))
       
-      // 썸네일 이미지가 있으면 먼저 업로드
+      // 썸네일 이미지가 있으면 먼저 업로드 (Admin용: /api/v1/space-admin/thumbnail-image 사용)
       let thumbnailImageId: string | undefined = undefined
       if (thumbnailFile) {
-        const uploadResult = await uploadLiveSpaceThumbnail(thumbnailFile)
+        const uploadResult = await uploadLiveSpaceThumbnail(thumbnailFile) // useAutoRegistration=false (기본값) = admin용
         if (!uploadResult.success) {
           alert(uploadResult.error || '썸네일 이미지 업로드 중 오류가 발생했습니다.')
           setIsSubmitting(false)
@@ -447,6 +458,14 @@ export default function LiveSpaceCreate() {
         thumbnailImageId = uploadResult.thumbnailImageId
       }
       
+      // 카테고리 이름을 ID로 변환
+      const categoryId = categoryMap[formData.category]
+      if (!categoryId) {
+        alert('올바른 카테고리를 선택해주세요.')
+        setIsSubmitting(false)
+        return
+      }
+
       // API 요청 데이터 준비
       const requestData: CreateLiveSpaceRequest = {
         title: formData.title,
@@ -457,10 +476,11 @@ export default function LiveSpaceCreate() {
         description: formData.description || undefined,
         startsAt: startsAt,
         endsAt: endsAt,
-        categoryId: formData.category, // 일단 카테고리 문자열을 ID로 사용 (나중에 매핑 필요할 수 있음)
+        categoryId: categoryId, // 카테고리 이름을 ID로 매핑하여 전송
         thumbnailImageId: thumbnailImageId,
       }
       
+      // Admin용 API 사용: /api/v1/space-admin
       const result = await createLiveSpaceAdmin(requestData)
       
       if (!result.success) {
@@ -506,6 +526,9 @@ export default function LiveSpaceCreate() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>라이브 스페이스 생성</h1>
+        <p style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>
+          여기서 만드는 라이브 스페이스는 official@quinvir.com 계정으로 생성됩니다.
+        </p>
       </div>
 
       <div className={styles.content}>
@@ -569,7 +592,7 @@ export default function LiveSpaceCreate() {
               <option value="이벤트">이벤트</option>
               <option value="세일/혜택">세일/혜택</option>
               <option value="맛집">맛집</option>
-              <option value="HENCE">HENCE</option>
+              <option value="핀">핀</option>
             </select>
           </div>
 
@@ -594,16 +617,57 @@ export default function LiveSpaceCreate() {
               <label htmlFor="scheduledStartTime" className={styles.label}>
                 예정 시작 시간 <span className={styles.required}>*</span>
               </label>
-              <input
-                id="scheduledStartTime"
-                name="scheduledStartTime"
-                type="datetime-local"
-                value={formData.scheduledStartTime}
-                onChange={handleInputChange}
-                className={styles.input}
-                required
-                disabled={isSubmitting}
-              />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  id="scheduledStartTime"
+                  name="scheduledStartTime"
+                  type="datetime-local"
+                  value={formData.scheduledStartTime}
+                  onChange={handleInputChange}
+                  className={styles.input}
+                  required
+                  disabled={isSubmitting}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const now = new Date()
+                    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+                    
+                    // datetime-local 형식으로 변환 (YYYY-MM-DDTHH:mm)
+                    const formatForInput = (date: Date): string => {
+                      const year = date.getFullYear()
+                      const month = String(date.getMonth() + 1).padStart(2, '0')
+                      const day = String(date.getDate()).padStart(2, '0')
+                      const hours = String(date.getHours()).padStart(2, '0')
+                      const minutes = String(date.getMinutes()).padStart(2, '0')
+                      return `${year}-${month}-${day}T${hours}:${minutes}`
+                    }
+                    
+                    setFormData(prev => ({
+                      ...prev,
+                      scheduledStartTime: formatForInput(now),
+                      scheduledEndTime: formatForInput(twoHoursLater),
+                    }))
+                  }}
+                  disabled={isSubmitting}
+                  style={{
+                    padding: '10px 16px',
+                    background: '#4a9eff',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    opacity: isSubmitting ? 0.6 : 1,
+                  }}
+                >
+                  지금
+                </button>
+              </div>
             </div>
 
             <div className={styles.formGroup}>

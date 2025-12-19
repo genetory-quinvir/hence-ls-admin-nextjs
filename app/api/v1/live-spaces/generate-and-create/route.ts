@@ -3,28 +3,48 @@ import { NextRequest, NextResponse } from 'next/server'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
 const FIXED_PASSWORD = 'Quinvir2026!'
 
-interface GenerateAndCreateLiveSpaceRequest {
-  title?: string
-  placeName?: string
-  address?: string
-  longitude?: number
-  latitude?: number
-  startsAt?: string
-  thumbnailImageId?: string
-}
-
 /**
  * 자동 Live Space 생성 내부 API 라우트
- * 1. 자동으로 회원가입 (이메일 자동 생성)
- * 2. 회원가입으로 받은 토큰으로 Live Space 생성
+ * 1. 자동으로 회원가입 (이메일 자동 생성) - 한 번만 수행
+ * 2. 회원가입으로 받은 토큰으로:
+ *    - 이미지가 있으면 먼저 이미지 업로드
+ *    - Live Space 생성 (thumbnailImageId 포함)
  */
 export async function POST(request: NextRequest) {
   try {
-    // 요청 본문 파싱
-    const body: GenerateAndCreateLiveSpaceRequest = await request.json().catch(() => ({}))
+    // FormData 또는 JSON 요청 처리
+    const contentType = request.headers.get('content-type') || ''
+    let body: any = {}
+    let thumbnailFile: File | null = null
+    
+    if (contentType.includes('multipart/form-data')) {
+      // FormData 요청 처리
+      const formData = await request.formData()
+      
+      // JSON 데이터 추출
+      const jsonData = formData.get('data') as string
+      if (jsonData) {
+        try {
+          body = JSON.parse(jsonData)
+        } catch (e) {
+          console.error('❌ [Internal API] JSON 파싱 오류:', e)
+        }
+      }
+      
+      // 이미지 파일 추출
+      const file = formData.get('file') as File | null
+      if (file && file instanceof File && file.size > 0) {
+        thumbnailFile = file
+      }
+    } else {
+      // JSON 요청 처리 (기존 방식 - 하위 호환성)
+      body = await request.json().catch(() => ({}))
+    }
     
     console.log('📥 [Internal API] 자동 Live Space 생성 요청:', {
       body,
+      hasThumbnailFile: !!thumbnailFile,
+      thumbnailFileName: thumbnailFile?.name,
       timestamp: new Date().toISOString(),
     })
 
@@ -136,7 +156,95 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     })
 
-    // 2. Live Space 생성
+    // 2. 이미지가 있으면 먼저 업로드 (같은 토큰 사용)
+    let thumbnailImageId: string | undefined = body.thumbnailImageId
+    
+    if (thumbnailFile && !thumbnailImageId) {
+      console.log('📤 [Internal API] 썸네일 이미지 업로드 시작:', {
+        fileName: thumbnailFile.name,
+        fileSize: thumbnailFile.size,
+        timestamp: new Date().toISOString(),
+      })
+      
+      // 파일명이 안전하지 않으면 안전한 파일명으로 변경
+      let safeFileName = thumbnailFile.name
+      if (!/^[a-zA-Z0-9._-]+$/.test(thumbnailFile.name)) {
+        const ext = thumbnailFile.name.split('.').pop() || 'webp'
+        const fileTimestamp = Date.now()
+        const randomStr = Math.random().toString(36).substring(2, 8)
+        safeFileName = `thumbnail_${fileTimestamp}_${randomStr}.${ext}`
+      }
+      
+      // 안전한 파일명으로 새 File 객체 생성
+      const safeFile = new File([thumbnailFile], safeFileName, {
+        type: thumbnailFile.type,
+        lastModified: thumbnailFile.lastModified,
+      })
+      
+      const uploadFormData = new FormData()
+      uploadFormData.append('files', safeFile)
+      
+      const uploadUrl = `${API_BASE_URL}/api/v1/space/thumbnail-image`
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: uploadFormData,
+      })
+      
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text().catch(() => '')
+        let errorData: any = {}
+        try {
+          if (errorText) {
+            errorData = JSON.parse(errorText)
+          }
+        } catch (e) {
+          errorData = { message: errorText || '알 수 없는 오류' }
+        }
+        
+        console.error('❌ [Internal API] 썸네일 이미지 업로드 실패:', {
+          status: uploadResponse.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+        
+        return NextResponse.json(
+          {
+            success: false,
+            error: errorData.message || errorData.error || `썸네일 이미지 업로드 실패 (${uploadResponse.status})`,
+          },
+          { status: uploadResponse.status }
+        )
+      }
+      
+      const uploadResponseData = await uploadResponse.json().catch(() => ({}))
+      const uploadedFiles = uploadResponseData.data?.uploadedFiles || []
+      thumbnailImageId = uploadedFiles[0]?.id
+      
+      if (!thumbnailImageId) {
+        console.error('❌ [Internal API] 썸네일 이미지 업로드 응답에 id가 없음:', {
+          uploadResponseData,
+          uploadedFiles,
+          timestamp: new Date().toISOString(),
+        })
+        return NextResponse.json(
+          {
+            success: false,
+            error: '응답에서 이미지 id를 찾을 수 없습니다.',
+          },
+          { status: 500 }
+        )
+      }
+      
+      console.log('✅ [Internal API] 썸네일 이미지 업로드 성공:', {
+        thumbnailImageId,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    // 3. Live Space 생성 (같은 토큰 사용)
     const createSpaceUrl = `${API_BASE_URL}/api/v1/space`
     
     // placeName은 실제 장소명이 아니라 지역명이므로, address에서 추출하거나 기본값 사용
@@ -149,7 +257,7 @@ export async function POST(request: NextRequest) {
       longitude: body.longitude,
       latitude: body.latitude,
       startsAt: startsAt,
-      ...(body.thumbnailImageId && { thumbnailImageId: body.thumbnailImageId }),
+      ...(thumbnailImageId && { thumbnailImageId }),
     }
 
     console.log('📤 [Internal API] Live Space 생성 API 호출:', {

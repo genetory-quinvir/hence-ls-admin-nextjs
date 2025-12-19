@@ -14,7 +14,7 @@ interface PreviewLiveSpace extends Omit<LiveSpace, 'id'> {
 
 export default function LiveSpaceAutomation() {
   const [generationCount, setGenerationCount] = useState<number>(1)
-  const [llmProvider, setLlmProvider] = useState<'openai' | 'xai'>('openai')
+  const [llmProvider, setLlmProvider] = useState<'openai' | 'xai'>('xai')
   const [isGenerating, setIsGenerating] = useState(false)
   const [previewSpaces, setPreviewSpaces] = useState<PreviewLiveSpace[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
@@ -135,20 +135,10 @@ export default function LiveSpaceAutomation() {
     setIsPublishing(true)
     
     try {
-      // 카드에 추가된 이미지가 있으면 업로드
-      let thumbnailImageId: string | undefined = space.thumbnailImageId
+      // 카드에 추가된 이미지 파일 가져오기
       const cardImageFile = cardThumbnailFiles.get(space.id)
-      if (cardImageFile && !thumbnailImageId) {
-        const uploadResult = await uploadLiveSpaceThumbnail(cardImageFile, true) // 자동 회원가입 사용
-        if (!uploadResult.success) {
-          alert(uploadResult.error || '썸네일 이미지 업로드 중 오류가 발생했습니다.')
-          setIsPublishing(false)
-          return
-        }
-        thumbnailImageId = uploadResult.thumbnailImageId
-      }
       
-      // API 요청 데이터 준비 (미리보기 데이터 전달)
+      // API 요청 데이터 준비 (이미지 파일을 직접 전달 - 같은 토큰으로 처리됨)
       const requestData: GenerateAndCreateLiveSpaceRequest = {
         title: space.title,
         placeName: space.location?.district || space.location?.address?.split(' ')[1] || '',
@@ -156,9 +146,16 @@ export default function LiveSpaceAutomation() {
         longitude: space.location?.lng || 0,
         latitude: space.location?.lat || 0,
         startsAt: space.startedAt || space.scheduledStartTime || '',
-        ...(thumbnailImageId && { thumbnailImageId }),
+        // 이미지 파일이 있으면 파일을 직접 전달 (이미지 ID는 제거)
+        ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
+        // 이미지 파일이 없고 ID만 있으면 ID 사용
+        ...(!cardImageFile && space.thumbnailImageId ? { thumbnailImageId: space.thumbnailImageId } : {}),
       }
       
+      // generateAndCreateLiveSpace가 자동으로:
+      // 1. 자동 회원가입 (한 번만)
+      // 2. 같은 토큰으로 이미지 업로드 (파일이 있는 경우)
+      // 3. 같은 토큰으로 스페이스 생성
       const result = await generateAndCreateLiveSpace(requestData)
       
       if (!result.success) {
@@ -198,17 +195,10 @@ export default function LiveSpaceAutomation() {
       
       for (const space of previewSpaces) {
         try {
-          // 카드에 추가된 이미지가 있으면 업로드
-          let thumbnailImageId: string | undefined = space.thumbnailImageId
+          // 카드에 추가된 이미지 파일 가져오기
           const cardImageFile = cardThumbnailFiles.get(space.id)
-          if (cardImageFile && !thumbnailImageId) {
-            const uploadResult = await uploadLiveSpaceThumbnail(cardImageFile, true) // 자동 회원가입 사용
-            if (uploadResult.success) {
-              thumbnailImageId = uploadResult.thumbnailImageId
-            }
-          }
           
-          // API 요청 데이터 준비 (미리보기 데이터 전달)
+          // API 요청 데이터 준비 (이미지 파일을 직접 전달 - 같은 토큰으로 처리됨)
           const requestData: GenerateAndCreateLiveSpaceRequest = {
             title: space.title,
             placeName: space.location?.district || space.location?.address?.split(' ')[1] || '',
@@ -216,9 +206,16 @@ export default function LiveSpaceAutomation() {
             longitude: space.location?.lng || 0,
             latitude: space.location?.lat || 0,
             startsAt: space.startedAt || space.scheduledStartTime || '',
-            ...(thumbnailImageId && { thumbnailImageId }),
+            // 이미지 파일이 있으면 파일을 직접 전달 (이미지 ID는 제거)
+            ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
+            // 이미지 파일이 없고 ID만 있으면 ID 사용
+            ...(!cardImageFile && space.thumbnailImageId ? { thumbnailImageId: space.thumbnailImageId } : {}),
           }
           
+          // generateAndCreateLiveSpace가 자동으로:
+          // 1. 자동 회원가입 (각 스페이스마다 한 번씩)
+          // 2. 같은 토큰으로 이미지 업로드 (파일이 있는 경우)
+          // 3. 같은 토큰으로 스페이스 생성
           const result = await generateAndCreateLiveSpace(requestData)
           
           if (result.success) {
@@ -633,24 +630,6 @@ export default function LiveSpaceAutomation() {
               <input
                 type="radio"
                 name="llmProvider"
-                value="openai"
-                checked={llmProvider === 'openai'}
-                onChange={(e) => setLlmProvider(e.target.value as 'openai' | 'xai')}
-                disabled={isGenerating}
-                style={{ cursor: 'pointer' }}
-              />
-              {/* OpenAI 로고 */}
-              <img 
-                src="/images/icon_openai.webp" 
-                alt="OpenAI"
-                style={{ width: '20px', height: '20px', objectFit: 'contain' }}
-              />
-              <span>OpenAI (GPT-4o-mini)</span>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
-              <input
-                type="radio"
-                name="llmProvider"
                 value="xai"
                 checked={llmProvider === 'xai'}
                 onChange={(e) => setLlmProvider(e.target.value as 'openai' | 'xai')}
@@ -664,6 +643,24 @@ export default function LiveSpaceAutomation() {
                 style={{ width: '20px', height: '20px', objectFit: 'contain' }}
               />
               <span>xAI (Grok 3 Mini)</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+              <input
+                type="radio"
+                name="llmProvider"
+                value="openai"
+                checked={llmProvider === 'openai'}
+                onChange={(e) => setLlmProvider(e.target.value as 'openai' | 'xai')}
+                disabled={isGenerating}
+                style={{ cursor: 'pointer' }}
+              />
+              {/* OpenAI 로고 */}
+              <img 
+                src="/images/icon_openai.webp" 
+                alt="OpenAI"
+                style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+              />
+              <span>OpenAI (GPT-4o-mini)</span>
             </label>
           </div>
         </div>
