@@ -38,7 +38,7 @@ export default function UserList({ menuId }: UserListProps) {
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null)
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [profileImageError, setProfileImageError] = useState(false)
-  const [sortField, setSortField] = useState<'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | null>(null)
+  const [sortField, setSortField] = useState<'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | 'points' | null>(null)
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
   
   // 중복 API 호출 방지를 위한 ref
@@ -51,7 +51,7 @@ export default function UserList({ menuId }: UserListProps) {
   const abortControllerRef = useRef<AbortController | null>(null)
   
   // 정렬 핸들러
-  const handleSort = (field: 'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore') => {
+  const handleSort = (field: 'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | 'points') => {
     if (sortField === field) {
       // 같은 필드를 클릭하면 정렬 순서 토글
       setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')
