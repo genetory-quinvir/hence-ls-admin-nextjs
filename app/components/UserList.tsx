@@ -950,7 +950,7 @@ export default function UserList({ menuId }: UserListProps) {
               ) : displayedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={10} className={styles.emptyCell}>
-                    {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all' || filterMarketingConsent !== 'all') ? (
+                    {(filterStatus !== 'ALL' || searchKeyword || filterRole !== 'ALL' || filterMarketingConsent !== 'all') ? (
                       '리스트가 없습니다.'
                     ) : (
                       menuId === 'users-reported'
@@ -1064,7 +1064,7 @@ export default function UserList({ menuId }: UserListProps) {
             </div>
           ) : displayedUsers.length === 0 ? (
             <div className={styles.emptyCard}>
-              {(filterStatus !== 'all' || searchKeyword || filterRole !== 'all' || filterMarketingConsent !== 'all') ? (
+              {(filterStatus !== 'ALL' || searchKeyword || filterRole !== 'ALL' || filterMarketingConsent !== 'all') ? (
                 '리스트가 없습니다.'
               ) : (
                 menuId === 'users-reported'

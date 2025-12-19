@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Sidebar, { MenuItem } from './components/Sidebar'
 import DetailView from './components/DetailView'
@@ -93,7 +93,7 @@ const menuItems: MenuItem[] = [
   },
 ]
 
-export default function Home() {
+function HomeContent() {
   const { isAuthenticated, isLoading } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -110,7 +110,7 @@ export default function Home() {
     if (urlMenuId && urlMenuId !== activeMenuId) {
       setActiveMenuId(urlMenuId)
     }
-  }, [urlMenuId])
+  }, [urlMenuId, activeMenuId])
 
   // 로그인 시 대시보드를 기본으로 표시 (URL에 menuId가 없을 때만)
   useEffect(() => {
@@ -194,6 +194,14 @@ export default function Home() {
         />
       </div>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   )
 }
 
