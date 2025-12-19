@@ -1656,6 +1656,7 @@ export interface GenerateLiveSpacePreviewRequest {
   customPrompt?: string
   characterPrompt?: string
   provider?: 'openai' | 'xai'
+  batchMode?: boolean // 일괄 생성 모드 (한 회원으로 여러 스페이스 생성 시 true)
 }
 
 export interface GeneratedLiveSpace {
@@ -1859,6 +1860,117 @@ export async function generateAndCreateLiveSpace(
     return {
       success: false,
       error: error instanceof Error ? error.message : '자동 Live Space 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 일괄 Live Space 생성 (한 회원으로 여러 스페이스 생성)
+ */
+export interface BatchCreateLiveSpaceRequest {
+  spaces: Array<{
+    title?: string
+    placeName?: string
+    address?: string
+    longitude?: number
+    latitude?: number
+    startsAt?: string
+    thumbnailImageId?: string
+    thumbnailFile?: File
+  }>
+}
+
+export async function batchCreateLiveSpaces(
+  spaces: BatchCreateLiveSpaceRequest['spaces']
+): Promise<{ success: boolean; error?: string; results?: Array<{ success: boolean; error?: string; data?: any }>; summary?: { total: number; successCount: number; failCount: number } }> {
+  const url = '/api/v1/live-spaces/batch-create'
+  
+  console.log('📤 [API] 일괄 Live Space 생성 요청 (내부):', {
+    url,
+    method: 'POST',
+    spaceCount: spaces.length,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const formData = new FormData()
+    
+    // 각 스페이스의 이미지 파일을 제거하고 인덱스만 저장 (서버에서 파일을 찾을 수 있도록)
+    const spacesWithoutFiles = spaces.map((space, index) => {
+      const { thumbnailFile, ...rest } = space
+      return {
+        ...rest,
+        _hasThumbnailFile: !!(thumbnailFile && thumbnailFile instanceof File),
+        _fileIndex: (thumbnailFile && thumbnailFile instanceof File) ? index : undefined,
+      }
+    })
+    
+    // JSON 데이터 (파일 정보는 인덱스로만 표시)
+    formData.append('data', JSON.stringify({ spaces: spacesWithoutFiles }))
+    
+    // 각 스페이스의 이미지 파일 추가 (인덱스로 구분)
+    spaces.forEach((space, index) => {
+      if (space.thumbnailFile && space.thumbnailFile instanceof File) {
+        formData.append(`file_${index}`, space.thumbnailFile)
+      }
+    })
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    })
+
+    console.log('📥 [API] 일괄 Live Space 생성 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+      
+      console.error('❌ [API] 일괄 Live Space 생성 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        errorText,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || errorText || `일괄 Live Space 생성 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    
+    console.log('✅ [API] 일괄 Live Space 생성 성공:', {
+      summary: responseData.summary,
+      timestamp: new Date().toISOString(),
+    })
+
+    return {
+      success: true,
+      results: responseData.results,
+      summary: responseData.summary,
+    }
+  } catch (error) {
+    console.error('❌ [API] 일괄 Live Space 생성 예외:', {
+      error,
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '일괄 Live Space 생성 중 오류가 발생했습니다.',
     }
   }
 }

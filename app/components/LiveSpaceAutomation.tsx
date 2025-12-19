@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { generateAndCreateLiveSpace, GenerateAndCreateLiveSpaceRequest, uploadLiveSpaceThumbnail, generateLiveSpacePreview, GeneratedLiveSpace } from '../lib/api'
+import { generateAndCreateLiveSpace, GenerateAndCreateLiveSpaceRequest, batchCreateLiveSpaces, uploadLiveSpaceThumbnail, generateLiveSpacePreview, GeneratedLiveSpace } from '../lib/api'
 import { LiveSpace, LiveSpaceCategory } from '../data/mockData'
 import styles from './LiveSpaceCreate.module.css'
 
@@ -15,10 +15,16 @@ interface PreviewLiveSpace extends Omit<LiveSpace, 'id'> {
 export default function LiveSpaceAutomation() {
   const [generationCount, setGenerationCount] = useState<number>(1)
   const [llmProvider, setLlmProvider] = useState<'openai' | 'xai'>('xai')
+  const [userCreationMode, setUserCreationMode] = useState<'individual' | 'batch'>('individual') // 'individual': 각각 회원 가입, 'batch': 한 회원으로 일괄 생성
   const [isGenerating, setIsGenerating] = useState(false)
   const [previewSpaces, setPreviewSpaces] = useState<PreviewLiveSpace[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishedCount, setPublishedCount] = useState(0)
+  const [publishingProgress, setPublishingProgress] = useState<{
+    current: number
+    total: number
+    message: string
+  } | null>(null)
   
   // 폼 상태
   const [formData, setFormData] = useState({
@@ -71,6 +77,7 @@ export default function LiveSpaceAutomation() {
         customPrompt: formData.customPrompt.trim() || undefined,
         characterPrompt: formData.characterPrompt.trim() || undefined,
         provider: llmProvider,
+        batchMode: userCreationMode === 'batch', // 일괄 생성 모드 전달
       })
       
       if (!generateResult.success || !generateResult.data) {
@@ -80,14 +87,18 @@ export default function LiveSpaceAutomation() {
       }
       
       // GeneratedLiveSpace를 PreviewLiveSpace로 변환
+      // 일괄 생성 모드일 때는 모든 스페이스가 같은 회원으로 표시되도록
+      const batchUserId = userCreationMode === 'batch' ? `batch-user-${Date.now()}` : `preview-${Date.now()}`
+      const batchUserNickname = userCreationMode === 'batch' ? '일괄생성 회원' : '시스템'
+      
       const previews: PreviewLiveSpace[] = generateResult.data.map((space: GeneratedLiveSpace, index: number) => {
-        const previewId = `preview-${Date.now()}-${index}`
+        const previewId = `${batchUserId}-${index}`
         
         return {
           id: previewId,
           title: space.title,
-          hostNickname: '시스템',
-          hostId: 'system',
+          hostNickname: batchUserNickname,
+          hostId: batchUserId,
           thumbnail: undefined,
           category: 'HENCE' as LiveSpaceCategory, // 기본값 사용
           status: 'live' as const,
@@ -183,60 +194,157 @@ export default function LiveSpaceAutomation() {
       return
     }
     
-    if (!confirm(`총 ${previewSpaces.length}개의 Live Space를 모두 발행하시겠습니까?`)) {
+    const modeText = userCreationMode === 'batch' 
+      ? `한 회원으로 일괄 생성 (1:N)` 
+      : `각각 회원 가입 (1:1)`
+    
+    if (!confirm(`총 ${previewSpaces.length}개의 Live Space를 모두 발행하시겠습니까?\n\n회원 생성 방식: ${modeText}`)) {
       return
     }
     
     setIsPublishing(true)
     
     try {
-      let successCount = 0
-      let failCount = 0
-      
-      for (const space of previewSpaces) {
-        try {
-          // 카드에 추가된 이미지 파일 가져오기
+      if (userCreationMode === 'batch') {
+        // 일괄 생성 모드: 한 회원으로 여러 스페이스 생성
+        const spaces = previewSpaces.map(space => {
           const cardImageFile = cardThumbnailFiles.get(space.id)
-          
-          // API 요청 데이터 준비 (이미지 파일을 직접 전달 - 같은 토큰으로 처리됨)
-          const requestData: GenerateAndCreateLiveSpaceRequest = {
+          return {
             title: space.title,
             placeName: space.location?.district || space.location?.address?.split(' ')[1] || '',
             address: space.location?.address || '',
             longitude: space.location?.lng || 0,
             latitude: space.location?.lat || 0,
             startsAt: space.startedAt || space.scheduledStartTime || '',
-            // 이미지 파일이 있으면 파일을 직접 전달 (이미지 ID는 제거)
+            // 이미지 파일이 있으면 파일을 직접 전달
             ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
             // 이미지 파일이 없고 ID만 있으면 ID 사용
             ...(!cardImageFile && space.thumbnailImageId ? { thumbnailImageId: space.thumbnailImageId } : {}),
           }
-          
-          // generateAndCreateLiveSpace가 자동으로:
-          // 1. 자동 회원가입 (각 스페이스마다 한 번씩)
-          // 2. 같은 토큰으로 이미지 업로드 (파일이 있는 경우)
-          // 3. 같은 토큰으로 스페이스 생성
-          const result = await generateAndCreateLiveSpace(requestData)
-          
-          if (result.success) {
-            successCount++
-          } else {
-            failCount++
+        })
+        
+        // 진행 상황 표시 시작
+        let currentProgress = 0
+        const totalSpaces = spaces.length
+        const estimatedTimePerSpace = 15 // 초 (쓰로틀 대기 시간 포함)
+        
+        setPublishingProgress({
+          current: 0,
+          total: totalSpaces,
+          message: '일괄 발행 시작... (쓰로틀 방지를 위해 각 스페이스 생성 사이에 15초 대기)',
+        })
+        
+        // 진행 상황 업데이트를 위한 인터벌
+        const progressInterval = setInterval(() => {
+          currentProgress += 1
+          if (currentProgress <= totalSpaces) {
+            setPublishingProgress(prev => prev ? {
+              ...prev,
+              current: currentProgress,
+              message: `스페이스 ${currentProgress} 생성 중... (${totalSpaces - currentProgress}개 남음)`,
+            } : null)
           }
-        } catch (error) {
-          failCount++
-          console.error(`Live Space 발행 오류 (${space.title}):`, error)
-        }
-      }
-      
-      // 발행 완료 - 미리보기 목록 초기화
-      setPreviewSpaces([])
-      setPublishedCount(prev => prev + successCount)
-      
-      if (failCount > 0) {
-        alert(`발행 완료: ${successCount}개 성공, ${failCount}개 실패`)
+        }, estimatedTimePerSpace * 1000) // 15초마다 진행 상황 업데이트
+        
+        // 백그라운드로 처리 (비동기) - await 없이 실행
+        ;(async () => {
+          try {
+            const result = await batchCreateLiveSpaces(spaces)
+            
+            // 인터벌 정리
+            clearInterval(progressInterval)
+            
+            if (result.success && result.summary) {
+              const { successCount, failCount } = result.summary
+              
+              // 최종 진행 상황 업데이트
+              setPublishingProgress(prev => prev ? {
+                ...prev,
+                current: totalSpaces,
+                message: '발행 완료!',
+              } : null)
+              
+              // 발행 완료 - 미리보기 목록 초기화
+              setPreviewSpaces([])
+              setPublishedCount(prev => prev + successCount)
+              
+              // 1초 후 팝업 닫기
+              setTimeout(() => {
+                setPublishingProgress(null)
+              }, 1000)
+              
+              if (failCount > 0) {
+                alert(`발행 완료: ${successCount}개 성공, ${failCount}개 실패\n\n한 회원으로 ${successCount}개의 스페이스가 생성되었습니다.`)
+              } else {
+                alert(`모든 Live Space가 성공적으로 발행되었습니다. (${successCount}개)\n\n한 회원으로 ${successCount}개의 스페이스가 생성되었습니다.`)
+              }
+            } else {
+              clearInterval(progressInterval)
+              setPublishingProgress(null)
+              alert(result.error || '일괄 발행 중 오류가 발생했습니다.')
+            }
+          } catch (error) {
+            console.error('일괄 발행 오류:', error)
+            clearInterval(progressInterval)
+            setPublishingProgress(null)
+            alert('일괄 발행 중 오류가 발생했습니다.')
+          } finally {
+            setIsPublishing(false)
+          }
+        })()
+        
+        // 백그라운드로 처리되므로 여기서 함수 종료 (진행 상황은 계속 업데이트됨)
+        return
       } else {
-        alert(`모든 Live Space가 성공적으로 발행되었습니다. (${successCount}개)`)
+        // 개별 생성 모드: 각 스페이스마다 회원 가입
+        let successCount = 0
+        let failCount = 0
+        
+        for (const space of previewSpaces) {
+          try {
+            // 카드에 추가된 이미지 파일 가져오기
+            const cardImageFile = cardThumbnailFiles.get(space.id)
+            
+            // API 요청 데이터 준비 (이미지 파일을 직접 전달 - 같은 토큰으로 처리됨)
+            const requestData: GenerateAndCreateLiveSpaceRequest = {
+              title: space.title,
+              placeName: space.location?.district || space.location?.address?.split(' ')[1] || '',
+              address: space.location?.address || '',
+              longitude: space.location?.lng || 0,
+              latitude: space.location?.lat || 0,
+              startsAt: space.startedAt || space.scheduledStartTime || '',
+              // 이미지 파일이 있으면 파일을 직접 전달 (이미지 ID는 제거)
+              ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
+              // 이미지 파일이 없고 ID만 있으면 ID 사용
+              ...(!cardImageFile && space.thumbnailImageId ? { thumbnailImageId: space.thumbnailImageId } : {}),
+            }
+            
+            // generateAndCreateLiveSpace가 자동으로:
+            // 1. 자동 회원가입 (각 스페이스마다 한 번씩)
+            // 2. 같은 토큰으로 이미지 업로드 (파일이 있는 경우)
+            // 3. 같은 토큰으로 스페이스 생성
+            const result = await generateAndCreateLiveSpace(requestData)
+            
+            if (result.success) {
+              successCount++
+            } else {
+              failCount++
+            }
+          } catch (error) {
+            failCount++
+            console.error(`Live Space 발행 오류 (${space.title}):`, error)
+          }
+        }
+        
+        // 발행 완료 - 미리보기 목록 초기화
+        setPreviewSpaces([])
+        setPublishedCount(prev => prev + successCount)
+        
+        if (failCount > 0) {
+          alert(`발행 완료: ${successCount}개 성공, ${failCount}개 실패\n\n각 스페이스마다 새로운 회원이 가입되었습니다.`)
+        } else {
+          alert(`모든 Live Space가 성공적으로 발행되었습니다. (${successCount}개)\n\n각 스페이스마다 새로운 회원이 가입되었습니다.`)
+        }
       }
     } catch (error) {
       console.error('일괄 발행 오류:', error)
@@ -660,7 +768,46 @@ export default function LiveSpaceAutomation() {
                 alt="OpenAI"
                 style={{ width: '20px', height: '20px', objectFit: 'contain' }}
               />
-              <span>OpenAI (GPT-4o-mini)</span>
+              <span>OpenAI (GPT-4o-mini 지윤's 지갑에서 돈 나감..)</span>
+            </label>
+          </div>
+        </div>
+
+        {/* 회원 생성 방식 선택 */}
+        <div className={styles.formGroup} style={{ marginBottom: '24px' }}>
+          <label className={styles.label}>
+            회원 생성 방식
+          </label>
+          <div style={{ display: 'flex', gap: '24px', marginTop: '8px', flexDirection: 'column' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+              <input
+                type="radio"
+                name="userCreationMode"
+                value="individual"
+                checked={userCreationMode === 'individual'}
+                onChange={(e) => setUserCreationMode(e.target.value as 'individual' | 'batch')}
+                disabled={isGenerating || isPublishing}
+                style={{ cursor: 'pointer' }}
+              />
+              <span>각각 회원 가입 (1:1)</span>
+              <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
+                - 각 스페이스마다 새로운 회원을 가입시켜 생성합니다.
+              </span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+              <input
+                type="radio"
+                name="userCreationMode"
+                value="batch"
+                checked={userCreationMode === 'batch'}
+                onChange={(e) => setUserCreationMode(e.target.value as 'individual' | 'batch')}
+                disabled={isGenerating || isPublishing}
+                style={{ cursor: 'pointer' }}
+              />
+              <span>한 회원으로 일괄 생성 (1:N)</span>
+              <span style={{ fontSize: '12px', color: '#999', marginLeft: '8px' }}>
+                - 회원 1명을 가입시키고 그 회원이 여러 스페이스를 생성합니다.
+              </span>
             </label>
           </div>
         </div>
@@ -779,6 +926,7 @@ export default function LiveSpaceAutomation() {
             </button>
           </div>
         </form>
+
 
         {/* 미리보기 목록 */}
         {previewSpaces.length > 0 && (
@@ -1215,6 +1363,73 @@ export default function LiveSpaceAutomation() {
                 저장
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 일괄 발행 진행 상황 팝업 (우측 하단) */}
+      {publishingProgress && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          width: '320px',
+          background: '#fff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          padding: '20px',
+          zIndex: 1000,
+          border: '1px solid #e0e0e0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              border: '3px solid #4a9eff',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: '#333', marginBottom: '4px' }}>
+                일괄 발행 진행 중
+              </div>
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                {publishingProgress.current} / {publishingProgress.total} 완료
+              </div>
+            </div>
+          </div>
+          
+          {/* 프로그레스 바 */}
+          <div style={{
+            width: '100%',
+            height: '10px',
+            background: '#e0e7ff',
+            borderRadius: '5px',
+            overflow: 'hidden',
+            marginBottom: '8px',
+          }}>
+            <div style={{
+              width: `${(publishingProgress.current / publishingProgress.total) * 100}%`,
+              height: '100%',
+              background: '#4a9eff',
+              transition: 'width 0.3s ease',
+              borderRadius: '5px',
+            }} />
+          </div>
+          
+          {/* 완성률 표시 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ fontSize: '13px', color: '#666' }}>
+              완성률: <strong style={{ color: '#4a9eff' }}>{Math.round((publishingProgress.current / publishingProgress.total) * 100)}%</strong>
+            </div>
+            <div style={{ fontSize: '12px', color: '#999' }}>
+              예상 소요: 약 {Math.ceil((publishingProgress.total - publishingProgress.current) * 15 / 60)}분
+            </div>
+          </div>
+          
+          <div style={{ fontSize: '11px', color: '#999', lineHeight: '1.4' }}>
+            {publishingProgress.message}
           </div>
         </div>
       )}
