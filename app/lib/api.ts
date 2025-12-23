@@ -1226,7 +1226,7 @@ export interface CreateLiveSpaceRequest {
   latitude: number
   description?: string
   startsAt: string
-  endsAt: string
+  endsAt: string // 서버에서 필수로 요구 (없으면 클라이언트에서 기본값 설정)
   thumbnailImageId?: string
   categoryId: string
 }
@@ -1257,7 +1257,7 @@ export async function createLiveSpaceAdmin(
     longitude: data.longitude,
     latitude: data.latitude,
     startsAt: data.startsAt,
-    endsAt: data.endsAt,
+    endsAt: data.endsAt, // 서버에서 필수로 요구하므로 항상 포함 (없으면 클라이언트에서 기본값 설정)
     categoryId: data.categoryId,
     ...(data.description && { description: data.description }),
     ...(data.thumbnailImageId && { thumbnailImageId: data.thumbnailImageId }),
@@ -2138,27 +2138,35 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
       },
     })
 
-    if (isDev) {
-      console.log('[API] Live Space 강제 종료 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    console.log('📥 [API] Live Space 강제 종료 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        if (errorText) {
+          errorData = JSON.parse(errorText)
+        }
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
       
       console.error('❌ [API] Live Space 강제 종료 에러:', {
         status: response.status,
+        statusText: response.statusText,
         errorData,
+        errorText,
         timestamp: new Date().toISOString(),
       })
       
       return {
         success: false,
-        error: errorData.message || `Live Space 강제 종료 실패 (${response.status})`,
+        error: errorData.message || errorData.error || errorText || `Live Space 강제 종료 실패 (${response.status})`,
       }
     }
 

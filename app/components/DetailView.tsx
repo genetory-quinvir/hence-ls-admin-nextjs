@@ -4,6 +4,7 @@ import Dashboard from './Dashboard'
 import LiveSpaceList from './LiveSpaceList'
 import LiveSpaceCreate from './LiveSpaceCreate'
 import LiveSpaceAutomation from './LiveSpaceAutomation'
+import KoreanFestivalEvent from './KoreanFestivalEvent'
 import UserList from './UserList'
 import FeedList from './FeedList'
 import ReportList from './ReportList'
@@ -46,6 +47,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
         return <LiveSpaceCreate />
       case 'live-space-automation':
         return <LiveSpaceAutomation />
+      case 'live-space-festival':
+        return <KoreanFestivalEvent />
       
       // 사용자 관리
       case 'users-list':

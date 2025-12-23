@@ -158,8 +158,17 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     }
   }
 
-  // API에서 Live Space 리스트 불러오기 (live-space-list만)
+  // menuId 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
   useEffect(() => {
+    // menuId가 변경되면 로딩 상태 초기화
+    if (menuId !== 'live-space-list') {
+      setIsLoading(false)
+      isLoadingRef.current = false
+      setLoadError(null)
+      return
+    }
+    
+    // live-space-list일 때만 API 호출
     loadLiveSpaces(currentPage)
     
     return () => {
@@ -474,6 +483,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                 <th>상태</th>
                 <th>체크인 수</th>
                 <th>개설 시간</th>
+                <th>시작 시간</th>
                 <th>종료 시간</th>
                 <th>액션</th>
               </tr>
@@ -481,7 +491,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
             <tbody>
               {filteredLiveSpaces.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className={styles.emptyCell}>
+                  <td colSpan={9} className={styles.emptyCell}>
                     {(filterStatus !== 'all' || filterRegion !== 'all' || filterCategory !== 'all' || searchQuery) ? (
                       '리스트가 없습니다.'
                     ) : (
@@ -530,17 +540,19 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                         <span className={styles.warningBadge}>⚠️</span>
                       )}
                     </td>
-                    <td>{formatDate(ls.createdAt)}</td>
                     <td>
-                      {ls.status === 'live' ? (
-                        <span className={styles.remainingTime}>
-                          {getRemainingTime(ls.createdAt)}
-                        </span>
-                      ) : ls.endedAt ? (
-                        formatDate(ls.endedAt)
-                      ) : (
-                        '-'
+                      {formatDate(ls.createdAt)}
+                    </td>
+                    <td>
+                      {ls.startedAt || ls.scheduledStartTime ? formatDate(ls.startedAt || ls.scheduledStartTime!) : '-'}
+                      {ls.status === 'live' && (ls.startedAt || ls.scheduledStartTime) && (
+                        <div className={styles.timeInfo}>
+                          {getRemainingTime(ls.startedAt || ls.scheduledStartTime || ls.createdAt)}
+                        </div>
                       )}
+                    </td>
+                    <td>
+                      {ls.endedAt ? formatDate(ls.endedAt) : '-'}
                     </td>
                     <td>
                       <div className={styles.actions}>
@@ -634,16 +646,24 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                     </div>
                     <div className={styles.cardInfoItem}>
                       <span className={styles.cardInfoLabel}>개설 시간</span>
-                      <span className={styles.cardInfoValue}>{formatDate(ls.createdAt)}</span>
+                      <span className={styles.cardInfoValue}>
+                        {formatDate(ls.createdAt)}
+                      </span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>시작 시간</span>
+                      <span className={styles.cardInfoValue}>
+                        {ls.startedAt || ls.scheduledStartTime ? formatDate(ls.startedAt || ls.scheduledStartTime!) : '-'}
+                      </span>
                     </div>
                     <div className={styles.cardInfoItem}>
                       <span className={styles.cardInfoLabel}>
                         {ls.status === 'live' ? '경과 시간' : '종료 시간'}
                       </span>
                       <span className={styles.cardInfoValue}>
-                        {ls.status === 'live' ? (
+                        {ls.status === 'live' && (ls.startedAt || ls.scheduledStartTime) ? (
                           <span className={styles.remainingTime}>
-                            {getRemainingTime(ls.createdAt)}
+                            {getRemainingTime(ls.startedAt || ls.scheduledStartTime || ls.createdAt)}
                           </span>
                         ) : ls.endedAt ? (
                           formatDate(ls.endedAt)
