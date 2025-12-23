@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// 동적 렌더링 강제 (searchParams 사용으로 인해 필요)
+export const dynamic = 'force-dynamic'
+
 const API_BASE_URL = 'http://apis.data.go.kr/B551011/KorService2'
 
 export async function GET(request: NextRequest) {
