@@ -61,13 +61,14 @@ export async function POST(request: NextRequest) {
     })
 
     // 날짜를 YYYY-MM-DDTHH:mm:ss 형식으로 변환하는 함수
+    // 날짜를 YYYY-MM-DDTHH:mm:ss 형식으로 변환하는 함수 (UTC 시간 사용)
     const formatDateTime = (date: Date): string => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-      const seconds = String(date.getSeconds()).padStart(2, '0')
+      const year = date.getUTCFullYear()
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      const hours = String(date.getUTCHours()).padStart(2, '0')
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+      const seconds = String(date.getUTCSeconds()).padStart(2, '0')
       return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
     }
 
@@ -167,12 +168,13 @@ export async function POST(request: NextRequest) {
         let startsAt = space.startsAt
         if (!startsAt) {
           const defaultStart = new Date()
-          defaultStart.setHours(defaultStart.getHours() + 1)
-          startsAt = formatDateTime(defaultStart)
+          defaultStart.setUTCHours(defaultStart.getUTCHours() + 1)
+          startsAt = defaultStart.toISOString()
         } else {
+          // ISO 형식으로 변환 (타임존 정보 포함)
           const date = new Date(startsAt)
           if (!isNaN(date.getTime())) {
-            startsAt = formatDateTime(date)
+            startsAt = date.toISOString()
           }
         }
 

@@ -2499,3 +2499,116 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
   }
 }
 
+/**
+ * 전체 푸시 알림 전송 요청 인터페이스
+ */
+export interface SendPushNotificationAllRequest {
+  title: string
+  body: string
+  link?: string
+  type: 'SYSTEM' | string
+}
+
+/**
+ * 푸시 알림 전송 응답 인터페이스
+ */
+export interface SendPushNotificationResponse {
+  success: boolean
+  data?: any
+  error?: string
+}
+
+/**
+ * 전체 푸시 알림 전송 API 호출
+ */
+export async function sendPushNotificationAll(
+  request: SendPushNotificationAllRequest
+): Promise<SendPushNotificationResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${API_BASE_URL}/api/v1/notifications-admin/send/all`
+  
+  if (isDev) {
+    console.log('[API] 전체 푸시 알림 전송 요청:', {
+      url,
+      request,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: request.title,
+        body: request.body,
+        link: request.link || '',
+        type: request.type || 'SYSTEM',
+      }),
+    })
+
+    if (isDev) {
+      console.log('[API] 전체 푸시 알림 전송 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 전체 푸시 알림 전송 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `푸시 알림 전송 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 전체 푸시 알림 전송 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 전체 푸시 알림 전송 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '푸시 알림 전송 중 오류가 발생했습니다.',
+    }
+  }
+}

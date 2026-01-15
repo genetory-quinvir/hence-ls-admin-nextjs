@@ -352,14 +352,14 @@ JSON 형식으로 응답 (startsAt 필드는 제외):
       // 배열이 아닌 경우 배열로 변환
       const spacesArray = Array.isArray(spacesList) ? spacesList : [spacesList]
 
-      // 날짜를 YYYY-MM-DDTHH:mm:ss 형식으로 변환하는 함수
+      // 날짜를 YYYY-MM-DDTHH:mm:ss 형식으로 변환하는 함수 (UTC 시간 사용)
       const formatDateTime = (date: Date): string => {
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        const hours = String(date.getHours()).padStart(2, '0')
-        const minutes = String(date.getMinutes()).padStart(2, '0')
-        const seconds = String(date.getSeconds()).padStart(2, '0')
+        const year = date.getUTCFullYear()
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(date.getUTCDate()).padStart(2, '0')
+        const hours = String(date.getUTCHours()).padStart(2, '0')
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+        const seconds = String(date.getUTCSeconds()).padStart(2, '0')
         return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
       }
 
@@ -372,23 +372,34 @@ JSON 형식으로 응답 (startsAt 필드는 제외):
         
         if (body.batchMode && timeSlots.length > index) {
           // 일괄 생성 모드: 미리 계산된 시간대 사용
+          // KST 시간을 UTC로 변환하여 저장 (KST = UTC+9)
           const slot = timeSlots[index]
           const today = new Date(now)
-          today.setHours(0, 0, 0, 0) // 오늘 00:00:00
+          today.setUTCHours(0, 0, 0, 0) // 오늘 00:00:00 UTC
           
+          // KST 시간을 UTC로 변환 (KST 시간 - 9시간 = UTC 시간)
+          const kstHour = slot.hour
+          const utcHour = kstHour - 9
           const randomMinute = Math.floor(Math.random() * 60)
+          
           startDate = new Date(today)
-          startDate.setHours(slot.hour, randomMinute, 0, 0)
+          if (utcHour < 0) {
+            // UTC 시간이 음수면 전날로 이동
+            startDate.setUTCDate(startDate.getUTCDate() - 1)
+            startDate.setUTCHours(24 + utcHour, randomMinute, 0, 0)
+          } else {
+            startDate.setUTCHours(utcHour, randomMinute, 0, 0)
+          }
           
           // 만약 현재 시간보다 이전이면 다음 날로 설정 (미래 시간 보장)
           if (startDate.getTime() <= now) {
-            startDate.setDate(startDate.getDate() + 1)
+            startDate.setUTCDate(startDate.getUTCDate() + 1)
           }
         } else if (body.batchMode) {
           // timeSlots가 없는 경우 (fallback)
           const today = new Date(now)
-          today.setHours(0, 0, 0, 0)
-          const firstHour = 7 + Math.random() * 3
+          today.setUTCHours(0, 0, 0, 0)
+          const firstHour = 7 + Math.random() * 3 // KST 시간
           let currentHour = firstHour
           for (let i = 0; i < index; i++) {
             const intervalHours = 1 + Math.random() * 3
@@ -396,10 +407,18 @@ JSON 형식으로 응답 (startsAt 필드는 제외):
           }
           currentHour = Math.min(currentHour, 23)
           const randomMinute = Math.floor(Math.random() * 60)
+          
+          // KST 시간을 UTC로 변환
+          const utcHour = currentHour - 9
           startDate = new Date(today)
-          startDate.setHours(Math.floor(currentHour), randomMinute, 0, 0)
+          if (utcHour < 0) {
+            startDate.setUTCDate(startDate.getUTCDate() - 1)
+            startDate.setUTCHours(24 + utcHour, randomMinute, 0, 0)
+          } else {
+            startDate.setUTCHours(utcHour, randomMinute, 0, 0)
+          }
           if (startDate.getTime() <= now) {
-            startDate.setDate(startDate.getDate() + 1)
+            startDate.setUTCDate(startDate.getUTCDate() + 1)
           }
         } else {
           // 개별 생성 모드: 현재 시각 기준 1시간 전~현재 사이 랜덤
@@ -407,7 +426,8 @@ JSON 형식으로 응답 (startsAt 필드는 제외):
           startDate = new Date(now - randomOffset) // 현재에서 1시간 전~현재 사이
         }
         
-        const startTime = formatDateTime(startDate)
+        // ISO 형식으로 반환하여 타임존 정보 포함
+        const startTime = startDate.toISOString()
 
         return {
           title: spaceData.title || '라이브 스페이스',

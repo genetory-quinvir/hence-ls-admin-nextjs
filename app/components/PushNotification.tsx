@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { UserRole } from '../context/AuthContext'
-import { searchUsers, UserSearchResult } from '../lib/api'
+import { searchUsers, UserSearchResult, sendPushNotificationAll } from '../lib/api'
 import Modal from './Modal'
 import styles from './PushNotification.module.css'
 
@@ -15,6 +15,7 @@ export default function PushNotification({ menuId }: PushNotificationProps) {
   const { user } = useAuth()
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
+  const [link, setLink] = useState('')
   const [selectedRole, setSelectedRole] = useState<UserRole | 'all'>('all')
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [userSearchQuery, setUserSearchQuery] = useState('')
@@ -126,15 +127,35 @@ export default function PushNotification({ menuId }: PushNotificationProps) {
     setIsSubmitting(true)
 
     try {
-      // 실제로는 API 호출
-      // await sendPushNotification({ title, body, role: selectedRole, userId: selectedUserId })
-      
-      // 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // 전체 푸시 전송
+      if (menuId === 'push-all') {
+        const result = await sendPushNotificationAll({
+          title: title.trim(),
+          body: body.trim(),
+          link: link.trim() || '',
+          type: 'SYSTEM',
+        })
+        
+        if (!result.success) {
+          alert(result.error || '푸시 전송 중 오류가 발생했습니다.')
+          return
+        }
+      } else if (menuId === 'push-role') {
+        // TODO: Role별 푸시 전송 API 구현 필요
+        alert('Role별 푸시 전송 기능은 아직 구현되지 않았습니다.')
+        setIsSubmitting(false)
+        return
+      } else if (menuId === 'push-individual') {
+        // TODO: 개인 푸시 전송 API 구현 필요
+        alert('개인 푸시 전송 기능은 아직 구현되지 않았습니다.')
+        setIsSubmitting(false)
+        return
+      }
       
       setShowSuccess(true)
       setTitle('')
       setBody('')
+      setLink('')
       setSelectedRole('all')
       setSelectedUserId('')
       setUserSearchQuery('')
@@ -197,6 +218,23 @@ export default function PushNotification({ menuId }: PushNotificationProps) {
               disabled={isSubmitting}
             />
           </div>
+
+          {menuId === 'push-all' && (
+            <div className={styles.formGroup}>
+              <label htmlFor="link" className={styles.label}>
+                링크 (선택)
+              </label>
+              <input
+                id="link"
+                type="text"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                className={styles.input}
+                placeholder="푸시 알림 클릭 시 이동할 링크를 입력하세요 (선택사항)"
+                disabled={isSubmitting}
+              />
+            </div>
+          )}
 
           {menuId === 'push-role' && (
             <div className={styles.formGroup}>

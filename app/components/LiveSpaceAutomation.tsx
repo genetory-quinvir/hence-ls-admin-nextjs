@@ -354,8 +354,19 @@ export default function LiveSpaceAutomation() {
   const handleEditPreview = (space: PreviewLiveSpace) => {
     setEditingSpace(space)
     // startsAt을 datetime-local 형식으로 변환 (YYYY-MM-DDTHH:mm)
+    // ISO 문자열을 로컬 시간으로 변환
     const startsAtDate = space.startedAt || space.createdAt || ''
-    const formattedDate = startsAtDate ? new Date(startsAtDate).toISOString().slice(0, 16) : ''
+    let formattedDate = ''
+    if (startsAtDate) {
+      const date = new Date(startsAtDate)
+      // 로컬 시간대 오프셋을 고려하여 로컬 시간으로 변환
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`
+    }
     
     setEditFormData({
       title: space.title || '',
@@ -404,8 +415,17 @@ export default function LiveSpaceAutomation() {
     }
 
     // 수정된 내용으로 미리보기 업데이트
-    const startsAtISO = new Date(editFormData.startsAt).toISOString()
-    const endsAtISO = new Date(new Date(editFormData.startsAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    // datetime-local 입력값은 로컬 시간이므로, 이를 UTC로 변환해야 합니다
+    // new Date()는 datetime-local 값을 로컬 시간으로 해석하고, toISOString()은 UTC로 변환합니다
+    // 하지만 서버에서 이를 받아서 저장할 때, 로컬 시간을 그대로 저장하려면 9시간을 더해야 합니다
+    const localDate = new Date(editFormData.startsAt)
+    // 로컬 시간대 오프셋을 고려하여 UTC로 변환
+    // getTimezoneOffset()은 분 단위로 반환 (KST는 -540분 = UTC+9)
+    // 오프셋을 더해서 로컬 시간을 UTC로 변환
+    const offsetMs = localDate.getTimezoneOffset() * 60 * 1000
+    const utcTime = localDate.getTime() - offsetMs
+    const startsAtISO = new Date(utcTime).toISOString()
+    const endsAtISO = new Date(utcTime + 2 * 60 * 60 * 1000).toISOString()
 
     setPreviewSpaces(prev => prev.map(space => {
       if (space.id === editingSpace.id) {
