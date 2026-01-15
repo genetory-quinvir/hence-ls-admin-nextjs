@@ -54,6 +54,17 @@ export default function LiveSpaceAutomation() {
     }))
   }
 
+  // 발행 시 시간에 9시간을 더하는 헬퍼 함수 (KST -> UTC 변환)
+  const adjustTimeForPublish = (timeString: string): string => {
+    if (!timeString) return ''
+    const date = new Date(timeString)
+    if (isNaN(date.getTime())) return timeString
+    
+    // 9시간을 더해서 UTC로 변환 (KST = UTC+9이므로)
+    const adjustedTime = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+    return adjustedTime.toISOString()
+  }
+
 
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -149,6 +160,10 @@ export default function LiveSpaceAutomation() {
       // 카드에 추가된 이미지 파일 가져오기
       const cardImageFile = cardThumbnailFiles.get(space.id)
       
+      // 시작 시간에 9시간을 더해서 전송 (자동 생성된 시간도 포함)
+      const startsAtTime = space.startedAt || space.scheduledStartTime || ''
+      const adjustedStartsAt = adjustTimeForPublish(startsAtTime)
+      
       // API 요청 데이터 준비 (이미지 파일을 직접 전달 - 같은 토큰으로 처리됨)
       const requestData: GenerateAndCreateLiveSpaceRequest = {
         title: space.title,
@@ -156,7 +171,7 @@ export default function LiveSpaceAutomation() {
         address: space.location?.address || '',
         longitude: space.location?.lng || 0,
         latitude: space.location?.lat || 0,
-        startsAt: space.startedAt || space.scheduledStartTime || '',
+        startsAt: adjustedStartsAt,
         // 이미지 파일이 있으면 파일을 직접 전달 (이미지 ID는 제거)
         ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
         // 이미지 파일이 없고 ID만 있으면 ID 사용
@@ -209,13 +224,17 @@ export default function LiveSpaceAutomation() {
         // 일괄 생성 모드: 한 회원으로 여러 스페이스 생성
         const spaces = previewSpaces.map(space => {
           const cardImageFile = cardThumbnailFiles.get(space.id)
+          // 시작 시간에 9시간을 더해서 전송 (자동 생성된 시간도 포함)
+          const startsAtTime = space.startedAt || space.scheduledStartTime || ''
+          const adjustedStartsAt = adjustTimeForPublish(startsAtTime)
+          
           return {
             title: space.title,
             placeName: space.location?.district || space.location?.address?.split(' ')[1] || '',
             address: space.location?.address || '',
             longitude: space.location?.lng || 0,
             latitude: space.location?.lat || 0,
-            startsAt: space.startedAt || space.scheduledStartTime || '',
+            startsAt: adjustedStartsAt,
             // 이미지 파일이 있으면 파일을 직접 전달
             ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
             // 이미지 파일이 없고 ID만 있으면 ID 사용
@@ -286,6 +305,10 @@ export default function LiveSpaceAutomation() {
             // 카드에 추가된 이미지 파일 가져오기
             const cardImageFile = cardThumbnailFiles.get(space.id)
             
+            // 시작 시간에 9시간을 더해서 전송 (자동 생성된 시간도 포함)
+            const startsAtTime = space.startedAt || space.scheduledStartTime || ''
+            const adjustedStartsAt = adjustTimeForPublish(startsAtTime)
+            
             // API 요청 데이터 준비 (이미지 파일을 직접 전달 - 같은 토큰으로 처리됨)
             const requestData: GenerateAndCreateLiveSpaceRequest = {
               title: space.title,
@@ -293,7 +316,7 @@ export default function LiveSpaceAutomation() {
               address: space.location?.address || '',
               longitude: space.location?.lng || 0,
               latitude: space.location?.lat || 0,
-              startsAt: space.startedAt || space.scheduledStartTime || '',
+              startsAt: adjustedStartsAt,
               // 이미지 파일이 있으면 파일을 직접 전달 (이미지 ID는 제거)
               ...(cardImageFile && !space.thumbnailImageId ? { thumbnailFile: cardImageFile } : {}),
               // 이미지 파일이 없고 ID만 있으면 ID 사용
