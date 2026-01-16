@@ -54,15 +54,17 @@ export default function LiveSpaceAutomation() {
     }))
   }
 
-  // 발행 시 시간에 9시간을 더하는 헬퍼 함수 (KST -> UTC 변환)
+  // 발행 시 시간 변환 헬퍼 함수
+  // space.startedAt은 UTC 시간으로 저장되어 있지만,
+  // 서버가 한국 시간을 기대하므로 9시간을 더해서 전송합니다
   const adjustTimeForPublish = (timeString: string): string => {
     if (!timeString) return ''
     const date = new Date(timeString)
     if (isNaN(date.getTime())) return timeString
     
-    // 9시간을 더해서 UTC로 변환 (KST = UTC+9이므로)
-    const adjustedTime = new Date(date.getTime() + 9 * 60 * 60 * 1000)
-    return adjustedTime.toISOString()
+    // UTC 시간에 9시간을 더해서 한국 시간으로 변환
+    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+    return kstDate.toISOString()
   }
 
 
@@ -160,7 +162,7 @@ export default function LiveSpaceAutomation() {
       // 카드에 추가된 이미지 파일 가져오기
       const cardImageFile = cardThumbnailFiles.get(space.id)
       
-      // 시작 시간에 9시간을 더해서 전송 (자동 생성된 시간도 포함)
+      // 시작 시간 변환 (UTC 시간에 9시간을 더해서 한국 시간으로 전송)
       const startsAtTime = space.startedAt || space.scheduledStartTime || ''
       const adjustedStartsAt = adjustTimeForPublish(startsAtTime)
       
@@ -377,17 +379,18 @@ export default function LiveSpaceAutomation() {
   const handleEditPreview = (space: PreviewLiveSpace) => {
     setEditingSpace(space)
     // startsAt을 datetime-local 형식으로 변환 (YYYY-MM-DDTHH:mm)
-    // ISO 문자열을 로컬 시간으로 변환
+    // 저장된 UTC 시간을 한국 시간으로 변환하여 표시
     const startsAtDate = space.startedAt || space.createdAt || ''
     let formattedDate = ''
     if (startsAtDate) {
       const date = new Date(startsAtDate)
-      // 로컬 시간대 오프셋을 고려하여 로컬 시간으로 변환
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
+      // UTC 시간을 한국 시간으로 변환 (9시간 더하기)
+      const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+      const year = kstDate.getUTCFullYear()
+      const month = String(kstDate.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(kstDate.getUTCDate()).padStart(2, '0')
+      const hours = String(kstDate.getUTCHours()).padStart(2, '0')
+      const minutes = String(kstDate.getUTCMinutes()).padStart(2, '0')
       formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`
     }
     
@@ -438,17 +441,11 @@ export default function LiveSpaceAutomation() {
     }
 
     // 수정된 내용으로 미리보기 업데이트
-    // datetime-local 입력값은 로컬 시간이므로, 이를 UTC로 변환해야 합니다
-    // new Date()는 datetime-local 값을 로컬 시간으로 해석하고, toISOString()은 UTC로 변환합니다
-    // 하지만 서버에서 이를 받아서 저장할 때, 로컬 시간을 그대로 저장하려면 9시간을 더해야 합니다
+    // datetime-local 입력값은 로컬 시간(한국 시간, KST)으로 해석됩니다
+    // toISOString()은 자동으로 UTC로 변환하므로 (9시간 빼짐), 그대로 사용합니다
     const localDate = new Date(editFormData.startsAt)
-    // 로컬 시간대 오프셋을 고려하여 UTC로 변환
-    // getTimezoneOffset()은 분 단위로 반환 (KST는 -540분 = UTC+9)
-    // 오프셋을 더해서 로컬 시간을 UTC로 변환
-    const offsetMs = localDate.getTimezoneOffset() * 60 * 1000
-    const utcTime = localDate.getTime() - offsetMs
-    const startsAtISO = new Date(utcTime).toISOString()
-    const endsAtISO = new Date(utcTime + 2 * 60 * 60 * 1000).toISOString()
+    const startsAtISO = localDate.toISOString()
+    const endsAtISO = new Date(localDate.getTime() + 2 * 60 * 60 * 1000).toISOString()
 
     setPreviewSpaces(prev => prev.map(space => {
       if (space.id === editingSpace.id) {
@@ -695,13 +692,16 @@ export default function LiveSpaceAutomation() {
   const formatDate = (dateString: string) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
-    return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    // UTC 시간을 한국 시간으로 변환 (9시간 더하기)
+    const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000)
+    // UTC 메서드를 사용하여 정확한 한국 시간 표시
+    const year = kstDate.getUTCFullYear()
+    const month = String(kstDate.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(kstDate.getUTCDate()).padStart(2, '0')
+    const hours = String(kstDate.getUTCHours()).padStart(2, '0')
+    const minutes = String(kstDate.getUTCMinutes()).padStart(2, '0')
+    // 수정 모달과 같은 형식으로 표시 (YYYY-MM-DD HH:mm)
+    return `${year}-${month}-${day} ${hours}:${minutes}`
   }
 
   // 예상 비용 계산 (LLM Provider에 따라 다름)
