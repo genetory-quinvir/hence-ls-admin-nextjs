@@ -1,4 +1,17 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
+// API Base URL 가져오기 함수 (localStorage에서 환경 설정 읽기)
+function getApiBaseUrl(): string {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
+  }
+  
+  const environment = localStorage.getItem('apiEnvironment') || 'dev'
+  const API_BASE_URLS: Record<string, string> = {
+    dev: 'https://ls-api-dev.hence.events',
+    live: 'https://ls-api.hence.events',
+  }
+  
+  return API_BASE_URLS[environment] || API_BASE_URLS.dev
+}
 
 // 개발 환경 여부 확인
 const isDev = process.env.NODE_ENV === 'development'
@@ -29,7 +42,7 @@ function createBasicAuthHeader(email: string, password: string): string {
  * 관리자 로그인 API 호출
  */
 export async function loginAdmin(email: string, password: string): Promise<LoginResponse> {
-  const url = `${API_BASE_URL}/api/v1/auth-admin/login`
+  const url = `${getApiBaseUrl()}/api/v1/auth-admin/login`
   
   console.log('📤 [API] 로그인 요청:', {
     url,
@@ -192,7 +205,7 @@ export async function loginAdmin(email: string, password: string): Promise<Login
  * 토큰 갱신 API 호출
  */
 export async function refreshAccessToken(refreshToken: string): Promise<LoginResponse> {
-  const url = `${API_BASE_URL}/api/v1/auth/refresh`
+  const url = `${getApiBaseUrl()}/api/v1/auth/refresh`
   
   if (isDev) {
     console.log('[API] 토큰 갱신 요청:', {
@@ -364,7 +377,7 @@ export async function searchUsers(query: string, limit: number = 20): Promise<Us
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/admin/users/search?q=${encodeURIComponent(query)}&limit=${limit}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/users/search?q=${encodeURIComponent(query)}&limit=${limit}`
   
   if (isDev) {
     console.log('[API] 사용자 검색 요청:', {
@@ -567,7 +580,7 @@ export async function getUsersAdmin(
     }
   }
   
-  const url = `${API_BASE_URL}/api/v1/users-admin?${params.toString()}`
+  const url = `${getApiBaseUrl()}/api/v1/users-admin?${params.toString()}`
   
   if (isDev) {
     console.log('[API] 사용자 리스트 요청:', {
@@ -734,7 +747,7 @@ export async function getReportedUsersAdmin(): Promise<UserListResponse> {
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/users-admin/reported`
+  const url = `${getApiBaseUrl()}/api/v1/users-admin/reported`
   
   if (isDev) {
     console.log('[API] 신고 접수된 사용자 리스트 요청:', {
@@ -886,7 +899,7 @@ export async function getPenaltyUsersAdmin(): Promise<UserListResponse> {
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/users-admin/penalty`
+  const url = `${getApiBaseUrl()}/api/v1/users-admin/penalty`
   
   if (isDev) {
     console.log('[API] 제재/정지 관리 사용자 리스트 요청:', {
@@ -1091,7 +1104,7 @@ export async function getLiveSpacesAdmin(
     limit: limit.toString(),
   })
   
-  const url = `${API_BASE_URL}/api/v1/space-admin?${params.toString()}`
+  const url = `${getApiBaseUrl()}/api/v1/space-admin?${params.toString()}`
   
   console.log('📤 [API] Live Space 리스트 요청:', {
     url,
@@ -1247,7 +1260,7 @@ export async function createLiveSpaceAdmin(
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/space-admin`
+  const url = `${getApiBaseUrl()}/api/v1/space-admin`
   
   // thumbnailImageId가 있으면 포함, 없으면 제외
   const requestBody: any = {
@@ -1472,7 +1485,7 @@ export async function uploadLiveSpaceThumbnail(
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/space-admin/thumbnail-image`
+  const url = `${getApiBaseUrl()}/api/v1/space-admin/thumbnail-image`
   
   // FormData 생성 (API DTO: files, description, displayOrder)
   const formData = new FormData()
@@ -1784,6 +1797,9 @@ export async function generateAndCreateLiveSpace(
       
       response = await fetch(url, {
         method: 'POST',
+        headers: {
+          'x-api-base-url': getApiBaseUrl(),
+        },
         body: formData, // Content-Type은 자동으로 설정됨
       })
     } else {
@@ -1793,6 +1809,7 @@ export async function generateAndCreateLiveSpace(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-base-url': getApiBaseUrl(),
         },
         body: JSON.stringify(jsonData),
       })
@@ -1917,6 +1934,9 @@ export async function batchCreateLiveSpaces(
     
     const response = await fetch(url, {
       method: 'POST',
+      headers: {
+        'x-api-base-url': getApiBaseUrl(),
+      },
       body: formData,
     })
 
@@ -2034,7 +2054,7 @@ export async function getLiveSpaceDetail(spaceId: string): Promise<LiveSpaceDeta
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/space-admin/${spaceId}`
+  const url = `${getApiBaseUrl()}/api/v1/space-admin/${spaceId}`
   
   console.log('📤 [API] Live Space 상세 정보 요청:', {
     url,
@@ -2120,7 +2140,7 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/space-admin/${spaceId}`
+  const url = `${getApiBaseUrl()}/api/v1/space-admin/${spaceId}`
   
   console.log('📤 [API] Live Space 강제 종료 요청:', {
     url,
@@ -2286,7 +2306,7 @@ export async function getDashboardSummary(
   params.append('period[to]', periodTo)
   params.append('range', range)
   
-  const url = `${API_BASE_URL}/api/v1/dashboard/summary?${params.toString()}`
+  const url = `${getApiBaseUrl()}/api/v1/dashboard/summary?${params.toString()}`
   
   console.log('📤 [API] 대시보드 Summary 요청:', {
     url,
@@ -2397,7 +2417,7 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/users-admin/${userId}`
+  const url = `${getApiBaseUrl()}/api/v1/users-admin/${userId}`
   
   if (isDev) {
     console.log('[API] 사용자 상세 정보 요청:', {
@@ -2533,7 +2553,7 @@ export async function sendPushNotificationAll(
     }
   }
 
-  const url = `${API_BASE_URL}/api/v1/notifications-admin/send/all`
+  const url = `${getApiBaseUrl()}/api/v1/notifications-admin/send/all`
   
   if (isDev) {
     console.log('[API] 전체 푸시 알림 전송 요청:', {

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Dashboard from './Dashboard'
 import LiveSpaceList from './LiveSpaceList'
 import LiveSpaceCreate from './LiveSpaceCreate'
@@ -13,6 +14,7 @@ import SystemManagement from './SystemManagement'
 import PushNotification from './PushNotification'
 import CustomerVoice from './CustomerVoice'
 import { useAuth } from '../context/AuthContext'
+import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import styles from './DetailView.module.css'
 
 interface DetailViewProps {
@@ -88,6 +90,9 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       
       // 설정
       case 'settings-profile':
+        return <SettingsProfileView />
+      case 'settings-api-environment':
+        return <ApiEnvironmentSettingsView />
       case 'settings-permissions':
         return (
           <div className={styles.detailView}>
@@ -121,6 +126,165 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
   }
 
   return renderContent()
+}
+
+function SettingsProfileView() {
+  const { user } = useAuth()
+
+  return (
+    <div className={styles.detailView}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>내 정보</h1>
+      </div>
+      <div className={styles.content}>
+        <div className={styles.card}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>계정 정보</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '4px' }}>이메일</label>
+              <p style={{ fontSize: '16px', fontWeight: 500 }}>{user?.email || '-'}</p>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '4px' }}>닉네임</label>
+              <p style={{ fontSize: '16px', fontWeight: 500 }}>{user?.nickname || '-'}</p>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '4px' }}>역할</label>
+              <p style={{ fontSize: '16px', fontWeight: 500 }}>{user?.role || '-'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ApiEnvironmentSettingsView() {
+  const { environment, setEnvironment } = useApiBaseUrl()
+  const [selectedEnvironment, setSelectedEnvironment] = useState<'dev' | 'live'>(environment)
+  const [isSaved, setIsSaved] = useState(false)
+
+  const API_BASE_URLS: Record<'dev' | 'live', string> = {
+    dev: 'https://ls-api-dev.hence.events',
+    live: 'https://ls-api.hence.events',
+  }
+
+  const handleSave = () => {
+    setEnvironment(selectedEnvironment)
+    setIsSaved(true)
+    setTimeout(() => setIsSaved(false), 2000)
+  }
+
+  const hasChanges = selectedEnvironment !== environment
+
+  return (
+    <div className={styles.detailView}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>API 환경 설정</h1>
+      </div>
+      <div className={styles.content}>
+        <div className={styles.card}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>환경 선택</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '8px' }}>
+                환경 선택
+              </label>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    name="environment"
+                    value="dev"
+                    checked={selectedEnvironment === 'dev'}
+                    onChange={() => setSelectedEnvironment('dev')}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>개발</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    name="environment"
+                    value="live"
+                    checked={selectedEnvironment === 'live'}
+                    onChange={() => setSelectedEnvironment('live')}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>라이브</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                선택한 환경의 API Base URL
+              </label>
+              <p style={{ fontSize: '14px', fontFamily: 'monospace', color: '#333', background: '#f5f5f5', padding: '8px 12px', borderRadius: '4px' }}>
+                {API_BASE_URLS[selectedEnvironment]}
+              </p>
+            </div>
+            <div>
+              <label style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                현재 적용된 API Base URL
+              </label>
+              <p style={{ fontSize: '14px', fontFamily: 'monospace', color: '#333', background: '#e8f5e9', padding: '8px 12px', borderRadius: '4px' }}>
+                {API_BASE_URLS[environment]}
+              </p>
+            </div>
+            <div style={{ padding: '12px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '6px', fontSize: '13px', color: '#856404' }}>
+              <strong>주의:</strong> 환경을 변경하면 모든 API 요청이 선택한 환경으로 전송됩니다.
+            </div>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button
+                onClick={handleSave}
+                disabled={!hasChanges}
+                style={{
+                  padding: '10px 20px',
+                  background: hasChanges ? '#4a9eff' : '#ccc',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: hasChanges ? 'pointer' : 'not-allowed',
+                  transition: 'background 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (hasChanges) {
+                    e.currentTarget.style.background = '#3a8eef'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (hasChanges) {
+                    e.currentTarget.style.background = '#4a9eff'
+                  }
+                }}
+              >
+                {isSaved ? '저장 완료!' : '저장'}
+              </button>
+              {hasChanges && (
+                <button
+                  onClick={() => setSelectedEnvironment(environment)}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#fff',
+                    color: '#666',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  취소
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function LogoutView() {

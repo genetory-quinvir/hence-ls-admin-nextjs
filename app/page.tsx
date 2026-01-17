@@ -88,6 +88,7 @@ const menuItems: MenuItem[] = [
     icon: '🔧',
     children: [
       { id: 'settings-profile', label: '내 정보' },
+      { id: 'settings-api-environment', label: 'API 환경 설정' },
       { id: 'settings-permissions', label: '권한 안내' },
       { id: 'settings-logout', label: '로그아웃' },
     ],

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { MockDataProvider } from './context/MockDataContext'
 import { AuthProvider } from './context/AuthContext'
+import { ApiBaseUrlProvider } from './context/ApiBaseUrlContext'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -17,9 +18,11 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <AuthProvider>
-          <MockDataProvider>
-            {children}
-          </MockDataProvider>
+          <ApiBaseUrlProvider>
+            <MockDataProvider>
+              {children}
+            </MockDataProvider>
+          </ApiBaseUrlProvider>
         </AuthProvider>
       </body>
     </html>

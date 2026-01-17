@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
+// API Base URL 가져오기 함수 (헤더에서 읽거나 기본값 사용)
+function getApiBaseUrl(request: NextRequest): string {
+  // 클라이언트에서 전달한 base URL 헤더 확인
+  const customBaseUrl = request.headers.get('x-api-base-url')
+  if (customBaseUrl) {
+    return customBaseUrl
+  }
+  
+  // 환경 변수 또는 기본값 사용
+  return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
+}
+
 const FIXED_PASSWORD = 'Quinvir2026!'
 
 /**
@@ -12,6 +23,8 @@ const FIXED_PASSWORD = 'Quinvir2026!'
  */
 export async function POST(request: NextRequest) {
   try {
+    const API_BASE_URL = getApiBaseUrl(request)
+    
     // FormData 또는 JSON 요청 처리
     const contentType = request.headers.get('content-type') || ''
     let body: any = {}
