@@ -13,6 +13,7 @@ import CommentList from './CommentList'
 import SystemManagement from './SystemManagement'
 import PushNotification from './PushNotification'
 import CustomerVoice from './CustomerVoice'
+import TagManagement from './TagManagement'
 import { useAuth } from '../context/AuthContext'
 import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import styles from './DetailView.module.css'
@@ -51,6 +52,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
         return <LiveSpaceAutomation />
       case 'live-space-festival':
         return <KoreanFestivalEvent />
+      case 'live-space-tags':
+        return <TagManagement />
       
       // 사용자 관리
       case 'users-list':

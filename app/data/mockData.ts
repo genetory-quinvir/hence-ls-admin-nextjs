@@ -26,6 +26,7 @@ export interface LiveSpace {
   reportedCount: number
   isForceClosed?: boolean
   isHidden?: boolean
+  tags?: string[]
 }
 
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER'

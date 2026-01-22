@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useMockData } from '../context/MockDataContext'
 import { LiveSpaceCategory } from '../data/mockData'
-import { createLiveSpaceAdmin, CreateLiveSpaceRequest, uploadLiveSpaceThumbnail } from '../lib/api'
+import { createLiveSpaceAdmin, CreateLiveSpaceRequest, uploadLiveSpaceThumbnail, getTagsAdmin, Tag } from '../lib/api'
 import Modal from './Modal'
 import styles from './LiveSpaceCreate.module.css'
 
@@ -44,7 +44,12 @@ export default function LiveSpaceCreate() {
     lat: '',
     lng: '',
     thumbnail: '',
+    selectedTags: [] as string[],
   })
+  
+  // 태그 목록 상태
+  const [tags, setTags] = useState<Tag[]>([])
+  const [isLoadingTags, setIsLoadingTags] = useState(false)
   
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
@@ -54,6 +59,52 @@ export default function LiveSpaceCreate() {
     lng: number
     address?: string
   } | null>(null)
+
+  // 태그 목록 로드
+  useEffect(() => {
+    const loadTags = async () => {
+      setIsLoadingTags(true)
+      try {
+        const result = await getTagsAdmin()
+        console.log('[LiveSpaceCreate] 태그 목록 API 응답:', result)
+        
+        if (result.success) {
+          // result.data가 배열인지 확인
+          let tagsData: Tag[] = []
+          
+          if (Array.isArray(result.data)) {
+            tagsData = result.data
+          } else if (result.data && typeof result.data === 'object') {
+            // 객체인 경우, 배열 필드를 찾아봄
+            if (Array.isArray(result.data.tags)) {
+              tagsData = result.data.tags
+            } else if (Array.isArray(result.data.items)) {
+              tagsData = result.data.items
+            } else if (Array.isArray(result.data.list)) {
+              tagsData = result.data.list
+            } else {
+              console.warn('[LiveSpaceCreate] 예상치 못한 응답 구조:', result.data)
+            }
+          }
+          
+          // 활성화된 태그만 필터링
+          const activeTags = tagsData.filter(tag => tag.isActive)
+          console.log('[LiveSpaceCreate] 추출된 활성 태그:', activeTags)
+          setTags(activeTags)
+        } else {
+          console.error('[LiveSpaceCreate] 태그 목록 로드 실패:', result.error)
+          setTags([])
+        }
+      } catch (error) {
+        console.error('[LiveSpaceCreate] 태그 목록 로드 중 오류:', error)
+        setTags([])
+      } finally {
+        setIsLoadingTags(false)
+      }
+    }
+    
+    loadTags()
+  }, [])
 
   // 네이버 맵 API 동적 로드 및 초기화
   useEffect(() => {
@@ -478,6 +529,7 @@ export default function LiveSpaceCreate() {
         endsAt: endsAt,
         categoryId: categoryId, // 카테고리 이름을 ID로 매핑하여 전송
         thumbnailImageId: thumbnailImageId,
+        ...(formData.selectedTags.length > 0 && { tagNames: formData.selectedTags }),
       }
       
       // Admin용 API 사용: /api/v1/space-admin
@@ -501,6 +553,7 @@ export default function LiveSpaceCreate() {
         lat: '',
         lng: '',
         thumbnail: '',
+        selectedTags: [],
       })
       setSelectedLocation(null)
       setThumbnailFile(null)
@@ -610,6 +663,86 @@ export default function LiveSpaceCreate() {
               rows={4}
               disabled={isSubmitting}
             />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="tags" className={styles.label}>
+              태그 (선택)
+            </label>
+            {isLoadingTags ? (
+              <div style={{ padding: '12px', color: '#666', fontSize: '14px' }}>
+                태그 목록 로딩 중...
+              </div>
+            ) : tags.length === 0 ? (
+              <div style={{ padding: '12px', color: '#999', fontSize: '14px' }}>
+                등록된 태그가 없습니다.
+              </div>
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: '8px',
+                padding: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '6px',
+                minHeight: '50px',
+                backgroundColor: '#fff'
+              }}>
+                {tags.map((tag) => (
+                  <label
+                    key={tag.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '6px 12px',
+                      border: formData.selectedTags.includes(tag.name)
+                        ? '2px solid #4a9eff'
+                        : '1px solid #ddd',
+                      borderRadius: '20px',
+                      backgroundColor: formData.selectedTags.includes(tag.name)
+                        ? '#e6f2ff'
+                        : '#f5f5f5',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: formData.selectedTags.includes(tag.name) ? 500 : 400,
+                      color: formData.selectedTags.includes(tag.name) ? '#4a9eff' : '#333',
+                      opacity: isSubmitting ? 0.6 : 1,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.selectedTags.includes(tag.name)}
+                      onChange={(e) => {
+                        if (isSubmitting) return
+                        if (e.target.checked) {
+                          setFormData(prev => ({
+                            ...prev,
+                            selectedTags: [...prev.selectedTags, tag.name]
+                          }))
+                        } else {
+                          setFormData(prev => ({
+                            ...prev,
+                            selectedTags: prev.selectedTags.filter(name => name !== tag.name)
+                          }))
+                        }
+                      }}
+                      disabled={isSubmitting}
+                      style={{ 
+                        marginRight: '6px',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                      }}
+                    />
+                    {tag.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            {formData.selectedTags.length > 0 && (
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                선택된 태그: {formData.selectedTags.join(', ')}
+              </p>
+            )}
           </div>
 
           <div className={styles.formRow}>

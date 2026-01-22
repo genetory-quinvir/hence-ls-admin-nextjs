@@ -25,6 +25,7 @@ const menuItems: MenuItem[] = [
       { id: 'live-space-create', label: '라이브 스페이스 생성' },
       { id: 'live-space-automation', label: '라이브 스페이스 자동화' },
       { id: 'live-space-festival', label: '우리나라 축제/행사' },
+      { id: 'live-space-tags', label: '태그 관리' },
     ],
   },
   {

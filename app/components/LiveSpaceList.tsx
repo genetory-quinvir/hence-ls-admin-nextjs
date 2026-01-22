@@ -99,6 +99,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                 ? (s.address.match(/(\S+구|\S+시|\S+군)/)?.[0] || '')
                 : ''
               
+              console.log('[LiveSpaceList] 카테고리 데이터 확인:', {
+                id: s.id,
+                categoryName: s.categoryName,
+                title: s.title,
+              })
+              
               return {
                 id: s.id,
                 title: s.title || '',
@@ -123,6 +129,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                 reportedCount: 0, // API에서 제공되지 않음
                 isForceClosed: false, // API에서 제공되지 않음
                 isHidden: false, // API에서 이미 displayStatus로 필터링했으므로 항상 false
+                tags: s.tags || [], // API 응답의 tags 필드 사용
               }
             })
           
@@ -482,7 +489,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                 <th>호스트</th>
                 <th>상태</th>
                 <th>체크인 수</th>
-                <th>개설 시간</th>
+                <th>태그</th>
+                <th>카테고리</th>
                 <th>시작 시간</th>
                 <th>종료 시간</th>
                 <th>액션</th>
@@ -491,7 +499,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
             <tbody>
               {filteredLiveSpaces.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className={styles.emptyCell}>
+                  <td colSpan={10} className={styles.emptyCell}>
                     {(filterStatus !== 'all' || filterRegion !== 'all' || filterCategory !== 'all' || searchQuery) ? (
                       '리스트가 없습니다.'
                     ) : (
@@ -541,7 +549,47 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                       )}
                     </td>
                     <td>
-                      {formatDate(ls.createdAt)}
+                      {ls.tags && ls.tags.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {ls.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 8px',
+                                backgroundColor: '#e6f2ff',
+                                color: '#4a9eff',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#999' }}>-</span>
+                      )}
+                    </td>
+                    <td>
+                      {ls.category ? (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '4px 8px',
+                            backgroundColor: '#f0f0f0',
+                            color: '#333',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {ls.category}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#999' }}>-</span>
+                      )}
                     </td>
                     <td>
                       {ls.startedAt || ls.scheduledStartTime ? formatDate(ls.startedAt || ls.scheduledStartTime!) : '-'}
@@ -645,9 +693,52 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                       </span>
                     </div>
                     <div className={styles.cardInfoItem}>
-                      <span className={styles.cardInfoLabel}>개설 시간</span>
+                      <span className={styles.cardInfoLabel}>태그</span>
                       <span className={styles.cardInfoValue}>
-                        {formatDate(ls.createdAt)}
+                        {ls.tags && ls.tags.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {ls.tags.map((tag, index) => (
+                              <span
+                                key={index}
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '4px 8px',
+                                  backgroundColor: '#e6f2ff',
+                                  color: '#4a9eff',
+                                  borderRadius: '12px',
+                                  fontSize: '12px',
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#999' }}>-</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className={styles.cardInfoItem}>
+                      <span className={styles.cardInfoLabel}>카테고리</span>
+                      <span className={styles.cardInfoValue}>
+                        {ls.category ? (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '4px 8px',
+                              backgroundColor: '#f0f0f0',
+                              color: '#333',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {ls.category}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#999' }}>-</span>
+                        )}
                       </span>
                     </div>
                     <div className={styles.cardInfoItem}>

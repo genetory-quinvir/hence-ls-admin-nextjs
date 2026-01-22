@@ -1064,6 +1064,7 @@ export interface LiveSpaceListItem {
   checkIn?: boolean
   displayStatus?: boolean
   deletedAt?: string | null
+  tags?: string[]
 }
 
 export interface LiveSpaceListMeta {
@@ -1202,6 +1203,7 @@ export async function getLiveSpacesAdmin(
           // displayStatus는 문자열로 옴 ("TERMINATED" 등), boolean으로 변환하지 않음
           displayStatus: s.displayStatus,
           deletedAt: s.deletedAt || null,
+          tags: s.tags || [], // API 응답의 tags 필드 포함
         }
       }),
       meta: meta ? {
@@ -1242,6 +1244,7 @@ export interface CreateLiveSpaceRequest {
   endsAt: string // 서버에서 필수로 요구 (없으면 클라이언트에서 기본값 설정)
   thumbnailImageId?: string
   categoryId: string
+  tagNames?: string[]
 }
 
 /**
@@ -1262,7 +1265,7 @@ export async function createLiveSpaceAdmin(
 
   const url = `${getApiBaseUrl()}/api/v1/space-admin`
   
-  // thumbnailImageId가 있으면 포함, 없으면 제외
+  // thumbnailImageId와 tagNames가 있으면 포함, 없으면 제외
   const requestBody: any = {
     title: data.title,
     placeName: data.placeName,
@@ -1274,6 +1277,7 @@ export async function createLiveSpaceAdmin(
     categoryId: data.categoryId,
     ...(data.description && { description: data.description }),
     ...(data.thumbnailImageId && { thumbnailImageId: data.thumbnailImageId }),
+    ...(data.tagNames && data.tagNames.length > 0 && { tagNames: data.tagNames }),
   }
   
   console.log('📤 [API] Live Space 생성 요청:', {
@@ -2629,6 +2633,859 @@ export async function sendPushNotificationAll(
     return {
       success: false,
       error: error instanceof Error ? error.message : '푸시 알림 전송 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 인터페이스
+ */
+export interface Tag {
+  id: string
+  name: string
+  isActive: boolean
+  order: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+/**
+ * 태그 목록 조회 응답
+ */
+export interface TagListResponse {
+  success: boolean
+  data?: Tag[]
+  error?: string
+}
+
+/**
+ * 태그 생성 요청 인터페이스
+ */
+export interface CreateTagRequest {
+  name: string
+  isActive?: boolean
+  order?: number
+}
+
+/**
+ * 태그 수정 요청 인터페이스
+ */
+export interface UpdateTagRequest {
+  name: string
+  isActive: boolean
+  order: number
+}
+
+/**
+ * 태그 목록 조회 API 호출
+ */
+export async function getTagsAdmin(): Promise<TagListResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin`
+  
+  if (isDev) {
+    console.log('[API] 태그 목록 조회 요청:', {
+      url,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 목록 조회 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 목록 조회 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 목록 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 태그 목록 조회 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 목록 조회 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 생성 API 호출
+ */
+export async function createTagAdmin(
+  request: CreateTagRequest
+): Promise<{ success: boolean; data?: Tag; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin`
+  
+  if (isDev) {
+    console.log('[API] 태그 생성 요청:', {
+      url,
+      request,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 생성 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 생성 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 생성 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 태그 생성 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 생성 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 수정 API 호출
+ */
+export async function updateTagAdmin(
+  tagId: string,
+  request: UpdateTagRequest
+): Promise<{ success: boolean; data?: Tag; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/${tagId}`
+  
+  if (isDev) {
+    console.log('[API] 태그 수정 요청:', {
+      url,
+      tagId,
+      request,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 수정 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 수정 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 수정 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 태그 수정 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 수정 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 삭제 API 호출
+ */
+export async function deleteTagAdmin(
+  tagId: string
+): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/${tagId}`
+  
+  if (isDev) {
+    console.log('[API] 태그 삭제 요청:', {
+      url,
+      tagId,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 삭제 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 삭제 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 삭제 실패 (${response.status})`,
+      }
+    }
+    
+    if (isDev) {
+      console.log('[API] 태그 삭제 성공:', {
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 삭제 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 필터 등록 요청 인터페이스
+ */
+export interface CreateTagFilterRequest {
+  // 필터 관련 필드 (API 스펙에 따라 조정 필요)
+  [key: string]: any
+}
+
+/**
+ * 태그 필터 수정 요청 인터페이스
+ */
+export interface UpdateTagFilterRequest {
+  // 필터 관련 필드 (API 스펙에 따라 조정 필요)
+  [key: string]: any
+}
+
+/**
+ * 태그 필터에 등록 API 호출
+ */
+export async function createTagFilter(
+  tagId: string,
+  request: CreateTagFilterRequest
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/${tagId}/filter`
+  
+  if (isDev) {
+    console.log('[API] 태그 필터 등록 요청:', {
+      url,
+      tagId,
+      request,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 필터 등록 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 필터 등록 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 필터 등록 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 태그 필터 등록 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 필터 등록 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 필터 등록 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 필터 수정 API 호출
+ */
+export async function updateTagFilter(
+  tagId: string,
+  request: UpdateTagFilterRequest
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/${tagId}/filter`
+  
+  if (isDev) {
+    console.log('[API] 태그 필터 수정 요청:', {
+      url,
+      tagId,
+      request,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 필터 수정 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 필터 수정 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 필터 수정 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 태그 필터 수정 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 필터 수정 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 필터 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 필터에서 태그 제거 API 호출
+ */
+export async function deleteTagFilter(
+  tagId: string
+): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/${tagId}/filter`
+  
+  if (isDev) {
+    console.log('[API] 필터에서 태그 제거 요청:', {
+      url,
+      tagId,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] 필터에서 태그 제거 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 필터에서 태그 제거 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `필터에서 태그 제거 실패 (${response.status})`,
+      }
+    }
+    
+    if (isDev) {
+      console.log('[API] 필터에서 태그 제거 성공:', {
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 필터에서 태그 제거 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '필터에서 태그 제거 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 태그 필터 활성화 토글 API 호출
+ */
+export async function toggleTagFilter(
+  tagId: string
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/${tagId}/filter/toggle`
+  
+  if (isDev) {
+    console.log('[API] 태그 필터 활성화 토글 요청:', {
+      url,
+      tagId,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] 태그 필터 활성화 토글 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] 태그 필터 활성화 토글 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 필터 활성화 토글 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    if (isDev) {
+      console.log('[API] 태그 필터 활성화 토글 성공:', {
+        data: responseData,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] 태그 필터 활성화 토글 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 필터 활성화 토글 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Space에서 태그 연결 해제 API 호출
+ */
+export async function removeTagFromSpace(
+  spaceId: string,
+  tagName: string
+): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/tags-admin/spaces/${spaceId}/tags/${encodeURIComponent(tagName)}`
+  
+  if (isDev) {
+    console.log('[API] Space에서 태그 연결 해제 요청:', {
+      url,
+      spaceId,
+      tagName,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (isDev) {
+      console.log('[API] Space에서 태그 연결 해제 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      if (isDev) {
+        console.error('[API] Space에서 태그 연결 해제 에러:', {
+          status: response.status,
+          errorData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `태그 연결 해제 실패 (${response.status})`,
+      }
+    }
+    
+    if (isDev) {
+      console.log('[API] Space에서 태그 연결 해제 성공:', {
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    if (isDev) {
+      console.error('[API] Space에서 태그 연결 해제 네트워크 에러:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '태그 연결 해제 중 오류가 발생했습니다.',
     }
   }
 }
