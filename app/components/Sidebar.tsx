@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import styles from './Sidebar.module.css'
 
 export interface SubMenuItem {
@@ -26,6 +27,7 @@ interface SidebarProps {
 
 export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen = true, onClose }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
+  const { environment } = useApiBaseUrl()
 
   const toggleMenu = (menuId: string) => {
     const newExpanded = new Set(expandedMenus)
@@ -52,7 +54,10 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen =
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : styles.closed}`}>
       <div className={styles.sidebarHeader}>
-        <h1 className={styles.logo}>Hence Live Space Admin</h1>
+        <h1 className={styles.logo}>Hence Live Space</h1>
+        <span className={`${styles.envBadge} ${environment === 'dev' ? styles.dev : styles.live}`}>
+          {environment === 'dev' ? '개발' : '라이브'}
+        </span>
         {onClose && (
           <button 
             className={styles.closeButton}

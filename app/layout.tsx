@@ -5,7 +5,7 @@ import { ApiBaseUrlProvider } from './context/ApiBaseUrlContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Hence Live Space Admin',
+  title: 'Hence Live Space',
   description: 'Hence Live Space Admin Dashboard',
 }
 

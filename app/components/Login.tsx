@@ -34,7 +34,7 @@ export default function Login() {
     <div className={styles.loginContainer}>
       <div className={styles.loginBox}>
         <div className={styles.loginHeader}>
-          <h1 className={styles.loginTitle}>Hence Live Space Admin</h1>
+          <h1 className={styles.loginTitle}>Hence Live Space</h1>
           <p className={styles.loginSubtitle}>관리자 로그인</p>
         </div>
 
