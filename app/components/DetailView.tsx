@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Dashboard from './Dashboard'
+import BannerManagement from './BannerManagement'
 import LiveSpaceList from './LiveSpaceList'
 import LiveSpaceCreate from './LiveSpaceCreate'
 import LiveSpaceAutomation from './LiveSpaceAutomation'
@@ -41,10 +42,12 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       case 'dashboard':
         return <Dashboard />
       
+      // 피쳐드 관리
+      case 'featured-banner':
+        return <BannerManagement />
+      
       // Live Space 관리
       case 'live-space-list':
-      case 'live-space-force-close':
-      case 'live-space-reported':
         return <LiveSpaceList menuId={menuId} />
       case 'live-space-create':
         return <LiveSpaceCreate />

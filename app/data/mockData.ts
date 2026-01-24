@@ -7,6 +7,7 @@ export interface LiveSpace {
   title: string
   hostNickname: string
   hostId: string
+  hostEmail?: string
   thumbnail?: string
   category?: LiveSpaceCategory
   status: 'live' | 'ended'
@@ -77,6 +78,7 @@ export interface Comment {
   image?: string
   createdAt: string
   reportedCount: number
+  likeCount?: number
 }
 
 export interface Report {

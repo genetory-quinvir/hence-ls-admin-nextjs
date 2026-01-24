@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useMockData } from '../context/MockDataContext'
 import { LiveSpace } from '../data/mockData'
-import { getLiveSpacesAdmin, LiveSpaceListMeta, deleteLiveSpaceAdmin } from '../lib/api'
+import { getLiveSpacesAdmin, LiveSpaceListMeta, deleteLiveSpaceAdmin, terminateLiveSpaceAdmin, updateLiveSpaceAdmin, UpdateLiveSpaceRequest, uploadLiveSpaceThumbnail, getTagsAdmin, Tag } from '../lib/api'
 import Modal from './Modal'
 import styles from './LiveSpaceList.module.css'
 
@@ -16,7 +16,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterRegion, setFilterRegion] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('') // 검색어 입력
+  const [appliedKeyword, setAppliedKeyword] = useState<string | undefined>(undefined) // 실제 필터링에 사용되는 검색어
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -24,11 +25,57 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   const [apiLiveSpaces, setApiLiveSpaces] = useState<LiveSpace[]>([])
   const [selectedLiveSpace, setSelectedLiveSpace] = useState<LiveSpace | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // 수정 폼 상태
+  const [editFormData, setEditFormData] = useState<{
+    title: string
+    placeName: string
+    description: string
+    category: string
+    scheduledStartTime: string
+    scheduledEndTime: string
+    address: string
+    lat: string
+    lng: string
+    selectedTags: string[]
+  } | null>(null)
+  
+  // 태그 목록 상태
+  const [tags, setTags] = useState<Tag[]>([])
+  const [isLoadingTags, setIsLoadingTags] = useState(false)
+  
+  // 썸네일 파일 상태
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  
+  // 카테고리 매핑 (이름 -> ID)
+  const categoryMap: Record<string, string> = {
+    '팝업': '59c76d5f-df90-49e3-91be-fb074d6d2635',
+    '전시': '07841371-a660-47f0-b72e-99a188b428e9',
+    '이벤트': '564388d8-b577-4897-b53d-51c5391b8e88',
+    '세일/혜택': 'b6ded660-6911-42c6-a869-348146ba6623',
+    '맛집': '13119e08-caab-498d-a92d-af3ccbfc8bbf',
+    '핀': '15d7417c-ab1f-4c9a-a1ee-718e9357698b',
+    'HENCE': '15d7417c-ab1f-4c9a-a1ee-718e9357698b',
+  }
+  
+  // 카테고리 ID -> 이름 역매핑
+  const categoryIdToName: Record<string, string> = {
+    '59c76d5f-df90-49e3-91be-fb074d6d2635': '팝업',
+    '07841371-a660-47f0-b72e-99a188b428e9': '전시',
+    '564388d8-b577-4897-b53d-51c5391b8e88': '이벤트',
+    'b6ded660-6911-42c6-a869-348146ba6623': '세일/혜택',
+    '13119e08-caab-498d-a92d-af3ccbfc8bbf': '맛집',
+    '15d7417c-ab1f-4c9a-a1ee-718e9357698b': '핀',
+  }
   
   // 중복 API 호출 방지를 위한 ref
   const lastApiCallRef = useRef<{
     menuId: string | null
     currentPage: number
+    appliedKeyword: string | undefined
   } | null>(null)
   const isLoadingRef = useRef<boolean>(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -45,7 +92,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       if (
         lastApiCallRef.current &&
         lastApiCallRef.current.menuId === menuId &&
-        lastApiCallRef.current.currentPage === page
+        lastApiCallRef.current.currentPage === page &&
+        lastApiCallRef.current.appliedKeyword === appliedKeyword
       ) {
         return
       }
@@ -69,6 +117,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     lastApiCallRef.current = {
       menuId,
       currentPage: page,
+      appliedKeyword,
     }
     
     // 로딩 플래그 설정
@@ -78,7 +127,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       setIsLoading(true)
       setLoadError(null)
       
-      const response = await getLiveSpacesAdmin(page, 20)
+      const response = await getLiveSpacesAdmin(page, 20, appliedKeyword)
       
       if (abortController.signal.aborted) {
         return
@@ -110,6 +159,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                 title: s.title || '',
                 hostNickname: s.hostNickname || '알 수 없음',
                 hostId: s.hostId,
+                hostEmail: s.hostEmail,
                 thumbnail: s.thumbnail,
                 category: s.categoryName as LiveSpace['category'],
                 status,
@@ -165,7 +215,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     }
   }
 
-  // menuId 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
+  // menuId, currentPage, appliedKeyword 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
   useEffect(() => {
     // menuId가 변경되면 로딩 상태 초기화
     if (menuId !== 'live-space-list') {
@@ -184,11 +234,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       }
       isLoadingRef.current = false
     }
-  }, [menuId, currentPage])
+  }, [menuId, currentPage, appliedKeyword])
   
-  // menuId 변경 시 첫 페이지로 리셋
+  // menuId 또는 appliedKeyword 변경 시 첫 페이지로 리셋
   useEffect(() => {
     if (menuId === 'live-space-list') {
+      // 검색어가 변경되면 첫 페이지로 리셋하고 API 다시 호출
       setCurrentPage(1)
       setPaginationMeta(null)
       setApiLiveSpaces([])
@@ -203,7 +254,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     } else {
       setFilterStatus('all') // 전체 목록은 모든 상태
     }
-  }, [menuId])
+  }, [menuId, appliedKeyword])
   
   const getTitle = () => {
     switch (menuId) {
@@ -217,9 +268,23 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         return '라이브 스페이스 목록'
     }
   }
+
+  // 검색 버튼 클릭 핸들러
+  const handleSearch = () => {
+    const trimmedKeyword = searchKeyword.trim()
+    setAppliedKeyword(trimmedKeyword || undefined)
+    setCurrentPage(1) // 검색 시 첫 페이지로
+  }
+  
+  // 취소 버튼 클릭 핸들러
+  const handleCancelSearch = () => {
+    setSearchKeyword('')
+    setAppliedKeyword(undefined)
+    setCurrentPage(1) // 취소 시 첫 페이지로
+  }
   const [modalState, setModalState] = useState<{
     isOpen: boolean
-    type: 'forceClose' | 'hide' | 'forceTerminate' | null
+    type: 'forceClose' | 'hide' | 'forceTerminate' | 'delete' | null
     liveSpace: LiveSpace | null
   }>({
     isOpen: false,
@@ -277,10 +342,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       filtered = filtered.filter(ls => ls.category === filterCategory)
     }
     
-    if (searchQuery) {
+    // 검색어는 live-space-list의 경우 API에서 처리되므로 클라이언트 사이드 필터링 불필요
+    // 다른 메뉴의 경우 클라이언트 사이드 필터링
+    if (menuId !== 'live-space-list' && appliedKeyword) {
       filtered = filtered.filter(ls => 
-        ls.hostNickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (ls.title && ls.title.toLowerCase().includes(searchQuery.toLowerCase()))
+        ls.hostNickname.toLowerCase().includes(appliedKeyword.toLowerCase()) ||
+        (ls.title && ls.title.toLowerCase().includes(appliedKeyword.toLowerCase()))
       )
     }
     
@@ -289,14 +356,14 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       filterStatus,
       filterRegion,
       filterCategory,
-      searchQuery,
+      appliedKeyword,
       beforeFilter: menuId === 'live-space-list' ? apiLiveSpaces.length : liveSpaces.length,
       afterFilter: filtered.length,
       filtered: filtered.slice(0, 3),
     })
     
     return filtered
-  }, [apiLiveSpaces, liveSpaces, filterStatus, filterRegion, filterCategory, searchQuery, menuId])
+  }, [apiLiveSpaces, liveSpaces, filterStatus, filterRegion, filterCategory, appliedKeyword, menuId])
 
   const handleForceClose = (liveSpace: LiveSpace) => {
     setModalState({
@@ -314,6 +381,93 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     })
   }
 
+  const handleDelete = (liveSpace: LiveSpace) => {
+    setModalState({
+      isOpen: true,
+      type: 'delete',
+      liveSpace,
+    })
+  }
+
+  const handleEdit = (liveSpace: LiveSpace) => {
+    setSelectedLiveSpace(liveSpace)
+    
+    // 날짜 형식 변환 (YYYY-MM-DDTHH:mm 형식으로)
+    const formatDateTimeLocal = (dateString: string | undefined): string => {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    }
+    
+    setEditFormData({
+      title: liveSpace.title || '',
+      placeName: liveSpace.location?.address?.split(' ')[0] || '',
+      description: '',
+      category: liveSpace.category || '',
+      scheduledStartTime: formatDateTimeLocal(liveSpace.startedAt || liveSpace.scheduledStartTime),
+      scheduledEndTime: formatDateTimeLocal(liveSpace.endedAt || liveSpace.scheduledEndTime),
+      address: liveSpace.location?.address || '',
+      lat: liveSpace.location?.lat?.toString() || '',
+      lng: liveSpace.location?.lng?.toString() || '',
+      selectedTags: liveSpace.tags || [],
+    })
+    
+    // 썸네일 초기화
+    setThumbnailFile(null)
+    setThumbnailPreview(liveSpace.thumbnail || null)
+    
+    setShowEditModal(true)
+    setShowDetailModal(false)
+  }
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false)
+    setEditFormData(null)
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
+  }
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // 파일 크기 검증 (예: 5MB 제한)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('파일 크기는 5MB 이하여야 합니다.')
+        return
+      }
+      
+      // 이미지 파일인지 확인
+      if (!file.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드 가능합니다.')
+        return
+      }
+
+      setThumbnailFile(file)
+      
+      // 미리보기 생성
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveThumbnail = () => {
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
+    // input 파일 선택 초기화
+    const fileInput = document.getElementById('edit-thumbnail') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''
+    }
+  }
+
   const handleDetail = (liveSpace: LiveSpace) => {
     setSelectedLiveSpace(liveSpace)
     setShowDetailModal(true)
@@ -323,6 +477,46 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     setShowDetailModal(false)
     setSelectedLiveSpace(null)
   }
+  
+  // 태그 목록 로드
+  useEffect(() => {
+    if (!showEditModal) return
+    
+    const loadTags = async () => {
+      setIsLoadingTags(true)
+      try {
+        const result = await getTagsAdmin()
+        if (result.success) {
+          let tagsData: Tag[] = []
+          const resultData = result.data as any
+          if (Array.isArray(resultData)) {
+            tagsData = resultData
+          } else if (resultData && typeof resultData === 'object') {
+            if (Array.isArray(resultData.tags)) {
+              tagsData = resultData.tags
+            } else if (Array.isArray(resultData.items)) {
+              tagsData = resultData.items
+            } else if (Array.isArray(resultData.list)) {
+              tagsData = resultData.list
+            } else if (Array.isArray(resultData.data)) {
+              tagsData = resultData.data
+            }
+          }
+          const activeTags = tagsData.filter((tag: Tag) => tag.isActive)
+          setTags(activeTags)
+        } else {
+          setTags([])
+        }
+      } catch (error) {
+        console.error('[LiveSpaceList] 태그 목록 로드 중 오류:', error)
+        setTags([])
+      } finally {
+        setIsLoadingTags(false)
+      }
+    }
+    
+    loadTags()
+  }, [showEditModal])
 
   const confirmAction = async () => {
     if (!modalState.liveSpace) return
@@ -346,8 +540,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         alert('라이브 스페이스가 강제 종료되었습니다.')
       }, 100)
     } else if (actionType === 'forceTerminate') {
-      // API 호출하여 강제 종료 (삭제)
-      const result = await deleteLiveSpaceAdmin(targetId)
+      // API 호출하여 강제 종료
+      const result = await terminateLiveSpaceAdmin(targetId)
       
       if (result.success) {
         // API에서 데이터를 다시 불러옴
@@ -362,7 +556,103 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       } else {
         alert(`강제 종료 실패: ${result.error || '알 수 없는 오류가 발생했습니다.'}`)
       }
+    } else if (actionType === 'delete') {
+      // API 호출하여 삭제
+      const result = await deleteLiveSpaceAdmin(targetId)
+      
+      if (result.success) {
+        // API에서 데이터를 다시 불러옴
+        if (menuId === 'live-space-list') {
+          // 현재 페이지의 데이터 다시 로드 (중복 체크 스킵)
+          await loadLiveSpaces(currentPage, true)
+        } else {
+          // Mock 데이터 업데이트
+          updateLiveSpaces((prev) => prev.filter((ls) => ls.id !== targetId))
+        }
+        // 상세 모달도 닫기
+        setShowDetailModal(false)
+        setSelectedLiveSpace(null)
+        alert('라이브 스페이스가 삭제되었습니다.')
+      } else {
+        alert(`삭제 실패: ${result.error || '알 수 없는 오류가 발생했습니다.'}`)
+      }
     }
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedLiveSpace || !editFormData) return
+
+    setIsSubmitting(true)
+
+    try {
+      // 날짜를 YYYY-MM-DDTHH:mm:ss 형식으로 변환
+      const formatDateTime = (date: Date): string => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+      }
+
+      // 썸네일 이미지가 있으면 먼저 업로드
+      let thumbnailImageId: string | undefined = undefined
+      if (thumbnailFile) {
+        const uploadResult = await uploadLiveSpaceThumbnail(thumbnailFile)
+        if (!uploadResult.success) {
+          alert(uploadResult.error || '썸네일 이미지 업로드 중 오류가 발생했습니다.')
+          setIsSubmitting(false)
+          return
+        }
+        thumbnailImageId = uploadResult.thumbnailImageId
+      }
+
+      const updateData: UpdateLiveSpaceRequest = {
+        title: editFormData.title,
+        placeName: editFormData.placeName,
+        address: editFormData.address,
+        longitude: parseFloat(editFormData.lng),
+        latitude: parseFloat(editFormData.lat),
+        description: editFormData.description || undefined,
+        startsAt: formatDateTime(new Date(editFormData.scheduledStartTime)),
+        endsAt: formatDateTime(new Date(editFormData.scheduledEndTime)),
+        ...(editFormData.category && { categoryId: categoryMap[editFormData.category] }),
+        ...(thumbnailImageId && { thumbnailImageId: thumbnailImageId }),
+        ...(editFormData.selectedTags.length > 0 && { tagNames: editFormData.selectedTags }),
+      }
+
+      const result = await updateLiveSpaceAdmin(selectedLiveSpace.id, updateData)
+
+      if (result.success) {
+        // API에서 데이터를 다시 불러옴
+        if (menuId === 'live-space-list') {
+          await loadLiveSpaces(currentPage, true)
+        }
+        setShowEditModal(false)
+        setEditFormData(null)
+        setThumbnailFile(null)
+        setThumbnailPreview(null)
+        alert('라이브 스페이스가 수정되었습니다.')
+      } else {
+        alert(`수정 실패: ${result.error || '알 수 없는 오류가 발생했습니다.'}`)
+      }
+    } catch (error) {
+      console.error('라이브 스페이스 수정 오류:', error)
+      alert('라이브 스페이스 수정 중 오류가 발생했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    if (!editFormData) return
+    const { name, value } = e.target
+    setEditFormData(prev => prev ? ({
+      ...prev,
+      [name]: value,
+    }) : null)
   }
 
   const getStatusBadge = (status: string) => {
@@ -469,13 +759,61 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
 
           <div className={styles.filterGroup}>
             <label className={styles.filterLabel}>호스트 검색</label>
-            <input
-              type="text"
-              className={styles.filterInput}
-              placeholder="닉네임 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="text"
+                className={styles.filterInput}
+                placeholder="닉네임 또는 제목 검색..."
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSearch()
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={handleSearch}
+                disabled={isLoading}
+                style={{
+                  padding: '8px 16px',
+                  background: '#4a9eff',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: isLoading ? 0.6 : 1,
+                }}
+              >
+                {isLoading ? '검색 중...' : '검색'}
+              </button>
+              {appliedKeyword && (
+                <button
+                  type="button"
+                  onClick={handleCancelSearch}
+                  disabled={isLoading}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#fff',
+                    color: '#666',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  취소
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -500,7 +838,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
               {filteredLiveSpaces.length === 0 ? (
                 <tr>
                   <td colSpan={10} className={styles.emptyCell}>
-                    {(filterStatus !== 'all' || filterRegion !== 'all' || filterCategory !== 'all' || searchQuery) ? (
+                    {(filterStatus !== 'all' || filterRegion !== 'all' || filterCategory !== 'all' || appliedKeyword) ? (
                       '리스트가 없습니다.'
                     ) : (
                       menuId === 'live-space-force-close' 
@@ -611,13 +949,31 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                           상세
                         </button>
                         {menuId === 'live-space-list' ? (
-                          // 전체 목록은 API 호출하는 강제종료만 사용
-                          <button 
-                            className={`${styles.actionBtn} ${styles.danger}`}
-                            onClick={() => handleForceTerminate(ls)}
-                          >
-                            강제종료
-                          </button>
+                          <>
+                            <button 
+                              className={styles.actionBtn}
+                              onClick={() => handleEdit(ls)}
+                              style={{
+                                background: '#4a9eff',
+                                color: '#fff',
+                                border: 'none',
+                              }}
+                            >
+                              수정
+                            </button>
+                            <button 
+                              className={`${styles.actionBtn} ${styles.danger}`}
+                              onClick={() => handleForceTerminate(ls)}
+                            >
+                              강제종료
+                            </button>
+                            <button 
+                              className={`${styles.actionBtn} ${styles.danger}`}
+                              onClick={() => handleDelete(ls)}
+                            >
+                              삭제
+                            </button>
+                          </>
                         ) : ls.status === 'live' ? (
                           // 다른 메뉴는 Mock 데이터용 강제종료 사용
                           <button 
@@ -640,7 +996,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         <div className={styles.cardList}>
           {filteredLiveSpaces.length === 0 ? (
             <div className={styles.emptyCard}>
-              {(filterStatus !== 'all' || filterRegion !== 'all' || searchQuery) ? (
+              {(filterStatus !== 'all' || filterRegion !== 'all' || appliedKeyword) ? (
                 '리스트가 없습니다.'
               ) : (
                 menuId === 'live-space-force-close' 
@@ -773,13 +1129,31 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
                     상세
                   </button>
                   {menuId === 'live-space-list' ? (
-                    // 전체 목록은 API 호출하는 강제종료만 사용
-                    <button 
-                      className={`${styles.actionBtn} ${styles.danger}`}
-                      onClick={() => handleForceTerminate(ls)}
-                    >
-                      강제종료
-                    </button>
+                    <>
+                      <button 
+                        className={styles.actionBtn}
+                        onClick={() => handleEdit(ls)}
+                        style={{
+                          background: '#4a9eff',
+                          color: '#fff',
+                          border: 'none',
+                        }}
+                      >
+                        수정
+                      </button>
+                      <button 
+                        className={`${styles.actionBtn} ${styles.danger}`}
+                        onClick={() => handleForceTerminate(ls)}
+                      >
+                        강제종료
+                      </button>
+                      <button 
+                        className={`${styles.actionBtn} ${styles.danger}`}
+                        onClick={() => handleDelete(ls)}
+                      >
+                        삭제
+                      </button>
+                    </>
                   ) : ls.status === 'live' ? (
                     // 다른 메뉴는 Mock 데이터용 강제종료 사용
                     <button 
@@ -794,6 +1168,87 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
             ))
           )}
         </div>
+
+        {/* 페이징 버튼 */}
+        {menuId === 'live-space-list' && paginationMeta && paginationMeta.totalPages > 1 && (
+          <div className={styles.pagination}>
+            <button
+              className={styles.paginationNavButton}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={!paginationMeta.hasPrevious || isLoading}
+            >
+              ‹
+            </button>
+            <div className={styles.paginationNumbers}>
+              {(() => {
+                const pages: (number | string)[] = []
+                const totalPages = paginationMeta.totalPages
+                const current = paginationMeta.currentPage
+                const maxVisible = 5 // 최대 표시할 페이지 수
+                
+                if (totalPages <= maxVisible) {
+                  // 전체 페이지가 5개 이하면 모두 표시
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i)
+                  }
+                } else {
+                  // 첫 페이지
+                  pages.push(1)
+                  
+                  if (current <= 3) {
+                    // 현재 페이지가 앞쪽에 있으면
+                    for (let i = 2; i <= 4; i++) {
+                      pages.push(i)
+                    }
+                    pages.push('...')
+                    pages.push(totalPages)
+                  } else if (current >= totalPages - 2) {
+                    // 현재 페이지가 뒤쪽에 있으면
+                    pages.push('...')
+                    for (let i = totalPages - 3; i <= totalPages; i++) {
+                      pages.push(i)
+                    }
+                  } else {
+                    // 현재 페이지가 중간에 있으면
+                    pages.push('...')
+                    for (let i = current - 1; i <= current + 1; i++) {
+                      pages.push(i)
+                    }
+                    pages.push('...')
+                    pages.push(totalPages)
+                  }
+                }
+                
+                return pages.map((page, index) => {
+                  if (page === '...') {
+                    return (
+                      <span key={`ellipsis-${index}`} className={styles.paginationEllipsis}>
+                        ...
+                      </span>
+                    )
+                  }
+                  return (
+                    <button
+                      key={page}
+                      className={`${styles.paginationNumberButton} ${current === page ? styles.active : ''}`}
+                      onClick={() => setCurrentPage(page as number)}
+                      disabled={isLoading}
+                    >
+                      {page}
+                    </button>
+                  )
+                })
+              })()}
+            </div>
+            <button
+              className={styles.paginationNavButton}
+              onClick={() => setCurrentPage(prev => Math.min(paginationMeta.totalPages, prev + 1))}
+              disabled={!paginationMeta.hasNext || isLoading}
+            >
+              ›
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Live Space 상세 정보 Modal */}
@@ -928,7 +1383,505 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
               >
                 닫기
               </button>
+              {menuId === 'live-space-list' && (
+                <>
+                  <button
+                    className={styles.detailModalButton}
+                    onClick={() => handleEdit(selectedLiveSpace)}
+                    style={{
+                      background: '#4a9eff',
+                      color: '#fff',
+                      border: 'none',
+                    }}
+                  >
+                    수정
+                  </button>
+                  <button
+                    className={`${styles.detailModalButton} ${styles.danger}`}
+                    onClick={() => handleDelete(selectedLiveSpace)}
+                  >
+                    삭제
+                  </button>
+                </>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Space 수정 Modal */}
+      {showEditModal && selectedLiveSpace && editFormData && (
+        <div 
+          className={styles.modalOverlay}
+          onClick={handleCloseEditModal}
+        >
+          <div className={styles.detailModal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className={styles.detailModalHeader}>
+              <h3 className={styles.detailModalTitle}>Live Space 수정</h3>
+              <button 
+                className={styles.detailModalClose}
+                onClick={handleCloseEditModal}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit}>
+              <div className={styles.detailModalBody} style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      제목 <span style={{ color: '#e74c3c' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="title"
+                      value={editFormData.title}
+                      onChange={handleEditInputChange}
+                      required
+                      disabled={isSubmitting}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      장소명 <span style={{ color: '#e74c3c' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="placeName"
+                      value={editFormData.placeName}
+                      onChange={handleEditInputChange}
+                      required
+                      disabled={isSubmitting}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      카테고리
+                    </label>
+                    <select
+                      name="category"
+                      value={editFormData.category}
+                      onChange={handleEditInputChange}
+                      disabled={isSubmitting}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        background: '#fff',
+                      }}
+                    >
+                      <option value="">카테고리를 선택하세요</option>
+                      <option value="팝업">팝업</option>
+                      <option value="전시">전시</option>
+                      <option value="이벤트">이벤트</option>
+                      <option value="세일/혜택">세일/혜택</option>
+                      <option value="맛집">맛집</option>
+                      <option value="핀">핀</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      설명
+                    </label>
+                    <textarea
+                      name="description"
+                      value={editFormData.description}
+                      onChange={handleEditInputChange}
+                      disabled={isSubmitting}
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                        시작 시간 <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        name="scheduledStartTime"
+                        value={editFormData.scheduledStartTime}
+                        onChange={handleEditInputChange}
+                        required
+                        disabled={isSubmitting}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                        종료 시간 <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        name="scheduledEndTime"
+                        value={editFormData.scheduledEndTime}
+                        onChange={handleEditInputChange}
+                        required
+                        disabled={isSubmitting}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      주소 <span style={{ color: '#e74c3c' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={editFormData.address}
+                      onChange={handleEditInputChange}
+                      required
+                      disabled={isSubmitting}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                        위도 <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="lat"
+                        value={editFormData.lat}
+                        onChange={handleEditInputChange}
+                        required
+                        disabled={isSubmitting}
+                        step="any"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                        경도 <span style={{ color: '#e74c3c' }}>*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="lng"
+                        value={editFormData.lng}
+                        onChange={handleEditInputChange}
+                        required
+                        disabled={isSubmitting}
+                        step="any"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      태그
+                    </label>
+                    {isLoadingTags ? (
+                      <div style={{ padding: '12px', color: '#666', fontSize: '14px' }}>
+                        태그 목록 로딩 중...
+                      </div>
+                    ) : tags.length === 0 ? (
+                      <div style={{ padding: '12px', color: '#999', fontSize: '14px' }}>
+                        등록된 태그가 없습니다.
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: '8px',
+                        padding: '12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        minHeight: '50px',
+                        backgroundColor: '#fff'
+                      }}>
+                        {tags.map((tag) => (
+                          <label
+                            key={tag.id}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '6px 12px',
+                              border: editFormData.selectedTags.includes(tag.name)
+                                ? '2px solid #4a9eff'
+                                : '1px solid #ddd',
+                              borderRadius: '20px',
+                              backgroundColor: editFormData.selectedTags.includes(tag.name)
+                                ? '#e6f2ff'
+                                : '#f5f5f5',
+                              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                              fontSize: '14px',
+                              fontWeight: editFormData.selectedTags.includes(tag.name) ? 500 : 400,
+                              color: editFormData.selectedTags.includes(tag.name) ? '#4a9eff' : '#333',
+                              opacity: isSubmitting ? 0.6 : 1,
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editFormData.selectedTags.includes(tag.name)}
+                              onChange={(e) => {
+                                if (isSubmitting) return
+                                if (e.target.checked) {
+                                  setEditFormData(prev => prev ? ({
+                                    ...prev,
+                                    selectedTags: [...prev.selectedTags, tag.name]
+                                  }) : null)
+                                } else {
+                                  setEditFormData(prev => prev ? ({
+                                    ...prev,
+                                    selectedTags: prev.selectedTags.filter(name => name !== tag.name)
+                                  }) : null)
+                                }
+                              }}
+                              disabled={isSubmitting}
+                              style={{ 
+                                marginRight: '6px',
+                                cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                              }}
+                            />
+                            {tag.name}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#333' }}>
+                      썸네일 이미지
+                    </label>
+                    {!thumbnailPreview ? (
+                      <div style={{
+                        position: 'relative',
+                        border: '2px dashed #ddd',
+                        borderRadius: '8px',
+                        padding: '40px 20px',
+                        textAlign: 'center',
+                        backgroundColor: '#fafafa',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSubmitting) {
+                          e.currentTarget.style.borderColor = '#4a9eff'
+                          e.currentTarget.style.backgroundColor = '#f0f7ff'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#ddd'
+                        e.currentTarget.style.backgroundColor = '#fafafa'
+                      }}
+                      >
+                        <input
+                          id="edit-thumbnail"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleThumbnailChange}
+                          disabled={isSubmitting}
+                          style={{
+                            position: 'absolute',
+                            width: '1px',
+                            height: '1px',
+                            padding: 0,
+                            margin: -1,
+                            overflow: 'hidden',
+                            clip: 'rect(0, 0, 0, 0)',
+                            border: 0,
+                          }}
+                        />
+                        <label
+                          htmlFor="edit-thumbnail"
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '8px',
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          <span style={{ fontSize: '32px' }}>📷</span>
+                          <span style={{ fontSize: '14px', fontWeight: 500, color: '#333' }}>이미지 파일 선택</span>
+                          <span style={{ fontSize: '12px', color: '#999' }}>(최대 5MB)</span>
+                        </label>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{
+                          position: 'relative',
+                          width: '100%',
+                          maxWidth: '400px',
+                          height: '300px',
+                          border: '1px solid #ddd',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          background: '#f5f5f5',
+                        }}>
+                          <img
+                            src={thumbnailPreview}
+                            alt="썸네일 미리보기"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveThumbnail}
+                            disabled={isSubmitting}
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: 'rgba(0, 0, 0, 0.6)',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '18px',
+                              lineHeight: 1,
+                              transition: 'background 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSubmitting) {
+                                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.8)'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        {thumbnailFile && (
+                          <div style={{
+                            fontSize: '13px',
+                            color: '#666',
+                            padding: '8px 12px',
+                            background: '#f5f5f5',
+                            borderRadius: '4px',
+                          }}>
+                            {thumbnailFile.name} ({(thumbnailFile.size / 1024 / 1024).toFixed(2)} MB)
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleRemoveThumbnail}
+                          disabled={isSubmitting}
+                          style={{
+                            padding: '8px 16px',
+                            background: '#fff',
+                            color: '#4a9eff',
+                            border: '1px solid #4a9eff',
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.2s ease',
+                            alignSelf: 'flex-start',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSubmitting) {
+                              e.currentTarget.style.background = '#4a9eff'
+                              e.currentTarget.style.color = '#fff'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#fff'
+                            e.currentTarget.style.color = '#4a9eff'
+                          }}
+                        >
+                          다른 이미지 선택
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className={styles.detailModalFooter}>
+                <button
+                  type="button"
+                  className={styles.detailModalButton}
+                  onClick={handleCloseEditModal}
+                  disabled={isSubmitting}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className={styles.detailModalButton}
+                  disabled={isSubmitting}
+                  style={{ background: '#4a9eff' }}
+                >
+                  {isSubmitting ? '수정 중...' : '수정'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -941,11 +1894,15 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
             ? '라이브 스페이스 강제 종료'
             : modalState.type === 'forceTerminate'
             ? '라이브 스페이스 강제 종료'
+            : modalState.type === 'delete'
+            ? '라이브 스페이스 삭제'
             : '라이브 스페이스 강제 종료'
         }
         message={
           modalState.type === 'forceClose'
             ? `"${modalState.liveSpace?.title || modalState.liveSpace?.hostNickname + '의 라이브스페이스'}"를 강제 종료하시겠습니까?\n\n해당 스페이스는 즉시 종료됩니다.\n사용자에게 '운영정책 위반으로 종료' 안내가 발송됩니다.`
+            : modalState.type === 'delete'
+            ? `"${modalState.liveSpace?.title || modalState.liveSpace?.hostNickname + '의 라이브스페이스'}"를 삭제하시겠습니까?\n\n해당 스페이스는 영구적으로 삭제됩니다.`
             : `"${modalState.liveSpace?.title || modalState.liveSpace?.hostNickname + '의 라이브스페이스'}"를 강제 종료하시겠습니까?\n\n해당 스페이스는 삭제됩니다.`
         }
         confirmText="확인"

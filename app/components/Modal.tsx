@@ -13,6 +13,7 @@ interface ModalProps {
   onConfirm?: () => void
   type?: 'danger' | 'warning' | 'info'
   children?: ReactNode
+  footer?: ReactNode
 }
 
 export default function Modal({
@@ -24,7 +25,8 @@ export default function Modal({
   cancelText = '취소',
   onConfirm,
   type = 'info',
-  children
+  children,
+  footer
 }: ModalProps) {
   if (!isOpen) return null
 
@@ -45,7 +47,11 @@ export default function Modal({
         <div className={styles.body}>
           {children ? children : message && <p className={styles.message}>{message}</p>}
         </div>
-        {onConfirm && (
+        {footer ? (
+          <div className={styles.footer}>
+            {footer}
+          </div>
+        ) : onConfirm && (
           <div className={styles.footer}>
             <button 
               className={`${styles.button} ${styles.cancelButton}`}

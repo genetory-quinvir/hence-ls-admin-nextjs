@@ -39,20 +39,23 @@ export default function TagManagement() {
       if (result.success) {
         // result.data가 배열인지 확인
         let tagsData: Tag[] = []
+        const resultData = result.data as any
         
-        if (Array.isArray(result.data)) {
-          tagsData = result.data
-        } else if (result.data && typeof result.data === 'object') {
+        if (Array.isArray(resultData)) {
+          tagsData = resultData
+        } else if (resultData && typeof resultData === 'object') {
           // 객체인 경우, 배열 필드를 찾아봄
-          if (Array.isArray(result.data.tags)) {
-            tagsData = result.data.tags
-          } else if (Array.isArray(result.data.items)) {
-            tagsData = result.data.items
-          } else if (Array.isArray(result.data.list)) {
-            tagsData = result.data.list
+          if (Array.isArray(resultData.tags)) {
+            tagsData = resultData.tags
+          } else if (Array.isArray(resultData.items)) {
+            tagsData = resultData.items
+          } else if (Array.isArray(resultData.list)) {
+            tagsData = resultData.list
+          } else if (Array.isArray(resultData.data)) {
+            tagsData = resultData.data
           } else {
             // 객체 자체가 태그 하나일 수도 있음
-            console.warn('[TagManagement] 예상치 못한 응답 구조:', result.data)
+            console.warn('[TagManagement] 예상치 못한 응답 구조:', resultData)
           }
         }
         

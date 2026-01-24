@@ -15,13 +15,19 @@ const menuItems: MenuItem[] = [
     icon: '📊',
   },
   {
+    id: 'featured',
+    label: '피쳐드 관리',
+    icon: '⭐',
+    children: [
+      { id: 'featured-banner', label: '배너 관리' },
+    ],
+  },
+  {
     id: 'live-space',
     label: '라이브 스페이스 관리',
     icon: '📍',
     children: [
       { id: 'live-space-list', label: '전체 목록' },
-      { id: 'live-space-force-close', label: '강제 종료 큐' },
-      { id: 'live-space-reported', label: '신고 접수된 스페이스' },
       { id: 'live-space-create', label: '라이브 스페이스 생성' },
       { id: 'live-space-automation', label: '라이브 스페이스 자동화' },
       { id: 'live-space-festival', label: '우리나라 축제/행사' },
@@ -44,8 +50,8 @@ const menuItems: MenuItem[] = [
     icon: '💬',
     children: [
       { id: 'feed-all', label: '전체 피드' },
-      { id: 'comment-all', label: '전체 댓글' },
       { id: 'feed-reported', label: '신고된 피드' },
+      { id: 'comment-all', label: '전체 댓글' },
       { id: 'comment-reported', label: '신고된 댓글' },
     ],
   },

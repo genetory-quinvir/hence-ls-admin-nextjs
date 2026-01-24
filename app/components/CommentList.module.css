@@ -109,6 +109,32 @@
   border-bottom: 2px solid #e0e0e0;
 }
 
+.sortableHeader {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.sortableHeader:hover {
+  color: #4a9eff;
+}
+
+.sortIcon {
+  font-size: 12px;
+  color: #4a9eff;
+  font-weight: 700;
+}
+
 .table td {
   padding: 16px;
   font-size: 14px;
@@ -537,5 +563,104 @@
     font-size: 48px;
     margin-bottom: 16px;
   }
+}
+
+/* 페이징 스타일 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.paginationNavButton {
+  padding: 8px 12px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paginationNavButton:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.paginationNavButton:disabled {
+  background: #f5f5f5;
+  color: #ccc;
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+}
+
+.paginationNumbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.paginationNumberButton {
+  padding: 8px 12px;
+  background: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paginationNumberButton:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #4a9eff;
+  color: #4a9eff;
+}
+
+.paginationNumberButton.active {
+  background: #4a9eff;
+  color: #fff;
+  border-color: #4a9eff;
+  font-weight: 600;
+}
+
+.paginationNumberButton.active:hover {
+  background: #357abd;
+  border-color: #357abd;
+}
+
+.paginationNumberButton:disabled {
+  cursor: not-allowed;
+}
+
+.paginationEllipsis {
+  padding: 8px 4px;
+  color: #999;
+  font-size: 14px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 

@@ -1046,6 +1046,7 @@ export interface LiveSpaceListItem {
   title: string
   hostId: string
   hostNickname: string
+  hostEmail?: string
   categoryName?: string
   placeName?: string
   address?: string
@@ -1089,7 +1090,8 @@ export interface LiveSpaceListResponse {
  */
 export async function getLiveSpacesAdmin(
   page: number = 1,
-  limit: number = 20
+  limit: number = 20,
+  keyword?: string
 ): Promise<LiveSpaceListResponse> {
   const accessToken = getAccessToken()
   
@@ -1105,12 +1107,18 @@ export async function getLiveSpacesAdmin(
     limit: limit.toString(),
   })
   
+  // 검색어가 있으면 추가
+  if (keyword && keyword.trim()) {
+    params.append('keyword', keyword.trim())
+  }
+  
   const url = `${getApiBaseUrl()}/api/v1/space-admin?${params.toString()}`
   
   console.log('📤 [API] Live Space 리스트 요청:', {
     url,
     page,
     limit,
+    keyword,
     timestamp: new Date().toISOString(),
   })
 
@@ -1174,6 +1182,9 @@ export async function getLiveSpacesAdmin(
           ? s.hostNickname 
           : s.hostNickname?.nickname || s.hostNickname?.name || '알 수 없음'
         
+        // hostEmail 추출 (API 응답에서 hostEmail 또는 host.email 등 다양한 경로 확인)
+        const hostEmail = s.hostEmail || s.host?.email || s.hostEmail || undefined
+        
         // address에서 district 추출 (간단한 파싱, 실제로는 API에서 제공될 수도 있음)
         const district = s.address 
           ? (s.address.match(/(\S+구|\S+시|\S+군)/)?.[0] || '')
@@ -1184,6 +1195,7 @@ export async function getLiveSpacesAdmin(
           title: s.title || '',
           hostId: s.hostId || '',
           hostNickname: hostNickname,
+          hostEmail: hostEmail,
           categoryName: s.categoryName,
           placeName: s.placeName,
           address: s.address || s.placeName || '',
@@ -1243,7 +1255,7 @@ export interface CreateLiveSpaceRequest {
   startsAt: string
   endsAt: string // 서버에서 필수로 요구 (없으면 클라이언트에서 기본값 설정)
   thumbnailImageId?: string
-  categoryId: string
+  categoryId?: string
   tagNames?: string[]
 }
 
@@ -1274,8 +1286,8 @@ export async function createLiveSpaceAdmin(
     latitude: data.latitude,
     startsAt: data.startsAt,
     endsAt: data.endsAt, // 서버에서 필수로 요구하므로 항상 포함 (없으면 클라이언트에서 기본값 설정)
-    categoryId: data.categoryId,
     ...(data.description && { description: data.description }),
+    ...(data.categoryId && { categoryId: data.categoryId }),
     ...(data.thumbnailImageId && { thumbnailImageId: data.thumbnailImageId }),
     ...(data.tagNames && data.tagNames.length > 0 && { tagNames: data.tagNames }),
   }
@@ -1291,7 +1303,7 @@ export async function createLiveSpaceAdmin(
   })
   
   // 필수 필드 검증
-  if (!data.title || !data.placeName || !data.address || !data.startsAt || !data.endsAt || !data.categoryId) {
+  if (!data.title || !data.placeName || !data.address || !data.startsAt || !data.endsAt) {
     console.error('❌ [API] Live Space 생성 필수 필드 누락:', {
       hasTitle: !!data.title,
       hasPlaceName: !!data.placeName,
@@ -1303,7 +1315,7 @@ export async function createLiveSpaceAdmin(
     })
     return {
       success: false,
-      error: '필수 필드가 누락되었습니다. (title, placeName, address, startsAt, endsAt, categoryId)',
+      error: '필수 필드가 누락되었습니다. (title, placeName, address, startsAt, endsAt)',
     }
   }
 
@@ -2132,9 +2144,9 @@ export async function getLiveSpaceDetail(spaceId: string): Promise<LiveSpaceDeta
 }
 
 /**
- * Live Space 강제 종료 (삭제)
+ * Live Space 강제 종료 - Admin용
  */
-export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: boolean; error?: string }> {
+export async function terminateLiveSpaceAdmin(spaceId: string): Promise<{ success: boolean; error?: string }> {
   const accessToken = getAccessToken()
   
   if (!accessToken) {
@@ -2144,7 +2156,7 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
     }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/space-admin/${spaceId}`
+  const url = `${getApiBaseUrl()}/api/v1/space-admin/terminate/${spaceId}`
   
   console.log('📤 [API] Live Space 강제 종료 요청:', {
     url,
@@ -2215,6 +2227,216 @@ export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: 
     }
   }
 }
+
+/**
+ * Live Space 수정 요청 인터페이스
+ */
+export interface UpdateLiveSpaceRequest {
+  title?: string
+  placeName?: string
+  address?: string
+  longitude?: number
+  latitude?: number
+  description?: string
+  startsAt?: string
+  endsAt?: string
+  thumbnailImageId?: string
+  categoryId?: string
+  tagNames?: string[]
+}
+
+/**
+ * Live Space 수정 - Admin용
+ */
+export async function updateLiveSpaceAdmin(
+  spaceId: string,
+  data: UpdateLiveSpaceRequest
+): Promise<{ success: boolean; error?: string; data?: any }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/space-admin/${spaceId}`
+  
+  // 변경된 필드만 포함
+  const requestBody: any = {}
+  if (data.title !== undefined) requestBody.title = data.title
+  if (data.placeName !== undefined) requestBody.placeName = data.placeName
+  if (data.address !== undefined) requestBody.address = data.address
+  if (data.longitude !== undefined) requestBody.longitude = data.longitude
+  if (data.latitude !== undefined) requestBody.latitude = data.latitude
+  if (data.description !== undefined) requestBody.description = data.description
+  if (data.startsAt !== undefined) requestBody.startsAt = data.startsAt
+  if (data.endsAt !== undefined) requestBody.endsAt = data.endsAt
+  if (data.categoryId !== undefined) requestBody.categoryId = data.categoryId
+  if (data.thumbnailImageId !== undefined) requestBody.thumbnailImageId = data.thumbnailImageId
+  if (data.tagNames !== undefined) requestBody.tagNames = data.tagNames
+  
+  console.log('📤 [API] Live Space 수정 요청:', {
+    url,
+    method: 'PATCH',
+    spaceId,
+    data: requestBody,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    console.log('📥 [API] Live Space 수정 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        if (errorText) {
+          errorData = JSON.parse(errorText)
+        }
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+      
+      console.error('❌ [API] Live Space 수정 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        errorText,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || errorText || `Live Space 수정 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    
+    console.log('✅ [API] Live Space 수정 성공:', {
+      data: responseData,
+      timestamp: new Date().toISOString(),
+    })
+
+    return {
+      success: true,
+      data: responseData,
+    }
+  } catch (error) {
+    console.error('❌ [API] Live Space 수정 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Live Space 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Live Space 삭제 - Admin용
+ */
+export async function deleteLiveSpaceAdmin(spaceId: string): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/space-admin/${spaceId}`
+  
+  console.log('📤 [API] Live Space 삭제 요청:', {
+    url,
+    spaceId,
+    method: 'DELETE',
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Live Space 삭제 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        if (errorText) {
+          errorData = JSON.parse(errorText)
+        }
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+      
+      console.error('❌ [API] Live Space 삭제 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        errorText,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || errorText || `Live Space 삭제 실패 (${response.status})`,
+      }
+    }
+
+    console.log('✅ [API] Live Space 삭제 성공:', {
+      spaceId,
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    console.error('❌ [API] Live Space 삭제 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Live Space 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
 
 /**
  * 대시보드 Summary 응답 인터페이스
@@ -3486,6 +3708,977 @@ export async function removeTagFromSpace(
     return {
       success: false,
       error: error instanceof Error ? error.message : '태그 연결 해제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Feed 리스트 인터페이스
+ */
+export interface FeedListItem {
+  id: string
+  liveSpaceId: string
+  liveSpaceTitle: string
+  authorId: string
+  authorNickname: string
+  authorProfileImage?: string
+  content: string
+  images: string[]
+  likeCount: number
+  commentCount: number
+  createdAt: string
+  reportedCount: number
+}
+
+export interface FeedListMeta {
+  currentPage: number
+  itemsPerPage: number
+  totalItems: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+export interface FeedListResponse {
+  success: boolean
+  data?: FeedListItem[]
+  meta?: FeedListMeta
+  error?: string
+}
+
+/**
+ * Feed 리스트 API 호출
+ */
+export async function getFeedsAdmin(
+  page: number = 1,
+  limit: number = 20,
+  keyword?: string,
+  orderBy?: 'popular' | 'createdAt',
+  direction?: 'ASC' | 'DESC',
+  isReported?: boolean
+): Promise<FeedListResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  })
+  
+  // 검색어가 있으면 추가
+  if (keyword && keyword.trim()) {
+    params.append('keyword', keyword.trim())
+  }
+  
+  // 정렬 옵션이 있으면 추가
+  if (orderBy) {
+    params.append('orderBy', orderBy)
+    if (direction) {
+      params.append('direction', direction)
+    }
+  }
+  
+  // 신고된 피드만 필터링
+  if (isReported !== undefined) {
+    params.append('isReported', isReported.toString())
+  }
+  
+  const url = `${getApiBaseUrl()}/api/v1/feeds-admin?${params.toString()}`
+  
+  console.log('📤 [API] Feed 리스트 요청:', {
+    url,
+    method: 'GET',
+    page,
+    limit,
+    keyword,
+    orderBy,
+    direction,
+    isReported,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Feed 리스트 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      console.error('❌ [API] Feed 리스트 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || `Feed 리스트 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    console.log('✅ [API] Feed 리스트 성공:', {
+      responseData,
+      resultCount: responseData.data?.feeds?.length || responseData.data?.length || 0,
+      timestamp: new Date().toISOString(),
+    })
+    
+    // API 응답 구조에 따라 데이터 추출
+    const feeds = responseData.data?.feeds || responseData.data || []
+    const meta = responseData.data?.meta || responseData.meta
+    
+    return {
+      success: true,
+      data: feeds.map((f: any) => {
+        // 이미지 배열 추출
+        const images: string[] = []
+        if (f.images && Array.isArray(f.images)) {
+          f.images.forEach((img: any) => {
+            if (typeof img === 'string') {
+              images.push(img)
+            } else if (img.url) {
+              images.push(img.url)
+            } else if (img.cdnUrl) {
+              images.push(img.cdnUrl)
+            } else if (img.thumbnailUrl) {
+              images.push(img.thumbnailUrl)
+            } else if (img.fileUrl) {
+              images.push(img.fileUrl)
+            }
+          })
+        }
+        
+        // 작성자 프로필 이미지 추출
+        const authorProfileImage = f.author?.profileImage 
+          ? (typeof f.author.profileImage === 'string' 
+              ? f.author.profileImage 
+              : f.author.profileImage.cdnUrl || f.author.profileImage.thumbnailUrl || f.author.profileImage.fileUrl)
+          : undefined
+        
+        return {
+          id: f.id,
+          liveSpaceId: f.liveSpaceId || f.spaceId || '',
+          liveSpaceTitle: f.liveSpaceTitle || f.spaceTitle || '',
+          authorId: f.authorId || f.author?.id || '',
+          authorNickname: f.authorNickname || f.author?.nickname || '알 수 없음',
+          authorProfileImage: authorProfileImage,
+          content: f.content || '',
+          images: images,
+          likeCount: f.likeCount || f.likesCount || 0,
+          commentCount: f.commentCount || f.commentsCount || 0,
+          createdAt: f.createdAt || new Date().toISOString(),
+          reportedCount: f.reportedCount || 0,
+        }
+      }),
+      meta: {
+        currentPage: meta?.currentPage || page,
+        itemsPerPage: meta?.itemsPerPage || limit,
+        totalItems: meta?.totalItems || feeds.length,
+        totalPages: meta?.totalPages || Math.ceil((meta?.totalItems || feeds.length) / (meta?.itemsPerPage || limit)) || 1,
+        hasNext: meta?.hasNext ?? (page < (meta?.totalPages || 1)),
+        hasPrevious: meta?.hasPrevious ?? (page > 1),
+      },
+    }
+  } catch (error) {
+    console.error('❌ [API] Feed 리스트 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Feed 리스트 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Feed 삭제 - Admin용
+ */
+export async function deleteFeedAdmin(feedId: string): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/feeds-admin/${feedId}`
+  
+  console.log('📤 [API] Feed 삭제 요청:', {
+    url,
+    feedId,
+    method: 'DELETE',
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Feed 삭제 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        if (errorText) {
+          errorData = JSON.parse(errorText)
+        }
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+      
+      console.error('❌ [API] Feed 삭제 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        errorText,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || errorText || `Feed 삭제 실패 (${response.status})`,
+      }
+    }
+
+    console.log('✅ [API] Feed 삭제 성공:', {
+      feedId,
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    console.error('❌ [API] Feed 삭제 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Feed 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Feed Comment 리스트 인터페이스
+ */
+export interface FeedCommentListItem {
+  id: string
+  feedId: string
+  feedContent?: string
+  authorId: string
+  authorNickname: string
+  authorProfileImage?: string
+  content: string
+  image?: string
+  likeCount: number
+  createdAt: string
+  reportedCount: number
+}
+
+export interface FeedCommentListMeta {
+  currentPage: number
+  itemsPerPage: number
+  totalItems: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+export interface FeedCommentListResponse {
+  success: boolean
+  data?: FeedCommentListItem[]
+  meta?: FeedCommentListMeta
+  error?: string
+}
+
+/**
+ * Feed Comment 리스트 API 호출
+ */
+export async function getFeedCommentsAdmin(
+  page: number = 1,
+  limit: number = 20,
+  keyword?: string,
+  orderBy?: 'popular' | 'createdAt',
+  direction?: 'ASC' | 'DESC',
+  isReported?: boolean
+): Promise<FeedCommentListResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  })
+  
+  // 검색어가 있으면 추가
+  if (keyword && keyword.trim()) {
+    params.append('keyword', keyword.trim())
+  }
+  
+  // 정렬 옵션이 있으면 추가
+  if (orderBy) {
+    params.append('orderBy', orderBy)
+    if (direction) {
+      params.append('direction', direction)
+    }
+  }
+  
+  // 신고된 댓글만 필터링
+  if (isReported !== undefined) {
+    params.append('isReported', isReported.toString())
+  }
+  
+  const url = `${getApiBaseUrl()}/api/v1/feed-comments-admin?${params.toString()}`
+  
+  console.log('📤 [API] Feed Comment 리스트 요청:', {
+    url,
+    method: 'GET',
+    page,
+    limit,
+    keyword,
+    orderBy,
+    direction,
+    isReported,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Feed Comment 리스트 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      
+      console.error('❌ [API] Feed Comment 리스트 에러:', {
+        status: response.status,
+        errorData,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || `Feed Comment 리스트 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    
+    console.log('✅ [API] Feed Comment 리스트 성공:', {
+      responseData,
+      resultCount: responseData.data?.comments?.length || responseData.data?.length || 0,
+      timestamp: new Date().toISOString(),
+    })
+    
+    // API 응답 구조에 따라 데이터 추출
+    const comments = responseData.data?.comments || responseData.data || []
+    const meta = responseData.data?.meta || responseData.meta
+    
+    return {
+      success: true,
+      data: comments.map((c: any) => {
+        // 작성자 프로필 이미지 추출
+        const authorProfileImage = c.author?.profileImage 
+          ? (typeof c.author.profileImage === 'string' 
+              ? c.author.profileImage 
+              : c.author.profileImage.cdnUrl || c.author.profileImage.thumbnailUrl || c.author.profileImage.fileUrl)
+          : undefined
+        
+        return {
+          id: c.id,
+          feedId: c.feedId || c.feed?.id || '',
+          feedContent: c.feedContent || c.feed?.content || '',
+          authorId: c.authorId || c.author?.id || '',
+          authorNickname: c.authorNickname || c.author?.nickname || '알 수 없음',
+          authorProfileImage: authorProfileImage,
+          content: c.content || '',
+          image: c.image || undefined,
+          likeCount: c.likeCount || c.likesCount || 0,
+          createdAt: c.createdAt || new Date().toISOString(),
+          reportedCount: c.reportedCount || 0,
+        }
+      }),
+      meta: {
+        currentPage: meta?.currentPage || page,
+        itemsPerPage: meta?.itemsPerPage || limit,
+        totalItems: meta?.totalItems || comments.length,
+        totalPages: meta?.totalPages || Math.ceil((meta?.totalItems || comments.length) / (meta?.itemsPerPage || limit)) || 1,
+        hasNext: meta?.hasNext ?? (page < (meta?.totalPages || 1)),
+        hasPrevious: meta?.hasPrevious ?? (page > 1),
+      },
+    }
+  } catch (error) {
+    console.error('❌ [API] Feed Comment 리스트 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Feed Comment 리스트 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * Feed Comment 삭제 - Admin용
+ */
+export async function deleteFeedCommentAdmin(commentId: string): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/feed-comments-admin/${commentId}`
+  
+  console.log('📤 [API] Feed Comment 삭제 요청:', {
+    url,
+    commentId,
+    method: 'DELETE',
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Feed Comment 삭제 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        if (errorText) {
+          errorData = JSON.parse(errorText)
+        }
+      } catch (e) {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+      
+      console.error('❌ [API] Feed Comment 삭제 에러:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        errorText,
+        timestamp: new Date().toISOString(),
+      })
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || errorText || `Feed Comment 삭제 실패 (${response.status})`,
+      }
+    }
+
+    console.log('✅ [API] Feed Comment 삭제 성공:', {
+      commentId,
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    console.error('❌ [API] Feed Comment 삭제 네트워크 에러:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    })
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Feed Comment 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+// ==================== Featured Banner Admin API ====================
+
+export interface FeaturedBannerThumbnailImage {
+  id: string
+  fileType?: string
+  entityType?: string
+  entityId?: string
+  owner?: string
+  fileUrl?: string
+  cdnUrl?: string
+  thumbnailUrl?: string
+  displayOrder?: number
+}
+
+export interface FeaturedBanner {
+  id: string
+  title: string
+  subtitle?: string
+  order: number
+  tags?: string
+  isActive: boolean
+  thumbnailImage?: FeaturedBannerThumbnailImage
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FeaturedBannerListMeta {
+  currentPage: number
+  itemsPerPage: number
+  totalItems: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+export interface FeaturedBannerListResponse {
+  success: boolean
+  data?: FeaturedBanner[]
+  meta?: FeaturedBannerListMeta
+  error?: string
+}
+
+export interface CreateFeaturedBannerRequest {
+  thumbnailImageId: string
+  title: string
+  subtitle?: string
+  order: number
+  tags?: string
+  isActive: boolean
+}
+
+export interface UpdateFeaturedBannerRequest {
+  thumbnailImageId?: string
+  title?: string
+  subtitle?: string
+  order?: number
+  tags?: string
+  isActive?: boolean
+}
+
+// 배너 썸네일 이미지 업로드
+export async function uploadFeaturedBannerThumbnail(file: File): Promise<{ success: boolean; imageId?: string; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const url = `${getApiBaseUrl()}/api/v1/featured-banner-admin/thumbnail-image`
+  
+  console.log('📤 [API] Featured Banner 썸네일 업로드 요청:', {
+    url,
+    fileName: file.name,
+    fileSize: file.size,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: formData,
+    })
+
+    console.log('📥 [API] Featured Banner 썸네일 업로드 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('❌ [API] Featured Banner 썸네일 업로드 에러:', errorData)
+      return {
+        success: false,
+        error: errorData.message || `썸네일 업로드 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    console.log('✅ [API] Featured Banner 썸네일 업로드 성공:', responseData)
+    
+    // 응답에서 이미지 ID 추출
+    // 응답 구조: { data: { uploadedFiles: [{ id: '...' }] } }
+    const uploadedFiles = responseData.data?.uploadedFiles || []
+    const imageId = uploadedFiles[0]?.id || responseData.data?.id || responseData.id
+    
+    console.log('📌 [API] 추출된 이미지 ID:', imageId, '| uploadedFiles:', uploadedFiles)
+    
+    if (!imageId) {
+      console.error('❌ [API] 이미지 ID를 찾을 수 없습니다:', responseData)
+      return {
+        success: false,
+        error: '이미지 ID를 찾을 수 없습니다.',
+      }
+    }
+    
+    return {
+      success: true,
+      imageId,
+    }
+  } catch (error) {
+    console.error('❌ [API] Featured Banner 썸네일 업로드 네트워크 에러:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '썸네일 업로드 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+// 배너 리스트 조회
+export async function getFeaturedBannersAdmin(
+  page: number = 1,
+  limit: number = 20
+): Promise<FeaturedBannerListResponse> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  })
+
+  const url = `${getApiBaseUrl()}/api/v1/featured-banner-admin?${params.toString()}`
+  
+  console.log('📤 [API] Featured Banner 리스트 요청:', {
+    url,
+    page,
+    limit,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Featured Banner 리스트 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('❌ [API] Featured Banner 리스트 에러:', errorData)
+      return {
+        success: false,
+        error: errorData.message || `배너 리스트 조회 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    console.log('✅ [API] Featured Banner 리스트 성공:', responseData)
+    
+    // API 응답 구조: { data: { data: [...], meta: {...} } }
+    const banners = responseData.data?.data || responseData.data || []
+    const meta = responseData.data?.meta || responseData.meta
+
+    return {
+      success: true,
+      data: banners.map((b: any) => ({
+        id: b.id,
+        title: b.title || '',
+        subtitle: b.subtitle || '',
+        order: b.order || 0,
+        tags: b.tags || '',
+        isActive: b.isActive ?? true,
+        thumbnailImage: b.thumbnailImage ? {
+          id: b.thumbnailImage.id,
+          fileType: b.thumbnailImage.fileType,
+          entityType: b.thumbnailImage.entityType,
+          entityId: b.thumbnailImage.entityId,
+          owner: b.thumbnailImage.owner,
+          fileUrl: b.thumbnailImage.fileUrl,
+          cdnUrl: b.thumbnailImage.cdnUrl,
+          thumbnailUrl: b.thumbnailImage.thumbnailUrl,
+          displayOrder: b.thumbnailImage.displayOrder,
+        } : undefined,
+        createdAt: b.createdAt || new Date().toISOString(),
+        updatedAt: b.updatedAt || new Date().toISOString(),
+      })),
+      meta: {
+        currentPage: meta?.currentPage || page,
+        itemsPerPage: meta?.itemsPerPage || limit,
+        totalItems: meta?.totalItems || banners.length,
+        totalPages: meta?.totalPages || Math.ceil((meta?.totalItems || banners.length) / limit) || 1,
+        hasNext: meta?.hasNext ?? false,
+        hasPrevious: meta?.hasPrevious ?? false,
+      },
+    }
+  } catch (error) {
+    console.error('❌ [API] Featured Banner 리스트 네트워크 에러:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '배너 리스트 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+// 배너 생성
+export async function createFeaturedBannerAdmin(data: CreateFeaturedBannerRequest): Promise<{ success: boolean; data?: FeaturedBanner; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/featured-banner-admin`
+  
+  console.log('📤 [API] Featured Banner 생성 요청:', {
+    url,
+    data,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    console.log('📥 [API] Featured Banner 생성 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('❌ [API] Featured Banner 생성 에러:', errorData)
+      return {
+        success: false,
+        error: errorData.message || `배너 생성 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    console.log('✅ [API] Featured Banner 생성 성공:', responseData)
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    console.error('❌ [API] Featured Banner 생성 네트워크 에러:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '배너 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+// 배너 수정
+export async function updateFeaturedBannerAdmin(bannerId: string, data: UpdateFeaturedBannerRequest): Promise<{ success: boolean; data?: FeaturedBanner; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/featured-banner-admin/${bannerId}`
+  
+  console.log('📤 [API] Featured Banner 수정 요청:', {
+    url,
+    bannerId,
+    data,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+
+    console.log('📥 [API] Featured Banner 수정 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('❌ [API] Featured Banner 수정 에러:', errorData)
+      return {
+        success: false,
+        error: errorData.message || `배너 수정 실패 (${response.status})`,
+      }
+    }
+
+    const responseData = await response.json()
+    console.log('✅ [API] Featured Banner 수정 성공:', responseData)
+    
+    return {
+      success: true,
+      data: responseData.data || responseData,
+    }
+  } catch (error) {
+    console.error('❌ [API] Featured Banner 수정 네트워크 에러:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '배너 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+// 배너 삭제
+export async function deleteFeaturedBannerAdmin(bannerId: string): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/featured-banner-admin/${bannerId}`
+  
+  console.log('📤 [API] Featured Banner 삭제 요청:', {
+    url,
+    bannerId,
+    timestamp: new Date().toISOString(),
+  })
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('📥 [API] Featured Banner 삭제 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error('❌ [API] Featured Banner 삭제 에러:', errorData)
+      return {
+        success: false,
+        error: errorData.message || `배너 삭제 실패 (${response.status})`,
+      }
+    }
+
+    console.log('✅ [API] Featured Banner 삭제 성공:', { bannerId })
+    
+    return {
+      success: true,
+    }
+  } catch (error) {
+    console.error('❌ [API] Featured Banner 삭제 네트워크 에러:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '배너 삭제 중 오류가 발생했습니다.',
     }
   }
 }

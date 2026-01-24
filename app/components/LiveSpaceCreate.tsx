@@ -71,19 +71,22 @@ export default function LiveSpaceCreate() {
         if (result.success) {
           // result.data가 배열인지 확인
           let tagsData: Tag[] = []
+          const resultData = result.data as any
           
-          if (Array.isArray(result.data)) {
-            tagsData = result.data
-          } else if (result.data && typeof result.data === 'object') {
+          if (Array.isArray(resultData)) {
+            tagsData = resultData
+          } else if (resultData && typeof resultData === 'object') {
             // 객체인 경우, 배열 필드를 찾아봄
-            if (Array.isArray(result.data.tags)) {
-              tagsData = result.data.tags
-            } else if (Array.isArray(result.data.items)) {
-              tagsData = result.data.items
-            } else if (Array.isArray(result.data.list)) {
-              tagsData = result.data.list
+            if (Array.isArray(resultData.tags)) {
+              tagsData = resultData.tags
+            } else if (Array.isArray(resultData.items)) {
+              tagsData = resultData.items
+            } else if (Array.isArray(resultData.list)) {
+              tagsData = resultData.list
+            } else if (Array.isArray(resultData.data)) {
+              tagsData = resultData.data
             } else {
-              console.warn('[LiveSpaceCreate] 예상치 못한 응답 구조:', result.data)
+              console.warn('[LiveSpaceCreate] 예상치 못한 응답 구조:', resultData)
             }
           }
           
@@ -456,11 +459,6 @@ export default function LiveSpaceCreate() {
       return
     }
     
-    if (!formData.category) {
-      alert('카테고리를 선택해주세요.')
-      return
-    }
-    
     if (!formData.lat || !formData.lng) {
       alert('지도에서 위치를 선택해주세요.')
       return
@@ -509,13 +507,8 @@ export default function LiveSpaceCreate() {
         thumbnailImageId = uploadResult.thumbnailImageId
       }
       
-      // 카테고리 이름을 ID로 변환
-      const categoryId = categoryMap[formData.category]
-      if (!categoryId) {
-        alert('올바른 카테고리를 선택해주세요.')
-        setIsSubmitting(false)
-        return
-      }
+      // 카테고리 이름을 ID로 변환 (선택사항)
+      const categoryId = formData.category ? categoryMap[formData.category] : undefined
 
       // API 요청 데이터 준비
       const requestData: CreateLiveSpaceRequest = {
@@ -527,7 +520,7 @@ export default function LiveSpaceCreate() {
         description: formData.description || undefined,
         startsAt: startsAt,
         endsAt: endsAt,
-        categoryId: categoryId, // 카테고리 이름을 ID로 매핑하여 전송
+        ...(categoryId && { categoryId: categoryId }), // 카테고리가 있으면 ID로 매핑하여 전송
         thumbnailImageId: thumbnailImageId,
         ...(formData.selectedTags.length > 0 && { tagNames: formData.selectedTags }),
       }
@@ -628,7 +621,7 @@ export default function LiveSpaceCreate() {
 
           <div className={styles.formGroup}>
             <label htmlFor="category" className={styles.label}>
-              카테고리 <span className={styles.required}>*</span>
+              카테고리 (선택)
             </label>
             <select
               id="category"
@@ -636,7 +629,6 @@ export default function LiveSpaceCreate() {
               value={formData.category}
               onChange={handleInputChange}
               className={styles.select}
-              required
               disabled={isSubmitting}
             >
               <option value="">카테고리를 선택하세요</option>
