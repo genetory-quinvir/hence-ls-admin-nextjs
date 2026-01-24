@@ -18,11 +18,11 @@ const API_BASE_URLS: Record<Environment, string> = {
 }
 
 export function ApiBaseUrlProvider({ children }: { children: ReactNode }) {
-  // 초기 환경 설정 (localStorage에서 읽어오거나 기본값 'dev' 사용)
+  // 초기 환경 설정 (localStorage에서 읽어오거나 기본값 'live' 사용)
   const [environment, setEnvironmentState] = useState<Environment>(() => {
-    if (typeof window === 'undefined') return 'dev'
+    if (typeof window === 'undefined') return 'live'
     const stored = localStorage.getItem('apiEnvironment')
-    return (stored === 'live' ? 'live' : 'dev') as Environment
+    return (stored === 'dev' ? 'dev' : 'live') as Environment
   })
 
   const apiBaseUrl = API_BASE_URLS[environment]

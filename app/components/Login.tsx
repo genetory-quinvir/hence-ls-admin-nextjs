@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import styles from './Login.module.css'
 
 export default function Login() {
@@ -10,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
+  const { environment, setEnvironment } = useApiBaseUrl()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,9 +82,26 @@ export default function Login() {
           </button>
         </form>
 
+        <div className={styles.environmentSwitch}>
+          <span className={`${styles.envLabel} ${environment === 'dev' ? styles.active : ''}`}>개발</span>
+          <label className={styles.switch}>
+            <input
+              type="checkbox"
+              checked={environment === 'live'}
+              onChange={(e) => setEnvironment(e.target.checked ? 'live' : 'dev')}
+              disabled={isLoading}
+            />
+            <span className={styles.slider}></span>
+          </label>
+          <span className={`${styles.envLabel} ${environment === 'live' ? styles.active : ''}`}>라이브</span>
+        </div>
+
         <div className={styles.loginFooter}>
           <p className={styles.footerText}>
             Quinvir 직원 이메일(@quinvir.com)로 로그인 가능
+          </p>
+          <p className={styles.envInfo}>
+            현재 환경: <strong>{environment === 'live' ? '라이브' : '개발'}</strong>
           </p>
         </div>
       </div>
