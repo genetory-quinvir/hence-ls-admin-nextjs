@@ -88,7 +88,7 @@ export default function Login() {
             <input
               type="checkbox"
               checked={environment === 'live'}
-              onChange={(e) => setEnvironment(e.target.checked ? 'live' : 'dev')}
+              onChange={(e) => setEnvironment(e.target.checked ? 'live' : 'dev', true)}
               disabled={isLoading}
             />
             <span className={styles.slider}></span>

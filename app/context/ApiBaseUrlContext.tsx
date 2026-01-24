@@ -1,13 +1,14 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
+import { clearAuthData } from '../lib/authStorage'
 
 type Environment = 'dev' | 'live'
 
 interface ApiBaseUrlContextType {
   environment: Environment
   apiBaseUrl: string
-  setEnvironment: (env: Environment) => void
+  setEnvironment: (env: Environment, skipLogout?: boolean) => void
 }
 
 const ApiBaseUrlContext = createContext<ApiBaseUrlContextType | undefined>(undefined)
@@ -27,11 +28,21 @@ export function ApiBaseUrlProvider({ children }: { children: ReactNode }) {
 
   const apiBaseUrl = API_BASE_URLS[environment]
 
-  // 환경 변경 시 localStorage에 저장
-  const setEnvironment = (env: Environment) => {
+  // 환경 변경 시 localStorage에 저장하고, 로그아웃 처리 (skipLogout이 false일 때)
+  const setEnvironment = (env: Environment, skipLogout: boolean = false) => {
+    // 환경이 실제로 변경된 경우에만 처리
+    if (env === environment) return
+    
     setEnvironmentState(env)
     if (typeof window !== 'undefined') {
       localStorage.setItem('apiEnvironment', env)
+      
+      // 로그아웃 처리 (로그인 화면에서는 skipLogout=true로 호출)
+      if (!skipLogout) {
+        clearAuthData()
+        // 페이지 새로고침으로 로그인 화면으로 이동
+        window.location.reload()
+      }
     }
   }
 
