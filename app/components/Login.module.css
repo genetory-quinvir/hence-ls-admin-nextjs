@@ -114,79 +114,104 @@
   cursor: not-allowed;
 }
 
-/* 환경 스위치 */
-.environmentSwitch {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+/* 환경 선택 라디오 */
+.environmentSelect {
   margin-top: 24px;
   padding: 16px;
   background: #f8f9fa;
   border-radius: 8px;
 }
 
-.envLabel {
-  font-size: 14px;
-  font-weight: 500;
-  color: #999;
-  transition: color 0.2s;
-}
-
-.envLabel.active {
-  color: #667eea;
+.envTitle {
+  display: block;
+  font-size: 13px;
   font-weight: 600;
+  color: #666;
+  margin-bottom: 12px;
+  text-align: center;
 }
 
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 26px;
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ffc107;
-  transition: 0.3s;
-  border-radius: 26px;
+  transition: all 0.2s;
 }
 
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: 0.3s;
+.radioLabel:hover {
+  border-color: #667eea;
+}
+
+.radioLabel.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.radioInput {
+  display: none;
+}
+
+.radioButton {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ccc;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.2s;
 }
 
-.switch input:checked + .slider {
+.radioLabel.selected .radioButton {
+  border-color: #667eea;
+}
+
+.radioLabel.selected .radioButton::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
 }
 
-.switch input:checked + .slider:before {
-  transform: translateX(24px);
+.radioText {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  flex-shrink: 0;
 }
 
-.switch input:disabled + .slider {
+.radioUrl {
+  font-size: 12px;
+  color: #999;
+  margin-left: auto;
+}
+
+.radioLabel.selected .radioText {
+  color: #667eea;
+}
+
+.radioLabel input:disabled + .radioButton {
   opacity: 0.5;
+}
+
+.radioLabel:has(input:disabled) {
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .loginFooter {
@@ -200,16 +225,6 @@
   font-size: 12px;
   color: #999;
   margin: 0;
-}
-
-.envInfo {
-  font-size: 11px;
-  color: #666;
-  margin: 8px 0 0 0;
-}
-
-.envInfo strong {
-  color: #667eea;
 }
 
 /* 모바일 최적화 - 데스크탑 스타일은 변경하지 않음 */

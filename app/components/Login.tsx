@@ -82,26 +82,43 @@ export default function Login() {
           </button>
         </form>
 
-        <div className={styles.environmentSwitch}>
-          <span className={`${styles.envLabel} ${environment === 'dev' ? styles.active : ''}`}>개발</span>
-          <label className={styles.switch}>
-            <input
-              type="checkbox"
-              checked={environment === 'live'}
-              onChange={(e) => setEnvironment(e.target.checked ? 'live' : 'dev', true)}
-              disabled={isLoading}
-            />
-            <span className={styles.slider}></span>
-          </label>
-          <span className={`${styles.envLabel} ${environment === 'live' ? styles.active : ''}`}>라이브</span>
+        <div className={styles.environmentSelect}>
+          <span className={styles.envTitle}>환경 선택</span>
+          <div className={styles.radioGroup}>
+            <label className={`${styles.radioLabel} ${environment === 'live' ? styles.selected : ''}`}>
+              <input
+                type="radio"
+                name="environment"
+                value="live"
+                checked={environment === 'live'}
+                onChange={() => setEnvironment('live', true)}
+                disabled={isLoading}
+                className={styles.radioInput}
+              />
+              <span className={styles.radioButton}></span>
+              <span className={styles.radioText}>라이브</span>
+              <span className={styles.radioUrl}>ls-api.hence.events</span>
+            </label>
+            <label className={`${styles.radioLabel} ${environment === 'dev' ? styles.selected : ''}`}>
+              <input
+                type="radio"
+                name="environment"
+                value="dev"
+                checked={environment === 'dev'}
+                onChange={() => setEnvironment('dev', true)}
+                disabled={isLoading}
+                className={styles.radioInput}
+              />
+              <span className={styles.radioButton}></span>
+              <span className={styles.radioText}>개발</span>
+              <span className={styles.radioUrl}>ls-api-dev.hence.events</span>
+            </label>
+          </div>
         </div>
 
         <div className={styles.loginFooter}>
           <p className={styles.footerText}>
             Quinvir 직원 이메일(@quinvir.com)로 로그인 가능
-          </p>
-          <p className={styles.envInfo}>
-            현재 환경: <strong>{environment === 'live' ? '라이브' : '개발'}</strong>
           </p>
         </div>
       </div>
