@@ -97,7 +97,6 @@ export default function Login() {
               />
               <span className={styles.radioButton}></span>
               <span className={styles.radioText}>라이브</span>
-              <span className={styles.radioUrl}>ls-api.hence.events</span>
             </label>
             <label className={`${styles.radioLabel} ${environment === 'dev' ? styles.selected : ''}`}>
               <input
@@ -111,7 +110,6 @@ export default function Login() {
               />
               <span className={styles.radioButton}></span>
               <span className={styles.radioText}>개발</span>
-              <span className={styles.radioUrl}>ls-api-dev.hence.events</span>
             </label>
           </div>
         </div>
