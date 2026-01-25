@@ -76,6 +76,9 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     menuId: string | null
     currentPage: number
     appliedKeyword: string | undefined
+    filterStatus: string
+    filterRegion: string
+    filterCategory: string
   } | null>(null)
   const isLoadingRef = useRef<boolean>(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -93,7 +96,10 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         lastApiCallRef.current &&
         lastApiCallRef.current.menuId === menuId &&
         lastApiCallRef.current.currentPage === page &&
-        lastApiCallRef.current.appliedKeyword === appliedKeyword
+        lastApiCallRef.current.appliedKeyword === appliedKeyword &&
+        lastApiCallRef.current.filterStatus === filterStatus &&
+        lastApiCallRef.current.filterRegion === filterRegion &&
+        lastApiCallRef.current.filterCategory === filterCategory
       ) {
         return
       }
@@ -118,6 +124,9 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       menuId,
       currentPage: page,
       appliedKeyword,
+      filterStatus,
+      filterRegion,
+      filterCategory,
     }
     
     // 로딩 플래그 설정
@@ -127,7 +136,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       setIsLoading(true)
       setLoadError(null)
       
-      const response = await getLiveSpacesAdmin(page, 20, appliedKeyword)
+      // API 파라미터 변환
+      const apiStatus = filterStatus === 'all' ? undefined : filterStatus
+      const apiRegion = filterRegion === 'all' ? undefined : filterRegion
+      const apiCategory = filterCategory === 'all' ? undefined : filterCategory
+      
+      const response = await getLiveSpacesAdmin(page, 20, appliedKeyword, apiStatus, apiRegion, apiCategory)
       
       if (abortController.signal.aborted) {
         return
@@ -215,7 +229,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     }
   }
 
-  // menuId, currentPage, appliedKeyword 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
+  // menuId, currentPage, appliedKeyword, 필터 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
   useEffect(() => {
     // menuId가 변경되면 로딩 상태 초기화
     if (menuId !== 'live-space-list') {
@@ -234,12 +248,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       }
       isLoadingRef.current = false
     }
-  }, [menuId, currentPage, appliedKeyword])
+  }, [menuId, currentPage, appliedKeyword, filterStatus, filterRegion, filterCategory])
   
-  // menuId 또는 appliedKeyword 변경 시 첫 페이지로 리셋
+  // menuId, appliedKeyword, 필터 변경 시 첫 페이지로 리셋
   useEffect(() => {
     if (menuId === 'live-space-list') {
-      // 검색어가 변경되면 첫 페이지로 리셋하고 API 다시 호출
+      // 검색어나 필터가 변경되면 첫 페이지로 리셋하고 API 다시 호출
       setCurrentPage(1)
       setPaginationMeta(null)
       setApiLiveSpaces([])
@@ -254,7 +268,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     } else {
       setFilterStatus('all') // 전체 목록은 모든 상태
     }
-  }, [menuId, appliedKeyword])
+  }, [menuId, appliedKeyword, filterStatus, filterRegion, filterCategory])
   
   const getTitle = () => {
     switch (menuId) {
@@ -293,37 +307,33 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   })
   
   const filteredLiveSpaces = useMemo(() => {
-    // live-space-list는 API에서 받은 데이터 사용
-    let filtered: LiveSpace[]
+    // live-space-list는 API에서 필터링된 데이터를 그대로 사용
     if (menuId === 'live-space-list') {
-      filtered = [...apiLiveSpaces]
-      console.log('[LiveSpaceList] 필터링 전 apiLiveSpaces:', {
-        count: apiLiveSpaces.length,
-        sample: apiLiveSpaces.slice(0, 2),
-      })
-    } else {
-      filtered = [...liveSpaces]
-      
-      // menuId에 따른 기본 필터
-      if (menuId === 'live-space-force-close') {
-        // 강제 종료 큐: 라이브 상태이면서 다음 중 하나:
-        // 1. 신고가 3건 이상 (심각한 신고)
-        // 2. 체크인이 0 (비정상적인 스페이스)
-        // 3. 신고가 있고 체크인이 1 이하 (문제가 있는 스페이스)
-        filtered = filtered.filter(ls => 
-          ls.status === 'live' && (
-            ls.reportedCount >= 3 || 
-            ls.checkInCount === 0 ||
-            (ls.reportedCount > 0 && ls.checkInCount <= 1)
-          )
-        )
-      } else if (menuId === 'live-space-reported') {
-        // 신고 접수된 스페이스: 신고가 있는 모든 스페이스 (라이브든 종료든 상관없이)
-        filtered = filtered.filter(ls => ls.reportedCount > 0)
-      }
+      return apiLiveSpaces
     }
     
-    // 추가 필터 적용 (모든 메뉴에 공통)
+    // 다른 메뉴는 Mock 데이터 사용 및 클라이언트 사이드 필터링
+    let filtered: LiveSpace[] = [...liveSpaces]
+    
+    // menuId에 따른 기본 필터
+    if (menuId === 'live-space-force-close') {
+      // 강제 종료 큐: 라이브 상태이면서 다음 중 하나:
+      // 1. 신고가 3건 이상 (심각한 신고)
+      // 2. 체크인이 0 (비정상적인 스페이스)
+      // 3. 신고가 있고 체크인이 1 이하 (문제가 있는 스페이스)
+      filtered = filtered.filter(ls => 
+        ls.status === 'live' && (
+          ls.reportedCount >= 3 || 
+          ls.checkInCount === 0 ||
+          (ls.reportedCount > 0 && ls.checkInCount <= 1)
+        )
+      )
+    } else if (menuId === 'live-space-reported') {
+      // 신고 접수된 스페이스: 신고가 있는 모든 스페이스 (라이브든 종료든 상관없이)
+      filtered = filtered.filter(ls => ls.reportedCount > 0)
+    }
+    
+    // 추가 필터 적용 (Mock 데이터 메뉴에만)
     if (filterStatus !== 'all') {
       filtered = filtered.filter(ls => {
         if (filterStatus === 'live') return ls.status === 'live'
@@ -332,7 +342,6 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         return true
       })
     }
-    // live-space-list는 API에서 이미 displayStatus로 필터링된 데이터이므로 isHidden 체크 불필요
     
     if (filterRegion !== 'all') {
       filtered = filtered.filter(ls => ls.location.district === filterRegion)
@@ -342,25 +351,13 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       filtered = filtered.filter(ls => ls.category === filterCategory)
     }
     
-    // 검색어는 live-space-list의 경우 API에서 처리되므로 클라이언트 사이드 필터링 불필요
-    // 다른 메뉴의 경우 클라이언트 사이드 필터링
-    if (menuId !== 'live-space-list' && appliedKeyword) {
+    // 검색어 필터링 (Mock 데이터 메뉴에만)
+    if (appliedKeyword) {
       filtered = filtered.filter(ls => 
         ls.hostNickname.toLowerCase().includes(appliedKeyword.toLowerCase()) ||
         (ls.title && ls.title.toLowerCase().includes(appliedKeyword.toLowerCase()))
       )
     }
-    
-    console.log('[LiveSpaceList] 필터링 후 결과:', {
-      menuId,
-      filterStatus,
-      filterRegion,
-      filterCategory,
-      appliedKeyword,
-      beforeFilter: menuId === 'live-space-list' ? apiLiveSpaces.length : liveSpaces.length,
-      afterFilter: filtered.length,
-      filtered: filtered.slice(0, 3),
-    })
     
     return filtered
   }, [apiLiveSpaces, liveSpaces, filterStatus, filterRegion, filterCategory, appliedKeyword, menuId])

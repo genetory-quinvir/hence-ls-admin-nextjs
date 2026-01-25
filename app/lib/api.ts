@@ -1091,7 +1091,10 @@ export interface LiveSpaceListResponse {
 export async function getLiveSpacesAdmin(
   page: number = 1,
   limit: number = 20,
-  keyword?: string
+  keyword?: string,
+  status?: string,
+  region?: string,
+  category?: string
 ): Promise<LiveSpaceListResponse> {
   const accessToken = getAccessToken()
   
@@ -1110,6 +1113,21 @@ export async function getLiveSpacesAdmin(
   // 검색어가 있으면 추가
   if (keyword && keyword.trim()) {
     params.append('keyword', keyword.trim())
+  }
+  
+  // 상태 필터 추가
+  if (status && status !== 'all') {
+    params.append('status', status)
+  }
+  
+  // 지역 필터 추가
+  if (region && region !== 'all') {
+    params.append('region', region)
+  }
+  
+  // 카테고리 필터 추가
+  if (category && category !== 'all') {
+    params.append('category', category)
   }
   
   const url = `${getApiBaseUrl()}/api/v1/space-admin?${params.toString()}`
