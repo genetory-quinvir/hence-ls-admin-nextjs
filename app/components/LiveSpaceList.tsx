@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useMockData } from '../context/MockDataContext'
 import { LiveSpace } from '../data/mockData'
 import { getLiveSpacesAdmin, LiveSpaceListMeta, deleteLiveSpaceAdmin, terminateLiveSpaceAdmin, updateLiveSpaceAdmin, UpdateLiveSpaceRequest, uploadLiveSpaceThumbnail, getTagsAdmin, Tag } from '../lib/api'
@@ -76,12 +76,13 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     menuId: string | null
     currentPage: number
     appliedKeyword: string | undefined
+    filterStatus: string
   } | null>(null)
   const isLoadingRef = useRef<boolean>(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   
   // API에서 Live Space 리스트 불러오기 (재사용 가능하도록 외부 함수로 분리)
-  const loadLiveSpaces = async (page: number = currentPage, skipDuplicateCheck: boolean = false) => {
+  const loadLiveSpaces = useCallback(async (page: number = currentPage, skipDuplicateCheck: boolean = false) => {
     if (menuId !== 'live-space-list') {
       return
     }
@@ -93,7 +94,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         lastApiCallRef.current &&
         lastApiCallRef.current.menuId === menuId &&
         lastApiCallRef.current.currentPage === page &&
-        lastApiCallRef.current.appliedKeyword === appliedKeyword
+        lastApiCallRef.current.appliedKeyword === appliedKeyword &&
+        lastApiCallRef.current.filterStatus === filterStatus
       ) {
         return
       }
@@ -118,6 +120,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       menuId,
       currentPage: page,
       appliedKeyword,
+      filterStatus,
     }
     
     // 로딩 플래그 설정
@@ -216,7 +219,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
         isLoadingRef.current = false
       }
     }
-  }
+  }, [menuId, currentPage, appliedKeyword, filterStatus])
 
   // menuId, currentPage, appliedKeyword, filterStatus 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
   useEffect(() => {
@@ -237,25 +240,27 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       }
       isLoadingRef.current = false
     }
-  }, [menuId, currentPage, appliedKeyword, filterStatus])
+  }, [menuId, currentPage, loadLiveSpaces])
   
-  // menuId, appliedKeyword, filterStatus 변경 시 첫 페이지로 리셋
+  // menuId 변경 시 초기 필터 설정
   useEffect(() => {
-    if (menuId === 'live-space-list') {
-      // 검색어나 필터가 변경되면 첫 페이지로 리셋하고 API 다시 호출
-      setCurrentPage(1)
-      setPaginationMeta(null)
-      setApiLiveSpaces([])
-      lastApiCallRef.current = null
-    }
-    
-    // menuId에 따라 초기 필터 설정
+    // menuId에 따라 초기 필터 설정 (menuId가 변경될 때만)
     if (menuId === 'live-space-force-close') {
       setFilterStatus('live') // 강제 종료 큐는 라이브 상태만
     } else if (menuId === 'live-space-reported') {
       setFilterStatus('all') // 신고된 스페이스는 모든 상태
-    } else {
-      setFilterStatus('all') // 전체 목록은 모든 상태
+    }
+    // live-space-list는 사용자가 선택한 필터를 유지
+  }, [menuId])
+  
+  // appliedKeyword, filterStatus 변경 시 첫 페이지로 리셋 (live-space-list만)
+  useEffect(() => {
+    if (menuId === 'live-space-list') {
+      // 검색어나 필터가 변경되면 첫 페이지로 리셋
+      setCurrentPage(1)
+      setPaginationMeta(null)
+      setApiLiveSpaces([])
+      lastApiCallRef.current = null
     }
   }, [menuId, appliedKeyword, filterStatus])
   
