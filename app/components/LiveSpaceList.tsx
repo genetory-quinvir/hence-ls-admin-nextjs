@@ -127,7 +127,10 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       setIsLoading(true)
       setLoadError(null)
       
-      const response = await getLiveSpacesAdmin(page, 20, appliedKeyword)
+      // 상태 필터를 API에 전달 (all이 아닌 경우만)
+      const apiStatus = filterStatus !== 'all' ? filterStatus : undefined
+      
+      const response = await getLiveSpacesAdmin(page, 20, appliedKeyword, apiStatus)
       
       if (abortController.signal.aborted) {
         return
@@ -215,7 +218,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     }
   }
 
-  // menuId, currentPage, appliedKeyword 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
+  // menuId, currentPage, appliedKeyword, filterStatus 변경 시 로딩 상태 초기화 및 API 호출 (live-space-list만)
   useEffect(() => {
     // menuId가 변경되면 로딩 상태 초기화
     if (menuId !== 'live-space-list') {
@@ -234,12 +237,12 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       }
       isLoadingRef.current = false
     }
-  }, [menuId, currentPage, appliedKeyword])
+  }, [menuId, currentPage, appliedKeyword, filterStatus])
   
-  // menuId 또는 appliedKeyword 변경 시 첫 페이지로 리셋
+  // menuId, appliedKeyword, filterStatus 변경 시 첫 페이지로 리셋
   useEffect(() => {
     if (menuId === 'live-space-list') {
-      // 검색어가 변경되면 첫 페이지로 리셋하고 API 다시 호출
+      // 검색어나 필터가 변경되면 첫 페이지로 리셋하고 API 다시 호출
       setCurrentPage(1)
       setPaginationMeta(null)
       setApiLiveSpaces([])
@@ -254,7 +257,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
     } else {
       setFilterStatus('all') // 전체 목록은 모든 상태
     }
-  }, [menuId, appliedKeyword])
+  }, [menuId, appliedKeyword, filterStatus])
   
   const getTitle = () => {
     switch (menuId) {
@@ -293,7 +296,7 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
   })
   
   const filteredLiveSpaces = useMemo(() => {
-    // live-space-list는 API에서 받은 데이터에 클라이언트 사이드 필터링 적용
+    // live-space-list는 API에서 필터링된 데이터를 그대로 사용 (상태는 서버에서 처리)
     let filtered: LiveSpace[]
     if (menuId === 'live-space-list') {
       filtered = [...apiLiveSpaces]
@@ -319,8 +322,8 @@ export default function LiveSpaceList({ menuId }: LiveSpaceListProps) {
       }
     }
     
-    // 추가 필터 적용 (모든 메뉴에 공통)
-    if (filterStatus !== 'all') {
+    // 추가 필터 적용 (live-space-list는 상태 필터 제외, 다른 메뉴는 모두 적용)
+    if (menuId !== 'live-space-list' && filterStatus !== 'all') {
       filtered = filtered.filter(ls => {
         if (filterStatus === 'live') return ls.status === 'live'
         if (filterStatus === 'ended') return ls.status === 'ended'

@@ -1091,7 +1091,8 @@ export interface LiveSpaceListResponse {
 export async function getLiveSpacesAdmin(
   page: number = 1,
   limit: number = 20,
-  keyword?: string
+  keyword?: string,
+  status?: string
 ): Promise<LiveSpaceListResponse> {
   const accessToken = getAccessToken()
   
@@ -1110,6 +1111,11 @@ export async function getLiveSpacesAdmin(
   // 검색어가 있으면 추가
   if (keyword && keyword.trim()) {
     params.append('keyword', keyword.trim())
+  }
+  
+  // 상태 필터 추가 (대문자로 변환)
+  if (status && status !== 'all') {
+    params.append('status', status.toUpperCase())
   }
   
   const url = `${getApiBaseUrl()}/api/v1/space-admin?${params.toString()}`
