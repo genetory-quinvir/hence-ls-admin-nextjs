@@ -138,7 +138,7 @@ export default function LiveSpaceCreate() {
                 3. 발급받은 신규 Client ID를 .env.local에 설정
               </div>
               <div style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 11px;">
-                <strong>현재 Client ID:</strong> ${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'v1hcn1ics0'}<br/>
+                <strong>현재 Client ID:</strong> ${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'e2m4s9kqcr'}<br/>
                 <strong>참고:</strong> 신규 Maps API는 ncpKeyId를 사용합니다.
               </div>
               <div style="margin-top: 8px; font-size: 11px;">
@@ -184,7 +184,7 @@ export default function LiveSpaceCreate() {
         // 변경사항: ncpClientId → ncpKeyId로 변경
         scriptElement = document.createElement('script')
         scriptElement.type = 'text/javascript'
-        const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'v1hcn1ics0'
+        const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'e2m4s9kqcr'
         // 신규 Maps API는 ncpKeyId를 사용합니다
         scriptElement.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`
         scriptElement.async = true
@@ -331,7 +331,7 @@ export default function LiveSpaceCreate() {
         console.error('에러 상세:', {
           message: error.message,
           stack: error.stack,
-          clientId: process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'v1hcn1ics0',
+          clientId: process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'e2m4s9kqcr',
         })
         // 사용자에게 안내 메시지 표시
         if (mapRef.current) {
@@ -356,7 +356,7 @@ export default function LiveSpaceCreate() {
                   3. 발급받은 신규 Client ID를 .env.local에 설정
                 </div>
                 <div style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 11px;">
-                  <strong>현재 Client ID:</strong> ${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'v1hcn1ics0'}<br/>
+                  <strong>현재 Client ID:</strong> ${process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID || 'e2m4s9kqcr'}<br/>
                   <strong>참고:</strong> 브라우저 콘솔에서 더 자세한 에러 정보를 확인할 수 있습니다.
                 </div>
                 <div style="margin-top: 8px; font-size: 11px;">
