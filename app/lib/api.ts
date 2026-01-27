@@ -1422,16 +1422,28 @@ export async function uploadLiveSpaceThumbnail(
   if (useAutoRegistration) {
     const url = '/api/v1/live-spaces/upload-thumbnail'
     
+    // 파일명을 안전한 형식으로 변환 (S3 서명 오류 방지)
+    const originalFileName = file.name
+    const ext = originalFileName.split('.').pop()?.toLowerCase() || 'webp'
+    const fileTimestamp = Date.now()
+    const randomStr = Math.random().toString(36).substring(2, 8)
+    const safeFileName = `thumbnail_${fileTimestamp}_${randomStr}.${ext}`
+    const safeFile = new File([file], safeFileName, {
+      type: file.type,
+      lastModified: file.lastModified,
+    })
+
     console.log('📤 [API] Live Space 썸네일 이미지 업로드 요청 (자동 회원가입):', {
       url,
       method: 'POST',
-      fileName: file.name,
-      fileSize: file.size,
+      originalFileName: originalFileName,
+      safeFileName: safeFileName,
+      fileSize: safeFile.size,
       timestamp: new Date().toISOString(),
     })
 
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', safeFile)
 
     try {
       const response = await fetch(url, {
@@ -1814,8 +1826,20 @@ export async function generateAndCreateLiveSpace(
       
       // JSON 데이터 (파일 제외)
       const { thumbnailFile, ...jsonData } = data
+      
+      // 파일명을 안전한 형식으로 변환 (S3 서명 오류 방지)
+      const originalFileName = thumbnailFile.name
+      const ext = originalFileName.split('.').pop()?.toLowerCase() || 'webp'
+      const fileTimestamp = Date.now()
+      const randomStr = Math.random().toString(36).substring(2, 8)
+      const safeFileName = `thumbnail_${fileTimestamp}_${randomStr}.${ext}`
+      const safeFile = new File([thumbnailFile], safeFileName, {
+        type: thumbnailFile.type,
+        lastModified: thumbnailFile.lastModified,
+      })
+      
       formData.append('data', JSON.stringify(jsonData))
-      formData.append('file', thumbnailFile)
+      formData.append('file', safeFile)
       
       response = await fetch(url, {
         method: 'POST',
@@ -1948,9 +1972,19 @@ export async function batchCreateLiveSpaces(
     formData.append('data', JSON.stringify({ spaces: spacesWithoutFiles }))
     
     // 각 스페이스의 이미지 파일 추가 (인덱스로 구분)
+    // 파일명을 안전한 형식으로 변환 (S3 서명 오류 방지)
     spaces.forEach((space, index) => {
       if (space.thumbnailFile && space.thumbnailFile instanceof File) {
-        formData.append(`file_${index}`, space.thumbnailFile)
+        const originalFileName = space.thumbnailFile.name
+        const ext = originalFileName.split('.').pop()?.toLowerCase() || 'webp'
+        const fileTimestamp = Date.now()
+        const randomStr = Math.random().toString(36).substring(2, 8)
+        const safeFileName = `thumbnail_${fileTimestamp}_${randomStr}_${index}.${ext}`
+        const safeFile = new File([space.thumbnailFile], safeFileName, {
+          type: space.thumbnailFile.type,
+          lastModified: space.thumbnailFile.lastModified,
+        })
+        formData.append(`file_${index}`, safeFile)
       }
     })
     
@@ -4340,14 +4374,30 @@ export async function uploadFeaturedBannerThumbnail(file: File): Promise<{ succe
   }
 
   const formData = new FormData()
-  formData.append('file', file)
+
+  // S3 서명 오류를 피하기 위해 모든 파일명을 안전한 ASCII 형식으로 강제 변환
+  // (한글, 공백, 특수문자 등이 포함된 경우 서버 측 S3 서명 계산이 달라질 수 있음)
+  const originalFileName = file.name
+  const ext = originalFileName.split('.').pop()?.toLowerCase() || 'webp'
+  const fileTimestamp = Date.now()
+  const randomStr = Math.random().toString(36).substring(2, 8)
+  // 항상 안전한 파일명으로 변환 (원본 파일명과 무관하게)
+  const safeFileName = `featured_thumbnail_${fileTimestamp}_${randomStr}.${ext}`
+
+  const safeFile = new File([file], safeFileName, {
+    type: file.type,
+    lastModified: file.lastModified,
+  })
+
+  formData.append('file', safeFile)
 
   const url = `${getApiBaseUrl()}/api/v1/featured-banner-admin/thumbnail-image`
   
   console.log('📤 [API] Featured Banner 썸네일 업로드 요청:', {
     url,
-    fileName: file.name,
-    fileSize: file.size,
+    originalFileName: originalFileName,
+    safeFileName: safeFileName,
+    fileSize: safeFile.size,
     timestamp: new Date().toISOString(),
   })
 
