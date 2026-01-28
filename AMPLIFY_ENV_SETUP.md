@@ -35,15 +35,23 @@ LLM_MAX_TOKENS=2000
 
 **참고**: 실제 API 키 값은 `.env.local` 파일을 참고하거나, Amplify 콘솔에서 직접 입력하세요.
 
-### 2. 환경변수 설정 확인
+### 2. amplify.yml 설정 확인
+
+프로젝트의 `amplify.yml` 파일이 빌드 시 Amplify 환경변수를 `.env` 파일로 자동 생성하도록 설정되어 있습니다.
+
+**작동 방식:**
+1. Amplify 콘솔에서 환경변수 설정
+2. 빌드 시 `preBuild` 단계에서 `.env` 파일 자동 생성
+3. Next.js 빌드 시 `.env` 파일의 환경변수 자동 읽기
+
+### 3. 환경변수 설정 확인
 
 환경변수를 추가한 후:
 1. **"Save"** 버튼 클릭
 2. **"Redeploy this version"** 또는 새 배포 트리거
-3. 빌드 로그에서 환경변수 확인 메시지 확인:
-   - `OPENAI_API_KEY is set (length: ...)`
-   - `GROK_API_KEY is set (length: ...)`
-   - 등등
+3. 빌드 로그에서 확인:
+   - `.env file created successfully`
+   - `Number of environment variables: X`
 
 ### 3. 중요 사항
 

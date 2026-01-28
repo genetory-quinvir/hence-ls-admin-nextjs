@@ -4,35 +4,52 @@ frontend:
     preBuild:
       commands:
         - npm ci
-        # 환경변수 확인 (디버깅용, 배포 후 제거 가능)
-        - echo "Checking environment variables..."
+        # Amplify 환경변수를 .env 파일로 생성 (Next.js 빌드 시 사용)
+        - echo "Creating .env file from Amplify environment variables..."
         - |
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "WARNING: OPENAI_API_KEY is not set"
-          else
-            echo "OPENAI_API_KEY is set (length: ${#OPENAI_API_KEY})"
+          if [ -n "$NEXT_PUBLIC_NAVER_MAP_CLIENT_ID" ]; then
+            echo "NEXT_PUBLIC_NAVER_MAP_CLIENT_ID=$NEXT_PUBLIC_NAVER_MAP_CLIENT_ID" >> .env
           fi
         - |
-          if [ -z "$GROK_API_KEY" ]; then
-            echo "WARNING: GROK_API_KEY is not set"
-          else
-            echo "GROK_API_KEY is set (length: ${#GROK_API_KEY})"
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
           fi
         - |
-          if [ -z "$KOREA_TOURISM_API_KEY" ]; then
-            echo "WARNING: KOREA_TOURISM_API_KEY is not set"
-          else
-            echo "KOREA_TOURISM_API_KEY is set (length: ${#KOREA_TOURISM_API_KEY})"
+          if [ -n "$GROK_API_KEY" ]; then
+            echo "GROK_API_KEY=$GROK_API_KEY" >> .env
           fi
         - |
-          if [ -z "$NEXT_PUBLIC_NAVER_MAP_CLIENT_ID" ]; then
-            echo "WARNING: NEXT_PUBLIC_NAVER_MAP_CLIENT_ID is not set"
+          if [ -n "$KOREA_TOURISM_API_KEY" ]; then
+            echo "KOREA_TOURISM_API_KEY=$KOREA_TOURISM_API_KEY" >> .env
+          fi
+        - |
+          if [ -n "$LLM_PROVIDER" ]; then
+            echo "LLM_PROVIDER=$LLM_PROVIDER" >> .env
+          fi
+        - |
+          if [ -n "$LLM_MODEL" ]; then
+            echo "LLM_MODEL=$LLM_MODEL" >> .env
+          fi
+        - |
+          if [ -n "$LLM_TEMPERATURE" ]; then
+            echo "LLM_TEMPERATURE=$LLM_TEMPERATURE" >> .env
+          fi
+        - |
+          if [ -n "$LLM_MAX_TOKENS" ]; then
+            echo "LLM_MAX_TOKENS=$LLM_MAX_TOKENS" >> .env
+          fi
+        # 환경변수 확인 (디버깅용)
+        - echo "Environment variables check:"
+        - |
+          if [ -f .env ]; then
+            echo ".env file created successfully"
+            echo "Number of environment variables: $(wc -l < .env)"
           else
-            echo "NEXT_PUBLIC_NAVER_MAP_CLIENT_ID is set"
+            echo "WARNING: .env file was not created"
           fi
     build:
       commands:
-        # Next.js 빌드 시 환경변수가 주입되도록 보장
+        # Next.js 빌드 (환경변수는 .env 파일과 process.env에서 자동으로 읽힘)
         - npm run build
   artifacts:
     baseDirectory: .next
