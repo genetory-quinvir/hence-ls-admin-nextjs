@@ -75,6 +75,21 @@ function getCurrentContext() {
 // LLM 프로바이더 설정 (요청 본문의 provider 우선, 없으면 환경 변수 사용)
 function getLlmConfig(provider?: 'openai' | 'xai') {
   const selectedProvider = provider || process.env.LLM_PROVIDER || 'openai'
+  
+  // 환경변수 확인 (디버깅용)
+  const hasGrokKey = !!process.env.GROK_API_KEY
+  const hasXaiKey = !!process.env.XAI_API_KEY
+  const hasOpenaiKey = !!process.env.OPENAI_API_KEY
+  
+  console.log('🔍 [LLM Config] 환경변수 확인:', {
+    selectedProvider,
+    hasGrokKey,
+    hasXaiKey,
+    hasOpenaiKey,
+    llmProvider: process.env.LLM_PROVIDER,
+    timestamp: new Date().toISOString(),
+  })
+  
   const apiKey = selectedProvider === 'xai' 
     ? (process.env.GROK_API_KEY || process.env.XAI_API_KEY || process.env.OPENAI_API_KEY || '')
     : (process.env.OPENAI_API_KEY || '')
@@ -96,8 +111,24 @@ export async function POST(request: NextRequest) {
 
     if (!llmConfig.apiKey) {
       const providerName = llmConfig.provider === 'xai' ? 'xAI' : 'OpenAI'
+      const envVarNames = llmConfig.provider === 'xai' 
+        ? 'GROK_API_KEY 또는 XAI_API_KEY'
+        : 'OPENAI_API_KEY'
+      
+      console.error(`❌ [LLM API] ${providerName} API 키가 설정되지 않았습니다.`, {
+        provider: llmConfig.provider,
+        requiredEnvVars: envVarNames,
+        hasGrokKey: !!process.env.GROK_API_KEY,
+        hasXaiKey: !!process.env.XAI_API_KEY,
+        hasOpenaiKey: !!process.env.OPENAI_API_KEY,
+        timestamp: new Date().toISOString(),
+      })
+      
       return NextResponse.json(
-        { success: false, error: `${providerName} API 키가 설정되지 않았습니다.` },
+        { 
+          success: false, 
+          error: `${providerName} API 키가 설정되지 않았습니다. 환경변수 ${envVarNames}를 확인해주세요.` 
+        },
         { status: 500 }
       )
     }

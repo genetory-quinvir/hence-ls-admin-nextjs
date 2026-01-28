@@ -28,6 +28,11 @@ LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2000
 ```
 
+**중요**: xAI (Grok) API 키는 다음 중 하나를 사용할 수 있습니다:
+- `GROK_API_KEY` (우선순위 1)
+- `XAI_API_KEY` (우선순위 2, 대체 옵션)
+- `OPENAI_API_KEY` (우선순위 3, 최후의 수단)
+
 **참고**: 실제 API 키 값은 `.env.local` 파일을 참고하거나, Amplify 콘솔에서 직접 입력하세요.
 
 ### 2. 환경변수 설정 확인
@@ -51,7 +56,36 @@ LLM_MAX_TOKENS=2000
 - API 라우트 (`app/api/**`)에서만 사용 가능
 - 클라이언트 사이드 코드에서는 접근 불가
 
-### 4. 문제 해결
+### 4. xAI API 키 오류 해결
+
+**오류 메시지**: "xAI API 키가 설정되지 않았습니다."
+
+#### 해결 방법:
+
+1. **Amplify 콘솔에서 환경변수 확인**
+   - `GROK_API_KEY` 또는 `XAI_API_KEY`가 설정되어 있는지 확인
+   - 환경변수 이름이 정확한지 확인 (대소문자 구분)
+
+2. **빌드 로그 확인**
+   - Amplify 콘솔 → Build history → 최신 빌드 → Build logs
+   - `GROK_API_KEY is set (length: ...)` 메시지 확인
+
+3. **런타임 로그 확인**
+   - Amplify 콘솔 → Monitoring → Logs
+   - `🔍 [LLM Config] 환경변수 확인:` 로그에서 다음 확인:
+     - `hasGrokKey: true/false`
+     - `hasXaiKey: true/false`
+     - `selectedProvider: 'xai'`
+
+4. **환경변수 재설정**
+   - 환경변수를 삭제하고 다시 추가
+   - 저장 후 **반드시 재배포** (Redeploy this version)
+
+5. **대체 환경변수 사용**
+   - `GROK_API_KEY`가 작동하지 않으면 `XAI_API_KEY`로 시도
+   - 또는 `OPENAI_API_KEY`를 임시로 사용 (우선순위 3)
+
+### 5. 문제 해결
 
 #### 환경변수가 여전히 작동하지 않는 경우:
 
