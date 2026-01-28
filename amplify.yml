@@ -4,8 +4,35 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        # 환경변수 확인 (디버깅용, 배포 후 제거 가능)
+        - echo "Checking environment variables..."
+        - |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "WARNING: OPENAI_API_KEY is not set"
+          else
+            echo "OPENAI_API_KEY is set (length: ${#OPENAI_API_KEY})"
+          fi
+        - |
+          if [ -z "$GROK_API_KEY" ]; then
+            echo "WARNING: GROK_API_KEY is not set"
+          else
+            echo "GROK_API_KEY is set (length: ${#GROK_API_KEY})"
+          fi
+        - |
+          if [ -z "$KOREA_TOURISM_API_KEY" ]; then
+            echo "WARNING: KOREA_TOURISM_API_KEY is not set"
+          else
+            echo "KOREA_TOURISM_API_KEY is set (length: ${#KOREA_TOURISM_API_KEY})"
+          fi
+        - |
+          if [ -z "$NEXT_PUBLIC_NAVER_MAP_CLIENT_ID" ]; then
+            echo "WARNING: NEXT_PUBLIC_NAVER_MAP_CLIENT_ID is not set"
+          else
+            echo "NEXT_PUBLIC_NAVER_MAP_CLIENT_ID is set"
+          fi
     build:
       commands:
+        # Next.js 빌드 시 환경변수가 주입되도록 보장
         - npm run build
   artifacts:
     baseDirectory: .next
