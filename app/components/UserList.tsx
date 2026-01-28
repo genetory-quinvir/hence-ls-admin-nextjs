@@ -674,13 +674,22 @@ export default function UserList({ menuId }: UserListProps) {
   }
 
   const formatDate = (dateString: string) => {
+    // "9시간 미래" 문제 해결
+    // 서버가 이미 한국 시간(KST)을 보내고 있는데, 
+    // new Date()가 UTC로 해석하고 로컬 시간으로 변환하면서 9시간이 더해지는 경우
+    // 해결: UTC 메서드를 사용하여 UTC 시간을 가져온 후, 그대로 표시
+    // (서버가 이미 한국 시간을 보냈으므로 추가 변환 불필요)
+    
     const date = new Date(dateString)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
+    
+    // UTC 메서드를 사용하여 UTC 시간을 가져옴
+    // 서버가 한국 시간을 UTC로 보냈다면, UTC 시간이 실제 한국 시간과 같음
+    const year = date.getUTCFullYear()
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(date.getUTCDate()).padStart(2, '0')
+    const hours = String(date.getUTCHours()).padStart(2, '0')
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0')
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
   }
 
