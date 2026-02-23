@@ -15,8 +15,10 @@ import SystemManagement from './SystemManagement'
 import PushNotification from './PushNotification'
 import CustomerVoice from './CustomerVoice'
 import TagManagement from './TagManagement'
+import ThemeManagement from './ThemeManagement'
 import { useAuth } from '../context/AuthContext'
 import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
+import { API_BASE_URLS, type ApiEnvironment } from '../lib/api-base-url'
 import styles from './DetailView.module.css'
 
 interface DetailViewProps {
@@ -60,9 +62,7 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       
       // 사용자 관리
       case 'users-list':
-      case 'users-reported':
-      case 'users-sanctions':
-        return <UserList menuId={menuId} />
+        return <UserList />
       
       // 피드/댓글
       case 'feed-all':
@@ -114,6 +114,11 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
         )
       case 'settings-logout':
         return <LogoutView />
+
+      case 'category-management':
+        return <TagManagement />
+      case 'theme-management':
+        return <ThemeManagement />
       
       default:
         return (
@@ -167,13 +172,8 @@ function SettingsProfileView() {
 
 function ApiEnvironmentSettingsView() {
   const { environment, setEnvironment } = useApiBaseUrl()
-  const [selectedEnvironment, setSelectedEnvironment] = useState<'dev' | 'live'>(environment)
+  const [selectedEnvironment, setSelectedEnvironment] = useState<ApiEnvironment>(environment)
   const [isSaved, setIsSaved] = useState(false)
-
-  const API_BASE_URLS: Record<'dev' | 'live', string> = {
-    dev: 'https://ls-api-dev.hence.events',
-    live: 'https://ls-api.hence.events',
-  }
 
   const handleSave = () => {
     setEnvironment(selectedEnvironment)
@@ -332,4 +332,3 @@ function LogoutView() {
     </div>
   )
 }
-

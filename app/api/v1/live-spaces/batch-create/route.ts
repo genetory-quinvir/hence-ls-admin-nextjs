@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { API_BASE_URLS } from '@/app/lib/api-base-url'
 
 // API Base URL 가져오기 함수 (헤더에서 읽거나 기본값 사용)
 function getApiBaseUrl(request: NextRequest): string {
@@ -8,8 +9,12 @@ function getApiBaseUrl(request: NextRequest): string {
     return customBaseUrl
   }
   
-  // 환경 변수 또는 기본값 사용
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
+  // 환경 변수 또는 기본값 사용 (개발 환경은 로컬 API 사용)
+  const defaultBaseUrl =
+    process.env.NODE_ENV === 'development'
+      ? 'http://localhost:3000'
+      : API_BASE_URLS.dev
+  return process.env.NEXT_PUBLIC_API_BASE_URL || defaultBaseUrl
 }
 
 const FIXED_PASSWORD = 'Quinvir2026!'
@@ -394,4 +399,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

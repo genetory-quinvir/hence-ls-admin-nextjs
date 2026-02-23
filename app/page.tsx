@@ -15,44 +15,20 @@ const menuItems: MenuItem[] = [
     icon: '📊',
   },
   {
-    id: 'featured',
-    label: '피쳐드 관리',
-    icon: '⭐',
-    children: [
-      { id: 'featured-banner', label: '배너 관리' },
-    ],
-  },
-  {
-    id: 'live-space',
-    label: '라이브 스페이스 관리',
-    icon: '📍',
-    children: [
-      { id: 'live-space-list', label: '전체 목록' },
-      { id: 'live-space-create', label: '라이브 스페이스 생성' },
-      { id: 'live-space-automation', label: '라이브 스페이스 자동화' },
-      { id: 'live-space-festival', label: '우리나라 축제/행사' },
-      { id: 'live-space-tags', label: '태그 관리' },
-    ],
-  },
-  {
     id: 'users',
     label: '사용자 관리',
     icon: '👫🏼',
     children: [
       { id: 'users-list', label: '전체 사용자 리스트' },
-      { id: 'users-reported', label: '신고 접수된 사용자' },
-      { id: 'users-sanctions', label: '제재/정지 관리' },
     ],
   },
   {
-    id: 'feed-comment',
-    label: '피드/댓글 관리',
-    icon: '💬',
+    id: 'encyclopedia',
+    label: '도감 관리',
+    icon: '📚',
     children: [
-      { id: 'feed-all', label: '전체 피드' },
-      { id: 'feed-reported', label: '신고된 피드' },
-      { id: 'comment-all', label: '전체 댓글' },
-      { id: 'comment-reported', label: '신고된 댓글' },
+      { id: 'category-management', label: '카테고리 관리' },
+      { id: 'theme-management', label: '테마 관리' },
     ],
   },
   {
@@ -98,6 +74,40 @@ const menuItems: MenuItem[] = [
       { id: 'settings-api-environment', label: 'API 환경 설정' },
       { id: 'settings-permissions', label: '권한 안내' },
       { id: 'settings-logout', label: '로그아웃' },
+    ],
+  },
+  {
+    id: 'featured',
+    label: '피쳐드 관리',
+    icon: '⭐',
+    disabled: true,
+    children: [
+      { id: 'featured-banner', label: '배너 관리' },
+    ],
+  },
+  {
+    id: 'live-space',
+    label: '라이브 스페이스 관리',
+    icon: '📍',
+    disabled: true,
+    children: [
+      { id: 'live-space-list', label: '전체 목록' },
+      { id: 'live-space-create', label: '라이브 스페이스 생성' },
+      { id: 'live-space-automation', label: '라이브 스페이스 자동화' },
+      { id: 'live-space-festival', label: '우리나라 축제/행사' },
+      { id: 'live-space-tags', label: '태그 관리' },
+    ],
+  },
+  {
+    id: 'feed-comment',
+    label: '피드/댓글 관리',
+    icon: '💬',
+    disabled: true,
+    children: [
+      { id: 'feed-all', label: '전체 피드' },
+      { id: 'feed-reported', label: '신고된 피드' },
+      { id: 'comment-all', label: '전체 댓글' },
+      { id: 'comment-reported', label: '신고된 댓글' },
     ],
   },
 ]
@@ -213,4 +223,3 @@ export default function Home() {
     </Suspense>
   )
 }
-

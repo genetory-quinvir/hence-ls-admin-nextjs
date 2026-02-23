@@ -36,7 +36,7 @@ export interface User {
   id: string
   nickname: string
   profileImage?: string
-  provider: 'naver' | 'kakao' | 'google' | 'apple'
+  provider: 'naver' | 'kakao' | 'google' | 'apple' | 'email'
   email: string
   role: UserRole
   gender?: 'female' | 'male' | 'private'
@@ -47,6 +47,7 @@ export interface User {
   createdAt: string
   reportedCount: number
   isSuspended: boolean
+  accountStatus?: string
   suspensionReason?: string
   isWarned?: boolean
   warnedAt?: string
@@ -772,4 +773,3 @@ export const generateMockPermissionLogs = (): PermissionLog[] => {
     }
   ]
 }
-

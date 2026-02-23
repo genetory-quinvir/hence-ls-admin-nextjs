@@ -1,24 +1,20 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useMockData } from '../context/MockDataContext'
 import { User } from '../data/mockData'
-import { getUsersAdmin, UserListMeta, getUserDetail, UserDetail, UserListFilterOptions, getReportedUsersAdmin, getPenaltyUsersAdmin } from '../lib/api'
+import { getUsersAdmin, UserListMeta, getUserDetail, UserDetail, UserListFilterOptions, updateAdminUser, updateAdminUserStatus } from '../lib/api'
 import Modal from './Modal'
 import styles from './UserList.module.css'
 import * as XLSX from 'xlsx'
 
-interface UserListProps {
-  menuId: string
-}
-
-export default function UserList({ menuId }: UserListProps) {
-  const { users, updateUsers } = useMockData()
+export default function UserList() {
+  const menuId = 'users-list' as const
   const [searchKeyword, setSearchKeyword] = useState('') // 검색어 입력
   const [appliedKeyword, setAppliedKeyword] = useState<string | undefined>(undefined) // 실제 API에 전달되는 검색어
-  const [filterRole, setFilterRole] = useState<'ALL' | 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER'>('ALL')
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'NORMAL' | 'SUSPEND' | 'WARNING'>('ALL')
-  const [filterMarketingConsent, setFilterMarketingConsent] = useState<string>('all') // 'all' | 'true' | 'false'
+  const [filterProvider, setFilterProvider] = useState<'ALL' | 'EMAIL' | 'KAKAO' | 'NAVER' | 'GOOGLE' | 'APPLE'>('ALL')
+  const [filterGender, setFilterGender] = useState<'ALL' | 'MALE' | 'FEMALE' | 'SECRET'>('ALL')
+  const [filterAccountStatus, setFilterAccountStatus] = useState<'ALL' | 'ACTIVE' | 'DELETED'>('ALL')
+  const [filterUserStatus, setFilterUserStatus] = useState<'ALL' | 'WARNING' | 'SUSPENDED'>('ALL')
   const [joinStartDate, setJoinStartDate] = useState<string>('')
   const [joinEndDate, setJoinEndDate] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
@@ -36,14 +32,27 @@ export default function UserList({ menuId }: UserListProps) {
     user: null,
   })
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null)
+  const [isEditingDetail, setIsEditingDetail] = useState(false)
+  const [isSavingDetail, setIsSavingDetail] = useState(false)
+  const [detailEditForm, setDetailEditForm] = useState({
+    name: '',
+    nickname: '',
+    gender: 'SECRET' as 'MALE' | 'FEMALE' | 'SECRET',
+    introduction: '',
+    dateOfBirth: '',
+    marketingConsent: false,
+    status: 'NORMAL' as 'NORMAL' | 'WARNING' | 'SUSPENDED',
+    statusReason: '',
+  })
   const [isLoadingDetail, setIsLoadingDetail] = useState(false)
   const [profileImageError, setProfileImageError] = useState(false)
+  const [statusReasonInput, setStatusReasonInput] = useState('')
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [sortField, setSortField] = useState<'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | 'points' | null>(null)
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
   
   // 중복 API 호출 방지를 위한 ref
   const lastApiCallRef = useRef<{
-    menuId: string | null
     currentPage: number
     filterOptionsKey: string
   } | null>(null)
@@ -83,50 +92,42 @@ export default function UserList({ menuId }: UserListProps) {
     
     // 검색어 (적용된 검색어만 사용)
     if (appliedKeyword) {
-      options.keyword = appliedKeyword
+      options.q = appliedKeyword
     }
     
-    // 역할 필터
-    if (filterRole !== 'ALL') {
-      options.role = filterRole
+    if (filterProvider !== 'ALL') {
+      options.provider = filterProvider
+    }
+
+    if (filterGender !== 'ALL') {
+      options.gender = filterGender
+    }
+
+    if (filterAccountStatus !== 'ALL') {
+      options.status = filterAccountStatus
+    }
+
+    if (filterUserStatus !== 'ALL') {
+      options.userStatus = filterUserStatus
     }
     
-    // 상태 필터
-    if (filterStatus !== 'ALL') {
-      options.status = filterStatus
-    }
-    
-    // 마케팅 동의 필터
-    if (filterMarketingConsent === 'true') {
-      options.marketContent = true
-    } else if (filterMarketingConsent === 'false') {
-      options.marketContent = false
-    }
-    
-    // 가입 기간 필터
     if (joinStartDate) {
-      options.joinStartDate = joinStartDate
+      options.startDate = joinStartDate
     }
     if (joinEndDate) {
-      options.joinEndDate = joinEndDate
+      options.endDate = joinEndDate
     }
-    
     // 정렬
     if (sortField) {
       options.orderBy = sortField
-      options.direction = sortOrder
+      options.order = sortOrder
     }
     
     return options
-  }, [appliedKeyword, filterRole, filterStatus, filterMarketingConsent, joinStartDate, joinEndDate, sortField, sortOrder])
+  }, [appliedKeyword, filterProvider, filterGender, filterAccountStatus, filterUserStatus, joinStartDate, joinEndDate, sortField, sortOrder])
   
   // API에서 사용자 리스트 불러오기
   useEffect(() => {
-    // users-list, users-reported, users-sanctions일 때만 API 호출
-    if (menuId !== 'users-list' && menuId !== 'users-reported' && menuId !== 'users-sanctions') {
-      return
-    }
-
     // filterOptions를 문자열로 변환하여 비교 (객체 참조 변경 방지)
     const filterOptionsKey = JSON.stringify(filterOptions)
     
@@ -142,7 +143,6 @@ export default function UserList({ menuId }: UserListProps) {
     // 이전 호출과 동일한 파라미터인지 확인
     if (
       lastApiCallRef.current &&
-      lastApiCallRef.current.menuId === menuId &&
       lastApiCallRef.current.currentPage === currentPage &&
       lastApiCallRef.current.filterOptionsKey === filterOptionsKey
     ) {
@@ -169,7 +169,6 @@ export default function UserList({ menuId }: UserListProps) {
     
     // 현재 호출 정보 저장
     lastApiCallRef.current = {
-      menuId,
       currentPage,
       filterOptionsKey,
     }
@@ -203,16 +202,7 @@ export default function UserList({ menuId }: UserListProps) {
           timestamp: new Date().toISOString(),
         })
         
-        if (menuId === 'users-reported') {
-          // 신고 접수된 사용자 리스트는 별도 API 사용
-          response = await getReportedUsersAdmin()
-        } else if (menuId === 'users-sanctions') {
-          // 제재/정지 관리 사용자 리스트는 별도 API 사용
-          response = await getPenaltyUsersAdmin()
-        } else if (menuId === 'users-list') {
-          // 전체 사용자 리스트는 필터 옵션과 함께 API 호출
-          response = await getUsersAdmin(currentPage, 20, filterOptions)
-        }
+        response = await getUsersAdmin(currentPage, 20, filterOptions)
         
         console.log('[UserList] API 응답 받음:', {
           menuId,
@@ -240,6 +230,7 @@ export default function UserList({ menuId }: UserListProps) {
             points: u.points,
             createdAt: u.createdAt,
             reportedCount: u.reportedCount,
+            accountStatus: u.accountStatus,
             isSuspended: u.isSuspended,
             suspensionReason: u.suspensionReason,
             isWarned: u.isWarned,
@@ -299,58 +290,45 @@ export default function UserList({ menuId }: UserListProps) {
       abortController.abort()
       isLoadingRef.current = false
     }
-  }, [menuId, currentPage, filterOptions])
+  }, [currentPage, filterOptions])
   
-  // menuId 변경 시 첫 페이지로 리셋 및 필터 초기화
+  // 초기화
   useEffect(() => {
     setCurrentPage(1)
     setPaginationMeta(null)
     setApiUsers([])
     
-    // menuId에 따라 초기 필터 설정
-    if (menuId === 'users-reported') {
-      setFilterStatus('ALL') // 신고된 사용자는 모든 상태
-    } else if (menuId === 'users-sanctions') {
-      setFilterStatus('SUSPEND') // 제재/정지 관리는 정지 상태만
-    } else {
-      setFilterStatus('ALL') // 전체 목록은 모든 상태
-    }
+    setFilterAccountStatus('ALL')
+    setFilterUserStatus('ALL')
     
     // 검색어는 유지하지 않고 초기화
     setSearchKeyword('')
     setAppliedKeyword(undefined)
-    setFilterRole('ALL')
-    setFilterMarketingConsent('all')
+    setFilterProvider('ALL')
+    setFilterGender('ALL')
     setJoinStartDate('')
     setJoinEndDate('')
     setSortField(null)
     setSortOrder('DESC')
-  }, [menuId])
+  }, [])
   
   // 필터 변경 시 첫 페이지로 리셋 (페이지 이동 시에는 필터 유지)
   useEffect(() => {
-    if (menuId === 'users-list') {
-      setCurrentPage(1)
-    }
-  }, [filterRole, filterStatus, filterMarketingConsent, joinStartDate, joinEndDate, sortField, sortOrder, menuId])
+    setCurrentPage(1)
+  }, [filterProvider, filterGender, filterAccountStatus, filterUserStatus, joinStartDate, joinEndDate, sortField, sortOrder])
   
   // 필터 초기화 함수
   const handleResetFilters = () => {
     setSearchKeyword('')
     setAppliedKeyword(undefined)
-    setFilterRole('ALL')
-    setFilterMarketingConsent('all')
+    setFilterProvider('ALL')
+    setFilterGender('ALL')
+    setFilterAccountStatus('ALL')
+    setFilterUserStatus('ALL')
     setJoinStartDate('')
     setJoinEndDate('')
     setSortField(null)
     setSortOrder('DESC')
-    if (menuId === 'users-reported') {
-      setFilterStatus('ALL')
-    } else if (menuId === 'users-sanctions') {
-      setFilterStatus('SUSPEND')
-    } else {
-      setFilterStatus('ALL')
-    }
     setCurrentPage(1)
   }
   
@@ -408,21 +386,11 @@ export default function UserList({ menuId }: UserListProps) {
     }
   }
   
-  const getTitle = () => {
-    switch (menuId) {
-      case 'users-list':
-        return '전체 사용자 리스트'
-      case 'users-reported':
-        return '신고 접수된 사용자'
-      case 'users-sanctions':
-        return '제재/정지 관리'
-      default:
-        return '사용자 리스트'
-    }
-  }
+  const getTitle = () => '전체 사용자 리스트'
 
   const getProviderLabel = (provider: string) => {
     const labels: Record<string, string> = {
+      email: '이메일',
       naver: '네이버',
       kakao: '카카오',
       google: '구글',
@@ -433,69 +401,7 @@ export default function UserList({ menuId }: UserListProps) {
   
   // 표시할 사용자 리스트 결정
   const displayedUsers = useMemo(() => {
-    // API에서 받은 데이터 사용 (users-list, users-reported, users-sanctions)
-    let filtered: User[]
-    if (menuId === 'users-list' || menuId === 'users-reported' || menuId === 'users-sanctions') {
-      filtered = [...apiUsers]
-    } else {
-      // 다른 메뉴는 Mock 데이터 사용 (기존 로직 유지)
-      filtered = [...users]
-      
-      // 추가 필터 적용
-      if (searchKeyword) {
-        const keywordLower = searchKeyword.toLowerCase()
-        filtered = filtered.filter(u => 
-          u.nickname.toLowerCase().includes(keywordLower) ||
-          u.email.toLowerCase().includes(keywordLower)
-        )
-      }
-      
-      if (filterRole !== 'ALL') {
-        filtered = filtered.filter(u => u.role === filterRole)
-      }
-      
-      if (filterStatus !== 'ALL') {
-        if (filterStatus === 'SUSPEND') {
-          filtered = filtered.filter(u => u.isSuspended)
-        } else if (filterStatus === 'NORMAL') {
-          filtered = filtered.filter(u => !u.isSuspended && !u.isWarned)
-        } else if (filterStatus === 'WARNING') {
-          filtered = filtered.filter(u => u.isWarned)
-        }
-      }
-      
-      if (filterMarketingConsent !== 'all') {
-        if (filterMarketingConsent === 'true') {
-          filtered = filtered.filter(u => u.marketingConsentDate !== null && u.marketingConsentDate !== undefined)
-        } else if (filterMarketingConsent === 'false') {
-          filtered = filtered.filter(u => !u.marketingConsentDate || u.marketingConsentDate === null)
-        }
-      }
-      
-    }
-    
-    // 가입 기간 필터 적용 (Mock 데이터 사용 시에만 클라이언트 사이드 필터링)
-    // users-list의 경우 API에서 이미 필터링된 데이터를 받으므로 클라이언트 사이드 필터링 불필요
-    if (menuId !== 'users-list' && (joinStartDate || joinEndDate)) {
-      filtered = filtered.filter(u => {
-        const createdAt = new Date(u.createdAt)
-        const createdDate = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate())
-        
-        if (joinStartDate) {
-          const startDate = new Date(joinStartDate)
-          if (createdDate < startDate) return false
-        }
-        
-        if (joinEndDate) {
-          const endDate = new Date(joinEndDate)
-          // 종료일은 포함 (23:59:59까지)
-          endDate.setHours(23, 59, 59, 999)
-          if (createdDate > endDate) return false
-        }
-        
-        return true
-      })
-    }
+    let filtered: User[] = [...apiUsers]
     
     // 정렬 적용 (모든 메뉴에 공통 적용)
     if (sortField) {
@@ -536,7 +442,16 @@ export default function UserList({ menuId }: UserListProps) {
     }
     
     return filtered
-  }, [apiUsers, users, searchKeyword, filterRole, filterStatus, filterMarketingConsent, joinStartDate, joinEndDate, menuId, sortField, sortOrder])
+  }, [apiUsers, sortField, sortOrder])
+
+  const hasActiveFilters =
+    !!appliedKeyword ||
+    filterProvider !== 'ALL' ||
+    filterGender !== 'ALL' ||
+    filterAccountStatus !== 'ALL' ||
+    filterUserStatus !== 'ALL' ||
+    !!joinStartDate ||
+    !!joinEndDate
 
   const handleDetail = async (user: User) => {
     setIsLoadingDetail(true)
@@ -548,6 +463,25 @@ export default function UserList({ menuId }: UserListProps) {
       
       if (response.success && response.data) {
         setUserDetail(response.data)
+        setIsEditingDetail(false)
+        setDetailEditForm({
+          name: response.data.name || '',
+          nickname: response.data.nickname || '',
+          gender:
+            response.data.gender?.toUpperCase() === 'MALE' || response.data.gender?.toUpperCase() === 'FEMALE'
+              ? (response.data.gender.toUpperCase() as 'MALE' | 'FEMALE')
+              : 'SECRET',
+          introduction: response.data.introduction || '',
+          dateOfBirth: response.data.dateOfBirth || '',
+          marketingConsent: !!response.data.marketingConsent,
+          status:
+            response.data.status?.toUpperCase() === 'WARNING'
+              ? 'WARNING'
+              : response.data.status?.toUpperCase() === 'SUSPENDED'
+                ? 'SUSPENDED'
+                : 'NORMAL',
+          statusReason: response.data.statusReason || '',
+        })
         setModalState({
           isOpen: true,
           type: 'detail',
@@ -566,10 +500,126 @@ export default function UserList({ menuId }: UserListProps) {
   const handleCloseDetailModal = () => {
     setModalState({ isOpen: false, type: null, user: null })
     setUserDetail(null)
+    setIsEditingDetail(false)
     setProfileImageError(false)
   }
 
+  const handleStartEditDetail = () => {
+    if (!userDetail) return
+    setDetailEditForm({
+      name: userDetail.name || '',
+      nickname: userDetail.nickname || '',
+      gender:
+        userDetail.gender?.toUpperCase() === 'MALE' || userDetail.gender?.toUpperCase() === 'FEMALE'
+          ? (userDetail.gender.toUpperCase() as 'MALE' | 'FEMALE')
+          : 'SECRET',
+      introduction: userDetail.introduction || '',
+      dateOfBirth: userDetail.dateOfBirth || '',
+      marketingConsent: !!userDetail.marketingConsent,
+      status:
+        userDetail.status?.toUpperCase() === 'WARNING'
+          ? 'WARNING'
+          : userDetail.status?.toUpperCase() === 'SUSPENDED'
+            ? 'SUSPENDED'
+            : 'NORMAL',
+      statusReason: userDetail.statusReason || '',
+    })
+    setIsEditingDetail(true)
+  }
+
+  const handleCancelEditDetail = () => {
+    if (isSavingDetail) return
+    setIsEditingDetail(false)
+  }
+
+  const handleSaveDetail = async () => {
+    if (!userDetail) return
+    if (!detailEditForm.nickname.trim()) {
+      alert('닉네임은 필수입니다.')
+      return
+    }
+
+    setIsSavingDetail(true)
+    const result = await updateAdminUser(userDetail.id, {
+      name: detailEditForm.name.trim(),
+      nickname: detailEditForm.nickname.trim(),
+      gender: detailEditForm.gender,
+      introduction: detailEditForm.introduction.trim(),
+      dateOfBirth: detailEditForm.dateOfBirth.trim() || null,
+      marketingConsent: detailEditForm.marketingConsent,
+      status: detailEditForm.status,
+      statusReason: detailEditForm.statusReason.trim() || null,
+    })
+    setIsSavingDetail(false)
+
+    if (!result.success) {
+      alert(result.error || '사용자 정보 수정에 실패했습니다.')
+      return
+    }
+
+    const nextGender = detailEditForm.gender.toLowerCase()
+    const nextListGender: User['gender'] =
+      nextGender === 'male' ? 'male' : nextGender === 'female' ? 'female' : 'private'
+    setUserDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            name: detailEditForm.name.trim() || null,
+            nickname: detailEditForm.nickname.trim(),
+              gender: nextGender,
+            introduction: detailEditForm.introduction.trim() || null,
+            dateOfBirth: detailEditForm.dateOfBirth.trim() || null,
+            marketingConsent: detailEditForm.marketingConsent,
+            status: detailEditForm.status,
+            statusReason: detailEditForm.statusReason.trim() || null,
+          }
+        : prev
+    )
+
+    setApiUsers((prev) =>
+      prev.map((u) =>
+        u.id === userDetail.id
+          ? {
+              ...u,
+              nickname: detailEditForm.nickname.trim(),
+              gender: nextListGender,
+              accountStatus: detailEditForm.status,
+              isSuspended: detailEditForm.status === 'SUSPENDED',
+              isWarned: detailEditForm.status === 'WARNING',
+              suspensionReason:
+                detailEditForm.status === 'SUSPENDED'
+                  ? detailEditForm.statusReason.trim() || undefined
+                  : undefined,
+            }
+          : u
+      )
+    )
+
+    setModalState((prev) =>
+      prev.type === 'detail' && prev.user?.id === userDetail.id
+        ? {
+            ...prev,
+            user: {
+              ...prev.user,
+              nickname: detailEditForm.nickname.trim(),
+              gender: nextListGender,
+              isSuspended: detailEditForm.status === 'SUSPENDED',
+              isWarned: detailEditForm.status === 'WARNING',
+              suspensionReason:
+                detailEditForm.status === 'SUSPENDED'
+                  ? detailEditForm.statusReason.trim() || undefined
+                  : undefined,
+            },
+          }
+        : prev
+    )
+
+    setIsEditingDetail(false)
+    alert('사용자 정보가 수정되었습니다.')
+  }
+
   const handleSuspend = (user: User) => {
+    setStatusReasonInput(user.suspensionReason || '운영정책 위반')
     setModalState({
       isOpen: true,
       type: 'suspend',
@@ -578,6 +628,7 @@ export default function UserList({ menuId }: UserListProps) {
   }
 
   const handleWarn = (user: User) => {
+    setStatusReasonInput('운영자 경고')
     setModalState({
       isOpen: true,
       type: 'warn',
@@ -586,6 +637,7 @@ export default function UserList({ menuId }: UserListProps) {
   }
 
   const handleUnwarn = (user: User) => {
+    setStatusReasonInput('')
     setModalState({
       isOpen: true,
       type: 'unwarn',
@@ -594,6 +646,7 @@ export default function UserList({ menuId }: UserListProps) {
   }
 
   const handleUnsuspend = (user: User) => {
+    setStatusReasonInput('')
     setModalState({
       isOpen: true,
       type: 'unsuspend',
@@ -601,76 +654,128 @@ export default function UserList({ menuId }: UserListProps) {
     })
   }
 
-  const confirmAction = () => {
-    if (!modalState.user) return
+  const confirmAction = async () => {
+    if (!modalState.user || !modalState.type || modalState.type === 'detail') return
 
-    // 모달 먼저 닫기
-    setModalState({ isOpen: false, type: null, user: null })
+    const targetUser = modalState.user
+    const actionType = modalState.type
 
-    if (modalState.type === 'suspend') {
-      updateUsers((prev) =>
-        prev.map((u) =>
-          u.id === modalState.user!.id
-            ? { ...u, isSuspended: true, suspensionReason: '운영정책 위반' }
-            : u
-        )
-      )
-      setTimeout(() => {
-        alert('사용자가 정지되었습니다.')
-      }, 100)
-    } else if (modalState.type === 'unsuspend') {
-      updateUsers((prev) =>
-        prev.map((u) =>
-          u.id === modalState.user!.id
-            ? { ...u, isSuspended: false, suspensionReason: undefined }
-            : u
-        )
-      )
-      setTimeout(() => {
-        alert('사용자 정지가 해제되었습니다.')
-      }, 100)
-    } else if (modalState.type === 'warn') {
-      updateUsers((prev) =>
-        prev.map((u) =>
-          u.id === modalState.user!.id
-            ? { 
-                ...u, 
-                reportedCount: u.reportedCount + 1,
-                isWarned: true,
-                warnedAt: new Date().toISOString()
-              }
-            : u
-        )
-      )
-      setTimeout(() => {
-        alert('경고가 부여되었습니다.')
-      }, 100)
-    } else if (modalState.type === 'unwarn') {
-      updateUsers((prev) =>
-        prev.map((u) =>
-          u.id === modalState.user!.id
-            ? { 
-                ...u, 
-                isWarned: false,
-                warnedAt: undefined
-              }
-            : u
-        )
-      )
-      setTimeout(() => {
-        alert('경고가 해제되었습니다.')
-      }, 100)
+    const actionConfig = {
+      suspend: {
+        status: 'SUSPENDED' as const,
+        defaultReason: '운영정책 위반',
+        successMessage: '사용자가 정지되었습니다.',
+      },
+      unsuspend: {
+        status: 'NORMAL' as const,
+        defaultReason: null,
+        successMessage: '사용자 정지가 해제되었습니다.',
+      },
+      warn: {
+        status: 'WARNING' as const,
+        defaultReason: '운영자 경고',
+        successMessage: '경고가 부여되었습니다.',
+      },
+      unwarn: {
+        status: 'NORMAL' as const,
+        defaultReason: null,
+        successMessage: '경고가 해제되었습니다.',
+      },
+    }[actionType]
+
+    const reason = statusReasonInput.trim() || actionConfig.defaultReason
+
+    setIsSubmittingAction(true)
+    const result = await updateAdminUserStatus(targetUser.id, actionConfig.status, reason)
+    setIsSubmittingAction(false)
+    if (!result.success) {
+      alert(result.error || '상태 변경에 실패했습니다.')
+      return
     }
+
+    setModalState({ isOpen: false, type: null, user: null })
+    setStatusReasonInput('')
+
+    const now = new Date().toISOString()
+    setApiUsers((prev) =>
+      prev.map((u) => {
+        if (u.id !== targetUser.id) return u
+        if (actionType === 'suspend') {
+          return {
+            ...u,
+            accountStatus: 'SUSPENDED',
+            isSuspended: true,
+            suspensionReason: reason || undefined,
+          }
+        }
+        if (actionType === 'unsuspend') {
+          return {
+            ...u,
+            accountStatus: 'NORMAL',
+            isSuspended: false,
+            suspensionReason: undefined,
+          }
+        }
+        if (actionType === 'warn') {
+          return {
+            ...u,
+            accountStatus: 'WARNING',
+            isWarned: true,
+            warnedAt: now,
+          }
+        }
+        return {
+          ...u,
+          accountStatus: 'NORMAL',
+          isWarned: false,
+          warnedAt: undefined,
+        }
+      })
+    )
+
+    if (userDetail?.id === targetUser.id) {
+      setUserDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: actionConfig.status,
+              statusReason: reason,
+            }
+          : prev
+      )
+    }
+
+    setTimeout(() => {
+      alert(actionConfig.successMessage)
+    }, 100)
+  }
+
+  const closeActionModal = () => {
+    if (isSubmittingAction) return
+    setModalState({ isOpen: false, type: null, user: null })
+    setStatusReasonInput('')
   }
 
   const getStatusBadge = (user: User) => {
+    if (user.accountStatus?.toUpperCase() === 'DELETED') {
+      return <span className={`${styles.badge} ${styles.warning}`}>삭제</span>
+    }
     if (user.isSuspended) {
       return <span className={`${styles.badge} ${styles.suspended}`}>정지</span>
     }
-    if (user.isWarned) {
+    if (user.accountStatus?.toUpperCase() === 'WARNING' || user.isWarned) {
       return <span className={`${styles.badge} ${styles.warning}`}>경고</span>
     }
     return <span className={`${styles.badge} ${styles.normal}`}>정상</span>
+  }
+
+  const getUserStatusLabel = (status?: string | null) => {
+    const normalized = status?.toUpperCase()
+    if (normalized === 'SUSPENDED') return '정지'
+    if (normalized === 'WARNING') return '경고'
+    if (normalized === 'DELETED') return '삭제'
+    if (normalized === 'NORMAL' || normalized === 'ACTIVE') return '정상'
+    return '-'
   }
 
   const formatDate = (dateString: string) => {
@@ -697,15 +802,7 @@ export default function UserList({ menuId }: UserListProps) {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>{getTitle()}</h1>
-        {menuId === 'users-list' && (
-          <p className={styles.subtitle}>전체 사용자 목록입니다</p>
-        )}
-        {menuId === 'users-reported' && (
-          <p className={styles.subtitle}>신고가 접수된 사용자 목록입니다</p>
-        )}
-        {menuId === 'users-sanctions' && (
-          <p className={styles.subtitle}>제재 및 정지된 사용자 목록입니다</p>
-        )}
+        <p className={styles.subtitle}>전체 사용자 목록입니다</p>
       </div>
 
       <div className={styles.content}>
@@ -743,7 +840,7 @@ export default function UserList({ menuId }: UserListProps) {
               <input
                 type="text"
                 className={styles.filterInput}
-                placeholder="닉네임 또는 이메일로 검색..."
+                placeholder="email, 연락처, 이름, 닉네임 검색"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 onKeyPress={(e) => {
@@ -775,49 +872,63 @@ export default function UserList({ menuId }: UserListProps) {
           </div>
 
           <div className={`${styles.filterGroup} ${styles.filterGroupSmall}`}>
-            <label className={styles.filterLabel}>역할</label>
+            <label className={styles.filterLabel}>프로바이더</label>
             <select 
               className={styles.filterSelect}
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value as 'ALL' | 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER')}
+              value={filterProvider}
+              onChange={(e) => setFilterProvider(e.target.value as 'ALL' | 'EMAIL' | 'KAKAO' | 'NAVER' | 'GOOGLE' | 'APPLE')}
             >
               <option value="ALL">전체</option>
-              <option value="SUPER_ADMIN">Super Admin</option>
-              <option value="ADMIN">Admin</option>
-              <option value="MEMBER">Member</option>
-              <option value="TESTER">Tester</option>
+              <option value="EMAIL">이메일</option>
+              <option value="KAKAO">카카오</option>
+              <option value="NAVER">네이버</option>
+              <option value="GOOGLE">구글</option>
+              <option value="APPLE">애플</option>
             </select>
           </div>
 
           <div className={`${styles.filterGroup} ${styles.filterGroupSmall}`}>
-            <label className={styles.filterLabel}>상태</label>
+            <label className={styles.filterLabel}>계정 상태</label>
             <select 
               className={styles.filterSelect}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'ALL' | 'NORMAL' | 'SUSPEND' | 'WARNING')}
+              value={filterAccountStatus}
+              onChange={(e) => setFilterAccountStatus(e.target.value as 'ALL' | 'ACTIVE' | 'DELETED')}
             >
               <option value="ALL">전체</option>
-              <option value="NORMAL">정상</option>
+              <option value="ACTIVE">활성</option>
+              <option value="DELETED">삭제</option>
+            </select>
+          </div>
+
+          <div className={`${styles.filterGroup} ${styles.filterGroupSmall}`}>
+            <label className={styles.filterLabel}>사용자 상태</label>
+            <select 
+              className={styles.filterSelect}
+              value={filterUserStatus}
+              onChange={(e) => setFilterUserStatus(e.target.value as 'ALL' | 'WARNING' | 'SUSPENDED')}
+            >
+              <option value="ALL">전체</option>
               <option value="WARNING">경고</option>
-              <option value="SUSPEND">정지</option>
+              <option value="SUSPENDED">정지</option>
             </select>
           </div>
 
           <div className={`${styles.filterGroup} ${styles.filterGroupSmall}`}>
-            <label className={styles.filterLabel}>마케팅 활용 동의</label>
+            <label className={styles.filterLabel}>성별</label>
             <select 
               className={styles.filterSelect}
-              value={filterMarketingConsent}
-              onChange={(e) => setFilterMarketingConsent(e.target.value)}
+              value={filterGender}
+              onChange={(e) => setFilterGender(e.target.value as 'ALL' | 'MALE' | 'FEMALE' | 'SECRET')}
             >
-              <option value="all">전체</option>
-              <option value="true">동의</option>
-              <option value="false">미동의</option>
+              <option value="ALL">전체</option>
+              <option value="MALE">남성</option>
+              <option value="FEMALE">여성</option>
+              <option value="SECRET">비공개</option>
             </select>
           </div>
 
           <div className={`${styles.filterGroup} ${styles.filterGroupSmall}`}>
-            <label className={styles.filterLabel}>가입 시작일</label>
+            <label className={styles.filterLabel}>조회 시작일</label>
             <input
               type="date"
               className={styles.filterInput}
@@ -827,7 +938,7 @@ export default function UserList({ menuId }: UserListProps) {
           </div>
 
           <div className={`${styles.filterGroup} ${styles.filterGroupSmall}`}>
-            <label className={styles.filterLabel}>가입 종료일</label>
+            <label className={styles.filterLabel}>조회 종료일</label>
             <input
               type="date"
               className={styles.filterInput}
@@ -959,14 +1070,10 @@ export default function UserList({ menuId }: UserListProps) {
               ) : displayedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={10} className={styles.emptyCell}>
-                    {(filterStatus !== 'ALL' || searchKeyword || filterRole !== 'ALL' || filterMarketingConsent !== 'all') ? (
+                    {hasActiveFilters ? (
                       '리스트가 없습니다.'
                     ) : (
-                      menuId === 'users-reported'
-                        ? '신고 접수된 사용자가 없습니다.'
-                        : menuId === 'users-sanctions'
-                        ? '제재/정지된 사용자가 없습니다.'
-                        : '사용자가 없습니다.'
+                      '사용자가 없습니다.'
                     )}
                   </td>
                 </tr>
@@ -1073,14 +1180,10 @@ export default function UserList({ menuId }: UserListProps) {
             </div>
           ) : displayedUsers.length === 0 ? (
             <div className={styles.emptyCard}>
-              {(filterStatus !== 'ALL' || searchKeyword || filterRole !== 'ALL' || filterMarketingConsent !== 'all') ? (
+              {hasActiveFilters ? (
                 '리스트가 없습니다.'
               ) : (
-                menuId === 'users-reported'
-                  ? '신고 접수된 사용자가 없습니다.'
-                  : menuId === 'users-sanctions'
-                  ? '제재/정지된 사용자가 없습니다.'
-                  : '사용자가 없습니다.'
+                '사용자가 없습니다.'
               )}
             </div>
           ) : (
@@ -1180,7 +1283,7 @@ export default function UserList({ menuId }: UserListProps) {
         </div>
 
         {/* 페이징 버튼 */}
-        {menuId === 'users-list' && paginationMeta && paginationMeta.totalPages > 1 && (
+        {paginationMeta && paginationMeta.totalPages > 1 && (
           <div className={styles.pagination}>
             <button
               className={styles.paginationNavButton}
@@ -1285,6 +1388,11 @@ export default function UserList({ menuId }: UserListProps) {
                   let profileImage: string | undefined = undefined
                   if (modalState.user?.profileImage) {
                     profileImage = modalState.user.profileImage
+                  } else if (userDetail.profileImage) {
+                    profileImage =
+                      userDetail.profileImage.cdnUrl ||
+                      userDetail.profileImage.thumbnailUrl ||
+                      userDetail.profileImage.fileUrl
                   } else if (userDetail.providerOrigin?.providerOrigin) {
                     const origin = userDetail.providerOrigin.providerOrigin
                     if (origin.profile_image_url) profileImage = origin.profile_image_url
@@ -1310,7 +1418,9 @@ export default function UserList({ menuId }: UserListProps) {
                   )
                 })()}
                 <div className={styles.detailProfileInfo}>
-                  <h4 className={styles.detailProfileName}>{userDetail.nickname}</h4>
+                  <h4 className={styles.detailProfileName}>
+                    {isEditingDetail ? detailEditForm.nickname || userDetail.nickname : userDetail.nickname}
+                  </h4>
                   <p className={styles.detailProfileEmail}>{userDetail.email}</p>
                 </div>
               </div>
@@ -1323,25 +1433,146 @@ export default function UserList({ menuId }: UserListProps) {
                 </div>
                 <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>이름</span>
-                  <span className={styles.detailInfoValue}>{userDetail.name || '-'}</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <input
+                        value={detailEditForm.name}
+                        onChange={(e) => setDetailEditForm((p) => ({ ...p, name: e.target.value }))}
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      />
+                    ) : (
+                      userDetail.name || '-'
+                    )}
+                  </span>
                 </div>
                 <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>프로바이더</span>
                   <span className={styles.detailInfoValue}>{getProviderLabel(userDetail.provider.toLowerCase())}</span>
                 </div>
                 <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>권한(Role)</span>
+                  <span className={styles.detailInfoValue}>
+                    {userDetail.roles && userDetail.roles.length > 0 ? userDetail.roles.join(', ') : '-'}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>상태</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <select
+                        value={detailEditForm.status}
+                        onChange={(e) =>
+                          setDetailEditForm((p) => ({ ...p, status: e.target.value as 'NORMAL' | 'WARNING' | 'SUSPENDED' }))
+                        }
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      >
+                        <option value="NORMAL">정상</option>
+                        <option value="WARNING">경고</option>
+                        <option value="SUSPENDED">정지</option>
+                      </select>
+                    ) : (
+                      getUserStatusLabel(userDetail.status)
+                    )}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>성별</span>
                   <span className={styles.detailInfoValue}>
-                    {userDetail.gender === 'secret' ? '비공개' : userDetail.gender === 'female' ? '여성' : userDetail.gender === 'male' ? '남성' : '-'}
+                    {isEditingDetail ? (
+                      <select
+                        value={detailEditForm.gender}
+                        onChange={(e) =>
+                          setDetailEditForm((p) => ({ ...p, gender: e.target.value as 'MALE' | 'FEMALE' | 'SECRET' }))
+                        }
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      >
+                        <option value="SECRET">비공개</option>
+                        <option value="MALE">남성</option>
+                        <option value="FEMALE">여성</option>
+                      </select>
+                    ) : userDetail.gender === 'secret' ? (
+                      '비공개'
+                    ) : userDetail.gender === 'female' ? (
+                      '여성'
+                    ) : userDetail.gender === 'male' ? (
+                      '남성'
+                    ) : (
+                      '-'
+                    )}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>상태 사유</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <input
+                        value={detailEditForm.statusReason}
+                        onChange={(e) => setDetailEditForm((p) => ({ ...p, statusReason: e.target.value }))}
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      />
+                    ) : (
+                      userDetail.statusReason || '-'
+                    )}
                   </span>
                 </div>
                 <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>생년월일</span>
-                  <span className={styles.detailInfoValue}>{userDetail.dateOfBirth || '-'}</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <input
+                        type="date"
+                        value={detailEditForm.dateOfBirth}
+                        onChange={(e) => setDetailEditForm((p) => ({ ...p, dateOfBirth: e.target.value }))}
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      />
+                    ) : (
+                      userDetail.dateOfBirth || '-'
+                    )}
+                  </span>
                 </div>
                 <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>연락처</span>
                   <span className={styles.detailInfoValue}>{userDetail.contact || '-'}</span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>닉네임</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <input
+                        value={detailEditForm.nickname}
+                        onChange={(e) => setDetailEditForm((p) => ({ ...p, nickname: e.target.value }))}
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      />
+                    ) : (
+                      userDetail.nickname || '-'
+                    )}
+                  </span>
+                </div>
+                <div className={styles.detailInfoItem}>
+                  <span className={styles.detailInfoLabel}>마케팅 동의</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={detailEditForm.marketingConsent}
+                          onChange={(e) => setDetailEditForm((p) => ({ ...p, marketingConsent: e.target.checked }))}
+                          disabled={isSavingDetail}
+                        />
+                        {detailEditForm.marketingConsent ? '동의' : '미동의'}
+                      </label>
+                    ) : userDetail.marketingConsent ? (
+                      '동의'
+                    ) : (
+                      '미동의'
+                    )}
+                  </span>
                 </div>
                 <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>마케팅 동의일</span>
@@ -1376,15 +1607,61 @@ export default function UserList({ menuId }: UserListProps) {
                 {/* 자기소개는 전체 너비로 */}
                 <div className={`${styles.detailInfoItem} ${styles.detailInfoItemFull}`}>
                   <span className={styles.detailInfoLabel}>자기소개</span>
-                  <span className={styles.detailInfoValue}>{userDetail.introduction || '-'}</span>
+                  <span className={styles.detailInfoValue}>
+                    {isEditingDetail ? (
+                      <textarea
+                        value={detailEditForm.introduction}
+                        onChange={(e) => setDetailEditForm((p) => ({ ...p, introduction: e.target.value }))}
+                        disabled={isSavingDetail}
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid #ddd',
+                          resize: 'vertical',
+                        }}
+                      />
+                    ) : (
+                      userDetail.introduction || '-'
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
             <div className={styles.detailModalFooter}>
               <div className={styles.detailModalActions}>
+                {!isEditingDetail ? (
+                  <button
+                    className={styles.detailModalActionButton}
+                    onClick={handleStartEditDetail}
+                  >
+                    수정
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className={styles.detailModalActionButton}
+                      onClick={handleCancelEditDetail}
+                      disabled={isSavingDetail}
+                    >
+                      취소
+                    </button>
+                    <button
+                      className={`${styles.detailModalActionButton} ${styles.success}`}
+                      onClick={() => {
+                        void handleSaveDetail()
+                      }}
+                      disabled={isSavingDetail}
+                    >
+                      {isSavingDetail ? '저장 중...' : '저장'}
+                    </button>
+                  </>
+                )}
                 {modalState.user && !modalState.user.isSuspended ? (
                   <button 
                     className={`${styles.detailModalActionButton} ${styles.warning}`}
+                    disabled={isEditingDetail || isSavingDetail}
                     onClick={() => {
                       handleCloseDetailModal()
                       handleSuspend(modalState.user!)
@@ -1395,6 +1672,7 @@ export default function UserList({ menuId }: UserListProps) {
                 ) : modalState.user && modalState.user.isSuspended ? (
                   <button 
                     className={`${styles.detailModalActionButton} ${styles.success}`}
+                    disabled={isEditingDetail || isSavingDetail}
                     onClick={() => {
                       handleCloseDetailModal()
                       handleUnsuspend(modalState.user!)
@@ -1406,6 +1684,7 @@ export default function UserList({ menuId }: UserListProps) {
                 {modalState.user && !modalState.user.isWarned ? (
                   <button 
                     className={styles.detailModalActionButton}
+                    disabled={isEditingDetail || isSavingDetail}
                     onClick={() => {
                       handleCloseDetailModal()
                       handleWarn(modalState.user!)
@@ -1416,6 +1695,7 @@ export default function UserList({ menuId }: UserListProps) {
                 ) : modalState.user && modalState.user.isWarned ? (
                   <button 
                     className={styles.detailModalActionButton}
+                    disabled={isEditingDetail || isSavingDetail}
                     onClick={() => {
                       handleCloseDetailModal()
                       handleUnwarn(modalState.user!)
@@ -1440,7 +1720,7 @@ export default function UserList({ menuId }: UserListProps) {
       {modalState.type !== 'detail' && (
         <Modal
           isOpen={modalState.isOpen}
-          onClose={() => setModalState({ isOpen: false, type: null, user: null })}
+          onClose={closeActionModal}
           title={
             modalState.type === 'suspend'
               ? '사용자 정지'
@@ -1459,9 +1739,6 @@ export default function UserList({ menuId }: UserListProps) {
               ? `"${modalState.user?.nickname}" 사용자에게 경고를 부여하시겠습니까?\n\n경고가 부여되면 사용자 상태가 변경됩니다.`
               : `"${modalState.user?.nickname}" 사용자의 경고를 해제하시겠습니까?\n\n경고가 해제되면 사용자 상태가 정상으로 변경됩니다.`
           }
-          confirmText="확인"
-          cancelText="취소"
-          onConfirm={confirmAction}
           type={
             modalState.type === 'suspend'
               ? 'danger'
@@ -1471,9 +1748,74 @@ export default function UserList({ menuId }: UserListProps) {
               ? 'warning'
               : 'warning'
           }
-        />
+          footer={
+            <>
+              <button
+                className={`${styles.actionBtn}`}
+                onClick={closeActionModal}
+                disabled={isSubmittingAction}
+                style={{ minWidth: '80px' }}
+              >
+                취소
+              </button>
+              <button
+                className={`${styles.actionBtn} ${
+                  modalState.type === 'suspend' ? styles.warning : ''
+                }`}
+                onClick={() => {
+                  void confirmAction()
+                }}
+                disabled={isSubmittingAction}
+                style={{ minWidth: '80px' }}
+              >
+                {isSubmittingAction ? '처리 중...' : '확인'}
+              </button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <p style={{ margin: 0, whiteSpace: 'pre-line', lineHeight: 1.5, color: '#555' }}>
+              {modalState.type === 'suspend'
+                ? `"${modalState.user?.nickname}" 사용자를 정지하시겠습니까?\n\n해당 사용자는 즉시 정지되며, 글/댓글/좋아요 등 서비스 이용이 제한됩니다.`
+                : modalState.type === 'unsuspend'
+                ? `"${modalState.user?.nickname}" 사용자의 정지를 해제하시겠습니까?\n\n해당 사용자는 다시 서비스를 이용할 수 있습니다.`
+                : modalState.type === 'warn'
+                ? `"${modalState.user?.nickname}" 사용자에게 경고를 부여하시겠습니까?\n\n경고는 운영자에게만 보이는 상태입니다.`
+                : `"${modalState.user?.nickname}" 사용자의 경고를 해제하시겠습니까?`}
+            </p>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '6px',
+                  fontSize: '13px',
+                  color: '#666',
+                  fontWeight: 500,
+                }}
+              >
+                상태 사유 (선택)
+              </label>
+              <textarea
+                value={statusReasonInput}
+                onChange={(e) => setStatusReasonInput(e.target.value)}
+                placeholder="상태 변경 사유를 입력하세요"
+                rows={3}
+                disabled={isSubmittingAction}
+                style={{
+                  width: '100%',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )
 }
-

@@ -15,6 +15,7 @@ export interface MenuItem {
   icon?: string
   children?: SubMenuItem[]
   requiredRole?: string
+  disabled?: boolean
 }
 
 interface SidebarProps {
@@ -72,6 +73,7 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen =
         <ul className={styles.menuList}>
           {menuItems.map((item) => {
             const hasChildren = item.children && item.children.length > 0
+            const isDisabled = !!item.disabled
             const isExpanded = expandedMenus.has(item.id)
             const isActive = isMenuActive(item)
 
@@ -79,8 +81,11 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen =
               <li key={item.id}>
                 <div className={styles.menuItemWrapper}>
                   <button
-                    className={`${styles.menuItem} ${isActive ? styles.active : ''}`}
+                    className={`${styles.menuItem} ${isActive ? styles.active : ''} ${isDisabled ? styles.disabled : ''}`}
+                    disabled={isDisabled}
+                    aria-disabled={isDisabled}
                     onClick={() => {
+                      if (isDisabled) return
                       if (hasChildren) {
                         toggleMenu(item.id)
                       } else {
@@ -100,7 +105,7 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen =
                     )}
                   </button>
                 </div>
-                {hasChildren && isExpanded && (
+                {hasChildren && !isDisabled && isExpanded && (
                   <ul className={styles.subMenuList}>
                     {item.children!.map((subItem) => (
                       <li key={subItem.id}>
@@ -124,4 +129,3 @@ export default function Sidebar({ menuItems, activeMenuId, onMenuClick, isOpen =
     </aside>
   )
 }
-

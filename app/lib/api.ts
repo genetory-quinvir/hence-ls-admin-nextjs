@@ -1,16 +1,14 @@
+import { API_BASE_URLS, API_ENV_STORAGE_KEY, isApiEnvironment } from './api-base-url'
+
 // API Base URL 가져오기 함수 (localStorage에서 환경 설정 읽기)
 function getApiBaseUrl(): string {
   if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://ls-api-dev.hence.events'
+    return process.env.NEXT_PUBLIC_API_BASE_URL || API_BASE_URLS.dev
   }
   
-  const environment = localStorage.getItem('apiEnvironment') || 'dev'
-  const API_BASE_URLS: Record<string, string> = {
-    dev: 'https://ls-api-dev.hence.events',
-    live: 'https://ls-api.hence.events',
-  }
-  
-  return API_BASE_URLS[environment] || API_BASE_URLS.dev
+  const storedEnvironment = localStorage.getItem(API_ENV_STORAGE_KEY)
+  const environment = isApiEnvironment(storedEnvironment) ? storedEnvironment : 'dev'
+  return API_BASE_URLS[environment]
 }
 
 // 개발 환경 여부 확인
@@ -42,7 +40,7 @@ function createBasicAuthHeader(email: string, password: string): string {
  * 관리자 로그인 API 호출
  */
 export async function loginAdmin(email: string, password: string): Promise<LoginResponse> {
-  const url = `${getApiBaseUrl()}/api/v1/auth-admin/login`
+  const url = `${getApiBaseUrl()}/api/v1/auth/login`
   
   console.log('📤 [API] 로그인 요청:', {
     url,
@@ -470,7 +468,7 @@ export interface UserListItem {
   id: string
   nickname: string
   profileImage?: string // cdnUrl 또는 thumbnailUrl이 문자열로 변환됨
-  provider: 'naver' | 'kakao' | 'google' | 'apple' // EMAIL은 naver로 매핑됨
+  provider: 'email' | 'naver' | 'kakao' | 'google' | 'apple'
   email: string
   role: string
   gender?: 'female' | 'male' | 'private' // 'secret'은 'private'로 변환됨
@@ -481,6 +479,7 @@ export interface UserListItem {
   createdAt: string
   reportedCount: number // API에서 제공되지 않음 (기본값 0)
   isSuspended: boolean // displayStatus 기반으로 판단
+  accountStatus?: string
   suspensionReason?: string
   isWarned?: boolean // API에서 제공되지 않음
   warnedAt?: string
@@ -514,9 +513,17 @@ export interface UserListFilterOptions {
   marketContent?: boolean // 마케팅 동의 여부 (true: 동의, false: 미동의)
   joinStartDate?: string // 가입 시작 날짜 (YYYY-MM-DD 형식)
   joinEndDate?: string // 가입 종료 날짜 (YYYY-MM-DD 형식)
-  status?: 'ALL' | 'NORMAL' | 'SUSPEND' | 'WARNING' // 상태 필터
+  status?: 'ALL' | 'NORMAL' | 'SUSPEND' | 'WARNING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'active' | 'suspended' | 'deleted' // 상태 필터
   orderBy?: 'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | 'points' // 정렬 기준
   direction?: 'ASC' | 'DESC' // 정렬 방향
+  q?: string
+  provider?: string
+  gender?: string
+  startDate?: string
+  endDate?: string
+  order?: 'ASC' | 'DESC'
+  userStatus?: 'ALL' | 'WARNING' | 'SUSPENDED' | 'NORMAL'
+  moderationStatus?: 'ALL' | 'WARNING' | 'SUSPENDED' | 'NORMAL'
 }
 
 /**
@@ -540,47 +547,76 @@ export async function getUsersAdmin(
     page: page.toString(),
     limit: limit.toString(),
   })
+
+  const toScreamingSnakeCase = (value: string) =>
+    value
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/[-\s]+/g, '_')
+      .toUpperCase()
   
-  // 필터 옵션 추가
+  // 필터 옵션 추가 (/api/v1/admin/users 스펙에 맞춰 변환)
   if (options) {
-    if (options.keyword && options.keyword.trim()) {
-      params.append('keyword', options.keyword.trim())
+    const query = (options.q || options.keyword || '').trim()
+    if (query) {
+      params.append('q', query)
     }
-    
-    if (options.onlyWithdrawal !== undefined) {
-      params.append('onlyWithdrawal', options.onlyWithdrawal.toString())
+
+    if (options.provider && options.provider !== '--') {
+      params.append('provider', options.provider)
     }
-    
-    if (options.role && options.role !== 'ALL') {
-      params.append('role', options.role)
+
+    if (options.gender && options.gender !== '--') {
+      const normalizedGender = options.gender.toUpperCase()
+      if (['MALE', 'FEMALE', 'SECRET'].includes(normalizedGender)) {
+        params.append('gender', normalizedGender)
+      }
     }
-    
-    if (options.marketContent !== undefined) {
-      params.append('marketContent', options.marketContent.toString())
+
+    const normalizedAccountStatus =
+      options.status === 'NORMAL'
+        ? 'active'
+        : options.status === 'ACTIVE'
+          ? 'active'
+          : options.status === 'DELETED'
+            ? 'deleted'
+            : options.status === 'active' || options.status === 'deleted'
+              ? options.status
+              : null
+    if (normalizedAccountStatus) {
+      params.append('status', normalizedAccountStatus)
     }
-    
-    if (options.joinStartDate) {
-      params.append('joinStartDate', options.joinStartDate)
+
+    const normalizedUserStatus =
+      options.userStatus && options.userStatus !== 'ALL'
+        ? options.userStatus.toUpperCase()
+        : options.moderationStatus && options.moderationStatus !== 'ALL'
+          ? options.moderationStatus.toUpperCase()
+          : null
+    if (normalizedUserStatus) {
+      params.append('userStatus', normalizedUserStatus)
     }
-    
-    if (options.joinEndDate) {
-      params.append('joinEndDate', options.joinEndDate)
+
+    if (options.startDate || options.joinStartDate) {
+      params.append('startDate', options.startDate || options.joinStartDate!)
     }
-    
-    if (options.status && options.status !== 'ALL') {
-      params.append('status', options.status)
+
+    if (options.endDate || options.joinEndDate) {
+      params.append('endDate', options.endDate || options.joinEndDate!)
     }
-    
-    if (options.orderBy) {
-      params.append('orderBy', options.orderBy)
+
+    const normalizedOrderBy = options.orderBy === 'activityScore' || options.orderBy === 'points'
+      ? 'createdAt'
+      : options.orderBy
+    if (normalizedOrderBy) {
+      params.append('orderBy', toScreamingSnakeCase(normalizedOrderBy))
     }
-    
-    if (options.direction) {
-      params.append('direction', options.direction)
+
+    if (options.order || options.direction) {
+      params.append('order', options.order || options.direction!)
     }
   }
   
-  const url = `${getApiBaseUrl()}/api/v1/users-admin?${params.toString()}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/users?${params.toString()}`
   
   if (isDev) {
     console.log('[API] 사용자 리스트 요청:', {
@@ -634,35 +670,37 @@ export async function getUsersAdmin(
 
     const responseData = await response.json()
     
+    const users = responseData.items || responseData.data?.items || responseData.data?.users || []
+    const meta = responseData.meta || responseData.data?.meta
+
     console.log('✅ [API] 사용자 리스트 성공:', {
-      responseData,
-      resultCount: responseData.data?.users?.length || 0,
-      total: responseData.data?.meta?.totalItems,
+      resultCount: users.length,
+      total: meta?.totalItems,
       timestamp: new Date().toISOString(),
     })
     
-    // API 응답 구조: { data: { users: [...], meta: {...} }, code, message }
-    const users = responseData.data?.users || []
-    const meta = responseData.data?.meta
-    
     // provider를 소문자로 변환하는 헬퍼 함수
-    const normalizeProvider = (provider: string): 'naver' | 'kakao' | 'google' | 'apple' => {
-      const normalized = provider?.toLowerCase() || 'naver'
-      if (normalized === 'email') return 'naver' // EMAIL은 기본값으로 naver 사용
-      if (['naver', 'kakao', 'google', 'apple'].includes(normalized)) {
-        return normalized as 'naver' | 'kakao' | 'google' | 'apple'
+    const normalizeProvider = (provider: string): UserListItem['provider'] => {
+      const normalized = provider?.toLowerCase() || 'email'
+      if (['email', 'naver', 'kakao', 'google', 'apple'].includes(normalized)) {
+        return normalized as UserListItem['provider']
       }
-      return 'naver'
+      return 'email'
     }
     
     // gender를 변환하는 헬퍼 함수
     const normalizeGender = (gender: string): 'female' | 'male' | 'private' | undefined => {
       if (!gender) return undefined
-      if (gender === 'secret') return 'private'
-      if (['female', 'male', 'private'].includes(gender)) {
-        return gender as 'female' | 'male' | 'private'
+      const normalized = gender.toLowerCase()
+      if (normalized === 'secret') return 'private'
+      if (['female', 'male', 'private'].includes(normalized)) {
+        return normalized as 'female' | 'male' | 'private'
       }
       return 'private'
+    }
+
+    const normalizeString = (value: unknown): string | undefined => {
+      return typeof value === 'string' ? value : undefined
     }
     
     // 프로필 이미지 추출 (우선순위: profileImage 객체 > providerOrigin)
@@ -691,24 +729,34 @@ export async function getUsersAdmin(
     return {
       success: true,
       data: users.map((u: any) => ({
-        id: u.id,
-        nickname: u.nickname || '',
+        id: String(u.id ?? ''),
+        nickname: normalizeString(u.nickname) || normalizeString(u.name) || '',
         profileImage: getProfileImage(u),
-        provider: normalizeProvider(u.provider),
-        email: u.email || '',
+        provider: normalizeProvider(normalizeString(u.provider) || ''),
+        email: normalizeString(u.email) || '',
         role: (u.role || 'MEMBER') as UserListItem['role'],
-        gender: normalizeGender(u.gender),
+        gender: normalizeGender(normalizeString(u.gender) || ''),
         birthDate: u.dateOfBirth || undefined,
         bio: u.introduction || undefined,
         activityScore: u.activityScore ?? 0, // API에서 제공되는 실제 값 사용
         points: 0, // API에서 제공되지 않음 (기본값 0)
-        createdAt: u.createdAt || new Date().toISOString(),
+        createdAt: normalizeString(u.createdAt) || new Date().toISOString(),
         reportedCount: 0, // API에서 제공되지 않음
-        isSuspended: u.displayStatus === 'SUSPENDED' || false, // displayStatus 기반으로 판단
+        accountStatus:
+          normalizeString(u.status)?.toUpperCase() ||
+          normalizeString(u.displayStatus)?.toUpperCase() ||
+          undefined,
+        isSuspended:
+          (normalizeString(u.status)?.toLowerCase() === 'suspended') ||
+          (normalizeString(u.displayStatus)?.toUpperCase() === 'SUSPENDED') ||
+          false,
         suspensionReason: undefined,
-        isWarned: false, // API에서 제공되지 않음
+        isWarned:
+          (normalizeString(u.status)?.toLowerCase() === 'warning') ||
+          (normalizeString(u.displayStatus)?.toUpperCase() === 'WARNING') ||
+          false,
         warnedAt: undefined,
-        marketingConsentDate: u.marketingConsentDate || null,
+        marketingConsentDate: normalizeString(u.marketingConsentDate) || null,
       })),
       meta: meta ? {
         currentPage: meta.currentPage || page,
@@ -2647,7 +2695,7 @@ export interface UserDetail {
   id: string
   email: string
   provider: string
-  providerId: string | null
+  providerId: any | null
   providerOrigin: any | null
   providerVerifiedAt: string | null
   contact: string | null
@@ -2657,16 +2705,49 @@ export interface UserDetail {
   gender: string
   dateOfBirth: string | null
   marketingConsentDate: string | null
+  marketingConsent?: boolean | null
+  status?: string | null
+  statusReason?: string | null
   createdAt: string
   updatedAt: string
   lastLoginAt: string | null
   withdrawalReason: string | null
   deletedAt: string | null
+  profileImage?: {
+    id?: string
+    fileUrl?: string
+    cdnUrl?: string
+    thumbnailUrl?: string
+  } | null
+  roles?: string[]
 }
 
 export interface UserDetailResponse {
   success: boolean
   data?: UserDetail
+  error?: string
+}
+
+export type AdminUserStatus = 'NORMAL' | 'WARNING' | 'SUSPENDED'
+
+export interface UpdateAdminUserStatusResponse {
+  success: boolean
+  error?: string
+}
+
+export interface UpdateAdminUserRequest {
+  name: string
+  nickname: string
+  gender: 'MALE' | 'FEMALE' | 'SECRET'
+  introduction: string
+  dateOfBirth: string | null
+  marketingConsent: boolean
+  status: 'NORMAL' | 'WARNING' | 'SUSPENDED'
+  statusReason: string | null
+}
+
+export interface UpdateAdminUserResponse {
+  success: boolean
   error?: string
 }
 
@@ -2683,7 +2764,7 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
     }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/users-admin/${userId}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/users/${userId}`
   
   if (isDev) {
     console.log('[API] 사용자 상세 정보 요청:', {
@@ -2732,12 +2813,12 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
     
     if (isDev) {
       console.log('[API] 사용자 상세 정보 성공:', {
-        data: responseData.data,
+        data: responseData.data || responseData,
         timestamp: new Date().toISOString(),
       })
     }
     
-    const userData = responseData.data
+    const userData = responseData.data || responseData
     
     if (!userData) {
       return {
@@ -2745,28 +2826,54 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
         error: '사용자 정보를 찾을 수 없습니다.',
       }
     }
+
+    const normalizeString = (value: unknown): string | null => {
+      if (typeof value === 'string') return value
+      if (value == null) return null
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+      if (typeof value === 'object') {
+        const record = value as Record<string, unknown>
+        for (const key of ['value', 'phone', 'number', 'fullName', 'name', 'nickname', 'text']) {
+          if (typeof record[key] === 'string') return record[key] as string
+        }
+      }
+      return null
+    }
+
+    const normalizeGender = (value: unknown): string => {
+      const gender = (normalizeString(value) || 'secret').toLowerCase()
+      if (gender === 'male' || gender === 'female' || gender === 'secret' || gender === 'private') {
+        return gender
+      }
+      return 'secret'
+    }
     
     return {
       success: true,
       data: {
-        id: userData.id,
-        email: userData.email || '',
-        provider: userData.provider || 'EMAIL',
+        id: String(userData.id ?? ''),
+        email: normalizeString(userData.email) || '',
+        provider: normalizeString(userData.provider) || 'EMAIL',
         providerId: userData.providerId || null,
         providerOrigin: userData.providerOrigin || null,
         providerVerifiedAt: userData.providerVerifiedAt || null,
-        contact: userData.contact || null,
-        name: userData.name || null,
-        nickname: userData.nickname || '',
-        introduction: userData.introduction || null,
-        gender: userData.gender || 'secret',
-        dateOfBirth: userData.dateOfBirth || null,
-        marketingConsentDate: userData.marketingConsentDate || null,
-        createdAt: userData.createdAt || new Date().toISOString(),
-        updatedAt: userData.updatedAt || new Date().toISOString(),
-        lastLoginAt: userData.lastLoginAt || null,
-        withdrawalReason: userData.withdrawalReason || null,
-        deletedAt: userData.deletedAt || null,
+        contact: normalizeString(userData.contact),
+        name: normalizeString(userData.name),
+        nickname: normalizeString(userData.nickname) || normalizeString(userData.name) || '',
+        introduction: normalizeString(userData.introduction),
+        gender: normalizeGender(userData.gender),
+        dateOfBirth: normalizeString(userData.dateOfBirth),
+        marketingConsentDate: normalizeString(userData.marketingConsentDate),
+        marketingConsent: typeof userData.marketingConsent === 'boolean' ? userData.marketingConsent : null,
+        status: normalizeString(userData.status),
+        statusReason: normalizeString(userData.statusReason),
+        createdAt: normalizeString(userData.createdAt) || new Date().toISOString(),
+        updatedAt: normalizeString(userData.updatedAt) || new Date().toISOString(),
+        lastLoginAt: normalizeString(userData.lastLoginAt),
+        withdrawalReason: normalizeString(userData.withdrawalReason),
+        deletedAt: normalizeString(userData.deletedAt),
+        profileImage: userData.profileImage || null,
+        roles: Array.isArray(userData.roles) ? userData.roles.map((r: unknown) => String(r)) : [],
       },
     }
   } catch (error) {
@@ -2781,6 +2888,87 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
     return {
       success: false,
       error: error instanceof Error ? error.message : '사용자 상세 정보 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function updateAdminUserStatus(
+  userId: string,
+  status: AdminUserStatus,
+  statusReason: string | null = null
+): Promise<UpdateAdminUserStatusResponse> {
+  const detailResult = await getUserDetail(userId)
+  if (!detailResult.success || !detailResult.data) {
+    return {
+      success: false,
+      error: detailResult.error || '사용자 정보를 불러오지 못했습니다.',
+    }
+  }
+
+  const d = detailResult.data
+  const genderUpper =
+    d.gender?.toUpperCase() === 'MALE' || d.gender?.toUpperCase() === 'FEMALE'
+      ? (d.gender.toUpperCase() as 'MALE' | 'FEMALE')
+      : 'SECRET'
+
+  return updateAdminUser(userId, {
+    name: d.name || '',
+    nickname: d.nickname || '',
+    gender: genderUpper,
+    introduction: d.introduction || '',
+    dateOfBirth: d.dateOfBirth || null,
+    marketingConsent: !!d.marketingConsent,
+    status,
+    statusReason,
+  })
+}
+
+export async function updateAdminUser(
+  userId: string,
+  payload: UpdateAdminUserRequest
+): Promise<UpdateAdminUserResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/users/${userId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...payload,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { message: errorText || '알 수 없는 오류' }
+      }
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `사용자 상태 수정 실패 (${response.status})`,
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '사용자 정보 수정 중 오류가 발생했습니다.',
     }
   }
 }
@@ -3287,6 +3475,425 @@ export async function deleteTagAdmin(
     return {
       success: false,
       error: error instanceof Error ? error.message : '태그 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export interface PlacebookCategory {
+  id: string
+  name: string
+  description: string | null
+  sortOrder: number
+  isActive: boolean
+  thumbnailUrl: string | null
+  createdAt: string
+  updatedAt: string
+  themeCount: number
+  placeCount: number
+  visitedPlaceCount: number
+  visitedPercent: number
+}
+
+export interface PlacebookCategoryListResponse {
+  success: boolean
+  data?: PlacebookCategory[]
+  error?: string
+}
+
+export interface CreatePlacebookCategoryRequest {
+  name: string
+  description?: string | null
+  sortOrder?: number
+  isActive?: boolean
+  thumbnailUrl?: string | null
+}
+
+export interface UpdatePlacebookCategoryRequest {
+  name?: string
+  description?: string | null
+  sortOrder?: number
+  isActive?: boolean
+  thumbnailUrl?: string | null
+}
+
+function getPlacebookCategoryItemsFromResponse(responseData: any): PlacebookCategory[] {
+  if (Array.isArray(responseData)) return responseData
+  if (Array.isArray(responseData?.items)) return responseData.items
+  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
+  if (Array.isArray(responseData?.data)) return responseData.data
+  return []
+}
+
+function getApiErrorMessage(errorData: any, fallback: string) {
+  if (!errorData || typeof errorData !== 'object') return fallback
+  return errorData.message || errorData.error || fallback
+}
+
+export async function getPlacebookCategoriesAdmin(): Promise<PlacebookCategoryListResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/categories`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `카테고리 목록 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: getPlacebookCategoryItemsFromResponse(responseData),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '카테고리 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function createPlacebookCategoryAdmin(
+  request: CreatePlacebookCategoryRequest
+): Promise<{ success: boolean; data?: PlacebookCategory; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/categories`
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `카테고리 생성 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookCategory,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '카테고리 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function updatePlacebookCategoryAdmin(
+  categoryId: string,
+  request: UpdatePlacebookCategoryRequest
+): Promise<{ success: boolean; data?: PlacebookCategory; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/categories/${categoryId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `카테고리 수정 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookCategory,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '카테고리 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function deletePlacebookCategoryAdmin(
+  categoryId: string
+): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/categories/${categoryId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `카테고리 삭제 실패 (${response.status})`),
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '카테고리 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export interface PlacebookTheme {
+  id: string
+  categoryId: string
+  name: string
+  description: string | null
+  sortOrder: number
+  isActive: boolean
+  thumbnailUrl: string | null
+  createdAt: string
+  updatedAt: string
+  placeCount: number
+  visitedPlaceCount: number
+  visitedPercent: number
+}
+
+export interface PlacebookThemeListResponse {
+  success: boolean
+  data?: PlacebookTheme[]
+  error?: string
+}
+
+export interface CreatePlacebookThemeRequest {
+  categoryId: string
+  name: string
+  description?: string | null
+  sortOrder?: number
+  isActive?: boolean
+  thumbnailUrl?: string | null
+}
+
+export interface UpdatePlacebookThemeRequest {
+  categoryId?: string
+  name?: string
+  description?: string | null
+  sortOrder?: number
+  isActive?: boolean
+  thumbnailUrl?: string | null
+}
+
+function getPlacebookThemeItemsFromResponse(responseData: any): PlacebookTheme[] {
+  if (Array.isArray(responseData)) return responseData
+  if (Array.isArray(responseData?.items)) return responseData.items
+  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
+  if (Array.isArray(responseData?.data)) return responseData.data
+  return []
+}
+
+export async function getPlacebookThemesAdmin(): Promise<PlacebookThemeListResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/themes`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `테마 목록 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: getPlacebookThemeItemsFromResponse(responseData),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '테마 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function createPlacebookThemeAdmin(
+  request: CreatePlacebookThemeRequest
+): Promise<{ success: boolean; data?: PlacebookTheme; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/themes`
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `테마 생성 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookTheme,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '테마 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function updatePlacebookThemeAdmin(
+  themeId: string,
+  request: UpdatePlacebookThemeRequest
+): Promise<{ success: boolean; data?: PlacebookTheme; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/themes/${themeId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `테마 수정 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookTheme,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '테마 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function deletePlacebookThemeAdmin(
+  themeId: string
+): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/placebook/themes/${themeId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `테마 삭제 실패 (${response.status})`),
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '테마 삭제 중 오류가 발생했습니다.',
     }
   }
 }

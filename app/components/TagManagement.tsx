@@ -1,296 +1,230 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getTagsAdmin, createTagAdmin, updateTagAdmin, deleteTagAdmin, toggleTagFilter, createTagFilter } from '../lib/api'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import {
+  createPlacebookCategoryAdmin,
+  deletePlacebookCategoryAdmin,
+  getPlacebookCategoriesAdmin,
+  PlacebookCategory,
+  PlacebookTheme,
+  getPlacebookThemesAdmin,
+  updatePlacebookCategoryAdmin,
+} from '../lib/api'
 import styles from './TagManagement.module.css'
 
-interface Tag {
-  id: string
+type CategoryFormState = {
   name: string
+  description: string
+  sortOrder: number
   isActive: boolean
-  order: number
-  createdAt?: string
-  updatedAt?: string
+  thumbnailUrl: string
+}
+
+const initialFormState: CategoryFormState = {
+  name: '',
+  description: '',
+  sortOrder: 1,
+  isActive: true,
+  thumbnailUrl: '',
 }
 
 export default function TagManagement() {
-  const [tags, setTags] = useState<Tag[]>([])
+  const [categories, setCategories] = useState<PlacebookCategory[]>([])
+  const [themes, setThemes] = useState<PlacebookTheme[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showModal, setShowModal] = useState(false)
-  const [editingTag, setEditingTag] = useState<Tag | null>(null)
-  const [deleteTagId, setDeleteTagId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [formData, setFormData] = useState({
-    name: '',
-    isActive: true,
-    order: 1,
-  })
+  const [showModal, setShowModal] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<PlacebookCategory | null>(null)
+  const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null)
+  const [formData, setFormData] = useState<CategoryFormState>(initialFormState)
+  const [draggingCategoryId, setDraggingCategoryId] = useState<string | null>(null)
+  const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null)
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<string[]>([])
 
-  // 태그 목록 로드
-  const loadTags = async () => {
+  const getNextSortOrder = (items: PlacebookCategory[]) =>
+    items.length > 0 ? Math.max(...items.map((item) => item.sortOrder || 0)) + 1 : 1
+
+  const resetForm = (items: PlacebookCategory[] = categories) => {
+    setFormData({
+      ...initialFormState,
+      sortOrder: getNextSortOrder(items),
+    })
+  }
+
+  const loadCategories = async () => {
     setIsLoading(true)
     setError(null)
-    
+
     try {
-      const result = await getTagsAdmin()
-      console.log('[TagManagement] API 응답:', result)
-      
-      if (result.success) {
-        // result.data가 배열인지 확인
-        let tagsData: Tag[] = []
-        const resultData = result.data as any
-        
-        if (Array.isArray(resultData)) {
-          tagsData = resultData
-        } else if (resultData && typeof resultData === 'object') {
-          // 객체인 경우, 배열 필드를 찾아봄
-          if (Array.isArray(resultData.tags)) {
-            tagsData = resultData.tags
-          } else if (Array.isArray(resultData.items)) {
-            tagsData = resultData.items
-          } else if (Array.isArray(resultData.list)) {
-            tagsData = resultData.list
-          } else if (Array.isArray(resultData.data)) {
-            tagsData = resultData.data
-          } else {
-            // 객체 자체가 태그 하나일 수도 있음
-            console.warn('[TagManagement] 예상치 못한 응답 구조:', resultData)
-          }
-        }
-        
-        console.log('[TagManagement] 추출된 태그 데이터:', tagsData)
-        setTags(tagsData)
-      } else {
-        const errorMsg = result.error || '태그 목록을 불러오는데 실패했습니다.'
-        setError(errorMsg)
-        setTags([])
-        console.error('[TagManagement] 태그 목록 로드 실패:', errorMsg)
+      const [categoryResult, themeResult] = await Promise.all([
+        getPlacebookCategoriesAdmin(),
+        getPlacebookThemesAdmin(),
+      ])
+
+      if (!categoryResult.success) {
+        setCategories([])
+        setThemes([])
+        setError(categoryResult.error || '카테고리 목록을 불러오지 못했습니다.')
+        return
       }
+
+      if (!themeResult.success) {
+        setCategories([])
+        setThemes([])
+        setError(themeResult.error || '테마 목록을 불러오지 못했습니다.')
+        return
+      }
+
+      const items = [...(categoryResult.data || [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      const themeItems = [...(themeResult.data || [])].sort((a, b) => {
+        if (a.categoryId === b.categoryId) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+        return a.categoryId.localeCompare(b.categoryId)
+      })
+      setCategories(items)
+      setThemes(themeItems)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '태그 목록을 불러오는데 실패했습니다.'
-      setError(errorMsg)
-      setTags([])
-      console.error('[TagManagement] 태그 목록 로드 예외:', err)
+      setCategories([])
+      setThemes([])
+      setError(err instanceof Error ? err.message : '카테고리 목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    loadTags()
+    void loadCategories()
   }, [])
 
-  // 검색 필터링
-  const filteredTags = Array.isArray(tags) ? tags.filter(tag =>
-    tag.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ) : []
+  const filteredCategories = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return categories
+    return categories.filter((category) => {
+      const name = category.name?.toLowerCase() || ''
+      const description = category.description?.toLowerCase() || ''
+      return name.includes(q) || description.includes(q)
+    })
+  }, [categories, searchQuery])
 
-  // 모달 열기 (생성)
-  const handleAddClick = () => {
-    setEditingTag(null)
-    // 다음 order 값 계산 (기존 태그 중 최대 order + 1)
-    const maxOrder = tags.length > 0 ? Math.max(...tags.map(t => t.order || 0)) : 0
+  const themesByCategory = useMemo(() => {
+    const map = new Map<string, PlacebookTheme[]>()
+    for (const theme of themes) {
+      const current = map.get(theme.categoryId) || []
+      current.push(theme)
+      map.set(theme.categoryId, current)
+    }
+    for (const [, items] of map) {
+      items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    }
+    return map
+  }, [themes])
+
+  const openCreateModal = () => {
+    setEditingCategory(null)
+    resetForm()
+    setShowModal(true)
+  }
+
+  const openEditModal = (category: PlacebookCategory) => {
+    setEditingCategory(category)
     setFormData({
-      name: '',
-      isActive: true,
-      order: maxOrder + 1,
+      name: category.name || '',
+      description: category.description || '',
+      sortOrder: category.sortOrder || 1,
+      isActive: !!category.isActive,
+      thumbnailUrl: category.thumbnailUrl || '',
     })
     setShowModal(true)
   }
 
-  // 모달 열기 (수정)
-  const handleEditClick = (tag: Tag) => {
-    setEditingTag(tag)
-    setFormData({
-      name: tag.name,
-      isActive: tag.isActive ?? true,
-      order: tag.order ?? 1,
-    })
-    setShowModal(true)
+  const closeModal = () => {
+    if (isSubmitting) return
+    setShowModal(false)
+    setEditingCategory(null)
+    resetForm()
   }
 
-  // 삭제 확인
-  const handleDeleteClick = (tagId: string) => {
-    setDeleteTagId(tagId)
-  }
-
-  // 삭제 취소
-  const handleDeleteCancel = () => {
-    setDeleteTagId(null)
-  }
-
-  // 삭제 실행
-  const handleDeleteConfirm = async () => {
-    if (!deleteTagId) return
-
-    try {
-      const result = await deleteTagAdmin(deleteTagId)
-      if (result.success) {
-        await loadTags()
-        setDeleteTagId(null)
-        alert('태그가 삭제되었습니다.')
-      } else {
-        alert(result.error || '태그 삭제에 실패했습니다.')
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '태그 삭제에 실패했습니다.')
-    }
-  }
-
-  // 활성/비활성 토글
-  const handleToggleActive = async (tagId: string) => {
-    try {
-      // 먼저 토글 시도
-      let result = await toggleTagFilter(tagId)
-      
-      // 필터에 등록되지 않은 태그인 경우 먼저 등록하고 활성화
-      if (!result.success && (
-        result.error?.includes('필터에 등록되지 않은 태그') ||
-        result.error?.includes('등록되지 않은 태그') ||
-        result.error?.includes('not found') ||
-        result.error?.includes('404')
-      )) {
-        console.log('[TagManagement] 필터에 등록되지 않은 태그 감지, 필터 등록 시작')
-        
-        // 필터에 등록
-        const filterResult = await createTagFilter(tagId, {})
-        
-        if (!filterResult.success) {
-          alert(`필터 등록에 실패했습니다: ${filterResult.error || '알 수 없는 오류'}`)
-          return
-        }
-        
-        console.log('[TagManagement] 필터 등록 성공, 활성화 시작')
-        
-        // 필터 등록 완료 후 상태 안정화 대기
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        // 필터 등록 성공 후 토글하여 활성화
-        result = await toggleTagFilter(tagId)
-        
-        if (!result.success) {
-          // 토글 실패 시 재시도
-          await new Promise(resolve => setTimeout(resolve, 200))
-          result = await toggleTagFilter(tagId)
-          
-          if (!result.success) {
-            alert(`필터는 등록되었지만 활성화에 실패했습니다: ${result.error || '알 수 없는 오류'}`)
-            return
-          }
-        }
-        
-        console.log('[TagManagement] 필터 등록 및 활성화 완료')
-      } else if (!result.success) {
-        alert(result.error || '태그 상태 변경에 실패했습니다.')
-        return
-      }
-      
-      if (result.success) {
-        await loadTags()
-      }
-    } catch (err) {
-      console.error('[TagManagement] 토글 중 오류:', err)
-      alert(err instanceof Error ? err.message : '태그 상태 변경에 실패했습니다.')
-    }
-  }
-
-  // 저장
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      alert('태그 이름을 입력해주세요.')
+      alert('카테고리 이름을 입력해주세요.')
+      return
+    }
+    if (!Number.isFinite(formData.sortOrder) || formData.sortOrder < 1) {
+      alert('정렬 순서는 1 이상의 숫자여야 합니다.')
       return
     }
 
-    // 수정 시에만 순서 검증
-    if (editingTag && formData.order < 1) {
-      alert('순서는 1 이상이어야 합니다.')
+    setIsSubmitting(true)
+
+    const payload = {
+      name: formData.name.trim(),
+      description: formData.description.trim() || null,
+      sortOrder: formData.sortOrder,
+      isActive: formData.isActive,
+      thumbnailUrl: formData.thumbnailUrl.trim() || null,
+    }
+
+    const result = editingCategory
+      ? await updatePlacebookCategoryAdmin(editingCategory.id, payload)
+      : await createPlacebookCategoryAdmin(payload)
+
+    setIsSubmitting(false)
+
+    if (!result.success) {
+      alert(result.error || (editingCategory ? '카테고리 수정에 실패했습니다.' : '카테고리 생성에 실패했습니다.'))
       return
     }
 
-    try {
-      let result
-      if (editingTag) {
-        // 활성/비활성 상태가 변경되었다면 토글 API 호출
-        if (formData.isActive !== editingTag.isActive) {
-          let toggleResult = await toggleTagFilter(editingTag.id)
-          
-          // 필터에 등록되지 않은 태그인 경우 먼저 등록
-          if (!toggleResult.success && toggleResult.error?.includes('필터에 등록되지 않은 태그')) {
-            const filterResult = await createTagFilter(editingTag.id, {})
-            if (filterResult.success) {
-              // 필터 등록 성공 후 다시 토글 시도
-              toggleResult = await toggleTagFilter(editingTag.id)
-              if (!toggleResult.success) {
-                alert(`태그 상태 변경에 실패했습니다: ${toggleResult.error || '알 수 없는 오류'}`)
-                return // 상태 변경 실패 시 수정 중단
-              }
-            } else {
-              alert(`필터 등록에 실패했습니다: ${filterResult.error || '알 수 없는 오류'}`)
-              return // 필터 등록 실패 시 수정 중단
-            }
-          } else if (!toggleResult.success) {
-            alert(`태그 상태 변경에 실패했습니다: ${toggleResult.error || '알 수 없는 오류'}`)
-            return // 상태 변경 실패 시 수정 중단
-          }
-        }
-        
-        // 수정 (이름과 순서만 수정, isActive는 토글 API로만 변경)
-        result = await updateTagAdmin(editingTag.id, {
-          name: formData.name.trim(),
-          isActive: editingTag.isActive, // API에는 전송하지 않지만 인터페이스 유지를 위해 포함
-          order: formData.order,
-        })
-      } else {
-        // 생성: 태그만 생성 (필터 등록은 나중에)
-        console.log('[TagManagement] 태그 생성 시작:', formData)
-        result = await createTagAdmin({
-          name: formData.name.trim(),
-          // 태그 생성 시 isActive와 order는 필요없음
-        })
-        
-        console.log('[TagManagement] 태그 생성 결과:', result)
-      }
-
-      // 태그 생성/수정 및 필터 등록이 모두 완료된 후에만 모달 닫기
-      if (result.success) {
-        // 태그 목록을 다시 로드하여 최신 상태 반영
-        await loadTags()
-        
-        // 모든 작업이 완료된 후 모달 닫기
-        setShowModal(false)
-        setEditingTag(null)
-        const maxOrder = tags.length > 0 ? Math.max(...tags.map(t => t.order || 0)) : 0
-        setFormData({
-          name: '',
-          isActive: true,
-          order: maxOrder + 1,
-        })
-        alert(editingTag ? '태그가 수정되었습니다.' : '태그가 생성되었습니다.')
-      } else {
-        // 실패 시 모달은 열려있고 에러 메시지만 표시
-        alert(result.error || (editingTag ? '태그 수정에 실패했습니다.' : '태그 생성에 실패했습니다.'))
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : (editingTag ? '태그 수정에 실패했습니다.' : '태그 생성에 실패했습니다.'))
-    }
-  }
-
-  // 모달 닫기
-  const handleModalClose = () => {
+    await loadCategories()
     setShowModal(false)
-    setEditingTag(null)
-    const maxOrder = tags.length > 0 ? Math.max(...tags.map(t => t.order || 0)) : 0
-    setFormData({
-      name: '',
-      isActive: true,
-      order: maxOrder + 1,
-    })
+    setEditingCategory(null)
+    resetForm()
+    alert(editingCategory ? '카테고리가 수정되었습니다.' : '카테고리가 생성되었습니다.')
   }
 
-  const formatDate = (dateString: string) => {
+  const handleDeleteConfirm = async () => {
+    if (!deleteCategoryId || isSubmitting) return
+
+    setIsSubmitting(true)
+    const result = await deletePlacebookCategoryAdmin(deleteCategoryId)
+    setIsSubmitting(false)
+
+    if (!result.success) {
+      alert(result.error || '카테고리 삭제에 실패했습니다.')
+      return
+    }
+
+    await loadCategories()
+    setDeleteCategoryId(null)
+    alert('카테고리가 삭제되었습니다.')
+  }
+
+  const handleToggleActive = async (category: PlacebookCategory) => {
+    if (isSubmitting) return
+
+    setIsSubmitting(true)
+    const result = await updatePlacebookCategoryAdmin(category.id, {
+      name: category.name,
+      description: category.description,
+      sortOrder: category.sortOrder,
+      isActive: !category.isActive,
+      thumbnailUrl: category.thumbnailUrl,
+    })
+    setIsSubmitting(false)
+
+    if (!result.success) {
+      alert(result.error || '카테고리 상태 변경에 실패했습니다.')
+      return
+    }
+
+    await loadCategories()
+  }
+
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return '-'
     const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return '-'
     return date.toLocaleString('ko-KR', {
       year: 'numeric',
       month: '2-digit',
@@ -300,102 +234,277 @@ export default function TagManagement() {
     })
   }
 
+  const updateCategoryOrder = async (nextOrderedCategories: PlacebookCategory[]) => {
+    const prevCategories = categories
+    const normalized = nextOrderedCategories.map((category, index) => ({
+      ...category,
+      sortOrder: index + 1,
+    }))
+
+    setCategories(normalized)
+    setDraggingCategoryId(null)
+    setDragOverCategoryId(null)
+    setIsSubmitting(true)
+
+    const changedItems = normalized.filter((item, index) => {
+      const prev = prevCategories.find((p) => p.id === item.id)
+      return !prev || prev.sortOrder !== index + 1
+    })
+
+    try {
+      for (const item of changedItems) {
+        const result = await updatePlacebookCategoryAdmin(item.id, {
+          name: item.name,
+          description: item.description,
+          sortOrder: item.sortOrder,
+          isActive: item.isActive,
+          thumbnailUrl: item.thumbnailUrl,
+        })
+
+        if (!result.success) {
+          throw new Error(result.error || '정렬 순서 저장에 실패했습니다.')
+        }
+      }
+      await loadCategories()
+    } catch (err) {
+      setCategories(prevCategories)
+      alert(err instanceof Error ? err.message : '정렬 순서 저장에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDropReorder = async (targetCategoryId: string) => {
+    if (!draggingCategoryId || draggingCategoryId === targetCategoryId) {
+      setDraggingCategoryId(null)
+      setDragOverCategoryId(null)
+      return
+    }
+    if (searchQuery.trim()) {
+      setDraggingCategoryId(null)
+      setDragOverCategoryId(null)
+      return
+    }
+
+    const sourceIndex = categories.findIndex((item) => item.id === draggingCategoryId)
+    const targetIndex = categories.findIndex((item) => item.id === targetCategoryId)
+    if (sourceIndex < 0 || targetIndex < 0) {
+      setDraggingCategoryId(null)
+      setDragOverCategoryId(null)
+      return
+    }
+
+    const next = [...categories]
+    const [moved] = next.splice(sourceIndex, 1)
+    next.splice(targetIndex, 0, moved)
+    await updateCategoryOrder(next)
+  }
+
+  const toggleExpandedCategory = (categoryId: string) => {
+    setExpandedCategoryIds((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
+    )
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>태그 관리</h1>
-        <button
-          onClick={handleAddClick}
-          className={styles.addButton}
-        >
-          + 태그 추가
+        <h1 className={styles.title}>카테고리 관리</h1>
+        <button onClick={openCreateModal} className={styles.addButton}>
+          + 카테고리 추가
         </button>
       </div>
 
       <div className={styles.content}>
-        {/* 검색 */}
         <div className={styles.searchContainer}>
           <input
             type="text"
-            placeholder="태그 이름으로 검색..."
+            placeholder="카테고리 이름/설명으로 검색..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={styles.searchInput}
           />
+          <p style={{ margin: '10px 0 0', fontSize: '12px', color: '#777' }}>
+            정렬은 행 드래그앤드롭으로 변경할 수 있습니다. {searchQuery.trim() ? '(검색 중에는 비활성화)' : ''}
+          </p>
         </div>
 
-        {/* 에러 메시지 */}
-        {error && (
-          <div className={styles.errorMessage}>
-            {error}
-          </div>
-        )}
+        {error && <div className={styles.errorMessage}>{error}</div>}
 
-        {/* 로딩 */}
-        {isLoading && (
-          <div className={styles.loading}>
-            로딩 중...
-          </div>
-        )}
+        {isLoading && <div className={styles.loading}>로딩 중...</div>}
 
-        {/* 태그 목록 */}
         {!isLoading && !error && (
           <>
-            {filteredTags.length === 0 ? (
+            {filteredCategories.length === 0 ? (
               <div className={styles.emptyState}>
-                {searchQuery ? '검색 결과가 없습니다.' : '등록된 태그가 없습니다.'}
+                {searchQuery ? '검색 결과가 없습니다.' : '등록된 카테고리가 없습니다.'}
               </div>
             ) : (
               <div className={styles.tableContainer}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>태그 이름</th>
-                      <th>활성화 상태</th>
-                      <th>순서</th>
-                      <th>생성일</th>
+                      <th>이름</th>
+                      <th>썸네일</th>
+                      <th>설명</th>
+                      <th>상태</th>
+                      <th>정렬</th>
+                      <th>테마</th>
+                      <th>장소</th>
+                      <th>방문완료</th>
+                      <th>방문율</th>
                       <th>수정일</th>
                       <th>작업</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTags.map((tag) => (
-                      <tr key={tag.id}>
+                    {filteredCategories.map((category) => {
+                      const isExpanded = expandedCategoryIds.includes(category.id)
+                      const categoryThemes = themesByCategory.get(category.id) || []
+                      return (
+                      <Fragment key={category.id}>
+                      <tr
+                        draggable={!isSubmitting && !searchQuery.trim()}
+                        onDragStart={() => {
+                          if (isSubmitting || searchQuery.trim()) return
+                          setDraggingCategoryId(category.id)
+                        }}
+                        onDragOver={(e) => {
+                          if (!draggingCategoryId || isSubmitting || searchQuery.trim()) return
+                          e.preventDefault()
+                          setDragOverCategoryId(category.id)
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverCategoryId === category.id) setDragOverCategoryId(null)
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          void handleDropReorder(category.id)
+                        }}
+                        onDragEnd={() => {
+                          setDraggingCategoryId(null)
+                          setDragOverCategoryId(null)
+                        }}
+                        style={{
+                          opacity: draggingCategoryId === category.id ? 0.55 : 1,
+                          backgroundColor: dragOverCategoryId === category.id ? '#eef6ff' : undefined,
+                          cursor: !isSubmitting && !searchQuery.trim() ? 'grab' : undefined,
+                        }}
+                      >
                         <td>
-                          <div className={styles.tagNameCell}>
-                            {tag.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandedCategory(category.id)}
+                              className={styles.actionButton}
+                              style={{ padding: '2px 8px', minWidth: '32px' }}
+                            >
+                              {isExpanded ? '−' : '+'}
+                            </button>
+                            <div className={styles.tagNameCell}>{category.name}</div>
                           </div>
                         </td>
                         <td>
+                          {category.thumbnailUrl ? (
+                            <img
+                              src={category.thumbnailUrl}
+                              alt={category.name}
+                              style={{
+                                width: '64px',
+                                height: '40px',
+                                objectFit: 'cover',
+                                borderRadius: '6px',
+                                border: '1px solid #e5e7eb',
+                                display: 'block',
+                              }}
+                            />
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td>{category.description || '-'}</td>
+                        <td>
                           <button
-                            onClick={() => handleToggleActive(tag.id)}
-                            className={`${styles.statusBadge} ${styles.toggleButton} ${tag.isActive ? styles.active : styles.inactive}`}
+                            onClick={() => void handleToggleActive(category)}
+                            className={`${styles.statusBadge} ${styles.toggleButton} ${
+                              category.isActive ? styles.active : styles.inactive
+                            }`}
                             title="클릭하여 활성/비활성 토글"
+                            disabled={isSubmitting}
                           >
-                            {tag.isActive ? '활성' : '비활성'}
+                            {category.isActive ? '활성' : '비활성'}
                           </button>
                         </td>
-                        <td>{tag.order}</td>
-                        <td>{tag.createdAt ? formatDate(tag.createdAt) : '-'}</td>
-                        <td>{tag.updatedAt && tag.updatedAt !== tag.createdAt ? formatDate(tag.updatedAt) : '-'}</td>
+                        <td>{category.sortOrder}</td>
+                        <td>{category.themeCount ?? 0}</td>
+                        <td>{category.placeCount ?? 0}</td>
+                        <td>{category.visitedPlaceCount ?? 0}</td>
+                        <td>{typeof category.visitedPercent === 'number' ? `${category.visitedPercent}%` : '-'}</td>
+                        <td>{formatDate(category.updatedAt)}</td>
                         <td>
                           <div className={styles.actions}>
-                            <button
-                              onClick={() => handleEditClick(tag)}
-                              className={styles.actionButton}
-                            >
+                            <button onClick={() => openEditModal(category)} className={styles.actionButton} disabled={isSubmitting}>
                               수정
                             </button>
                             <button
-                              onClick={() => handleDeleteClick(tag.id)}
+                              onClick={() => setDeleteCategoryId(category.id)}
                               className={`${styles.actionButton} ${styles.deleteButton}`}
+                              disabled={isSubmitting}
                             >
                               삭제
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={11} style={{ background: '#fafcff', padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                                포함된 테마 ({categoryThemes.length})
+                              </div>
+                              {categoryThemes.length === 0 ? (
+                                <div style={{ fontSize: '13px', color: '#64748b' }}>등록된 테마가 없습니다.</div>
+                              ) : (
+                                <div style={{ display: 'grid', gap: '8px' }}>
+                                  {categoryThemes.map((theme) => (
+                                    <div
+                                      key={theme.id}
+                                      style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '56px 1fr auto',
+                                        gap: '10px',
+                                        alignItems: 'center',
+                                        padding: '8px 10px',
+                                        background: '#fff',
+                                        border: '1px solid #e5e7eb',
+                                        borderRadius: '8px',
+                                      }}
+                                    >
+                                      <div style={{ fontSize: '12px', color: '#64748b' }}>#{theme.sortOrder}</div>
+                                      <div>
+                                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+                                          {theme.name}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                                          {theme.description || '-'}
+                                        </div>
+                                      </div>
+                                      <span
+                                        className={`${styles.statusBadge} ${theme.isActive ? styles.active : styles.inactive}`}
+                                      >
+                                        {theme.isActive ? '활성' : '비활성'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -404,140 +513,156 @@ export default function TagManagement() {
         )}
       </div>
 
-      {/* 생성/수정 모달 */}
       {showModal && (
-        <div className={styles.modalOverlay} onClick={handleModalClose}>
+        <div className={styles.modalOverlay} onClick={closeModal}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>{editingTag ? '태그 수정' : '태그 추가'}</h2>
-              <button
-                onClick={handleModalClose}
-                className={styles.modalCloseButton}
-              >
+              <h2>{editingCategory ? '카테고리 수정' : '카테고리 추가'}</h2>
+              <button onClick={closeModal} className={styles.modalCloseButton} disabled={isSubmitting}>
                 ×
               </button>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  태그 이름 <span className={styles.required}>*</span>
+                  카테고리 이름 <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   className={styles.input}
-                  placeholder="태그 이름을 입력하세요"
+                  placeholder="카테고리 이름을 입력하세요"
+                  disabled={isSubmitting}
                 />
               </div>
-              {/* 수정 모달에서만 활성화 상태와 순서 표시 */}
-              {editingTag && (
-                <>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>
-                      활성화 상태 <span className={styles.required}>*</span>
-                    </label>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
-                        <input
-                          type="radio"
-                          name="isActive"
-                          checked={formData.isActive === true}
-                          onChange={() => setFormData({ ...formData, isActive: true })}
-                          style={{ cursor: 'pointer' }}
-                        />
-                        <span>활성</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
-                        <input
-                          type="radio"
-                          name="isActive"
-                          checked={formData.isActive === false}
-                          onChange={() => setFormData({ ...formData, isActive: false })}
-                          style={{ cursor: 'pointer' }}
-                        />
-                        <span>비활성</span>
-                      </label>
-                    </div>
-                    <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                      테이블에서 상태 배지를 클릭하여도 활성/비활성을 변경할 수 있습니다.
-                    </p>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label}>
-                      순서 <span className={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.order}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value, 10)
-                        if (!isNaN(value) && value >= 1) {
-                          setFormData({ ...formData, order: value })
-                        } else if (e.target.value === '') {
-                          setFormData({ ...formData, order: 1 })
-                        }
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>설명</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                  className={styles.textarea}
+                  placeholder="카테고리 설명을 입력하세요"
+                  rows={3}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>썸네일 URL</label>
+                <input
+                  type="text"
+                  value={formData.thumbnailUrl}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, thumbnailUrl: e.target.value }))}
+                  className={styles.input}
+                  placeholder="https://..."
+                  disabled={isSubmitting}
+                />
+                <p style={{ fontSize: '12px', color: '#777', marginTop: '6px' }}>
+                  파일 업로드 API 연결 전까지는 URL 입력 방식으로 사용합니다.
+                </p>
+                {formData.thumbnailUrl.trim() && (
+                  <div style={{ marginTop: '10px' }}>
+                    <img
+                      src={formData.thumbnailUrl}
+                      alt="썸네일 미리보기"
+                      style={{
+                        width: '100%',
+                        maxWidth: '220px',
+                        height: '120px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                        background: '#f8fafc',
                       }}
-                      className={styles.input}
-                      placeholder="1"
                     />
-                    <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                      숫자가 작을수록 먼저 표시됩니다.
-                    </p>
                   </div>
-                </>
-              )}
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  정렬 순서 <span className={styles.required}>*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.sortOrder}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      sortOrder: Math.max(1, Number.parseInt(e.target.value || '1', 10) || 1),
+                    }))
+                  }
+                  className={styles.input}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>
+                  활성화 상태 <span className={styles.required}>*</span>
+                </label>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                    <input
+                      type="radio"
+                      name="category-isActive"
+                      checked={formData.isActive === true}
+                      onChange={() => setFormData((prev) => ({ ...prev, isActive: true }))}
+                      disabled={isSubmitting}
+                    />
+                    <span>활성</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                    <input
+                      type="radio"
+                      name="category-isActive"
+                      checked={formData.isActive === false}
+                      onChange={() => setFormData((prev) => ({ ...prev, isActive: false }))}
+                      disabled={isSubmitting}
+                    />
+                    <span>비활성</span>
+                  </label>
+                </div>
+              </div>
             </div>
             <div className={styles.modalFooter}>
-              <button
-                onClick={handleModalClose}
-                className={styles.cancelButton}
-              >
+              <button onClick={closeModal} className={styles.cancelButton} disabled={isSubmitting}>
                 취소
               </button>
-              <button
-                onClick={handleSave}
-                className={styles.saveButton}
-              >
-                {editingTag ? '수정' : '생성'}
+              <button onClick={() => void handleSave()} className={styles.saveButton} disabled={isSubmitting}>
+                {isSubmitting ? '처리 중...' : editingCategory ? '수정' : '생성'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 삭제 확인 모달 */}
-      {deleteTagId && (
-        <div className={styles.modalOverlay} onClick={handleDeleteCancel}>
+      {deleteCategoryId && (
+        <div className={styles.modalOverlay} onClick={() => (isSubmitting ? undefined : setDeleteCategoryId(null))}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>태그 삭제</h2>
+              <h2>카테고리 삭제</h2>
               <button
-                onClick={handleDeleteCancel}
+                onClick={() => setDeleteCategoryId(null)}
                 className={styles.modalCloseButton}
+                disabled={isSubmitting}
               >
                 ×
               </button>
             </div>
             <div className={styles.modalBody}>
-              <p>정말로 이 태그를 삭제하시겠습니까?</p>
-              <p className={styles.warningText}>
-                이 작업은 되돌릴 수 없습니다.
-              </p>
+              <p>정말로 이 카테고리를 삭제하시겠습니까?</p>
+              <p className={styles.warningText}>이 작업은 되돌릴 수 없습니다.</p>
             </div>
             <div className={styles.modalFooter}>
-              <button
-                onClick={handleDeleteCancel}
-                className={styles.cancelButton}
-              >
+              <button onClick={() => setDeleteCategoryId(null)} className={styles.cancelButton} disabled={isSubmitting}>
                 취소
               </button>
-              <button
-                onClick={handleDeleteConfirm}
-                className={styles.deleteConfirmButton}
-              >
-                삭제
+              <button onClick={() => void handleDeleteConfirm()} className={styles.deleteConfirmButton} disabled={isSubmitting}>
+                {isSubmitting ? '처리 중...' : '삭제'}
               </button>
             </div>
           </div>
