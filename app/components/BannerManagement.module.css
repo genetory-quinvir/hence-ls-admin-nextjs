@@ -583,6 +583,30 @@
   font-size: 12px;
 }
 
+.tagActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.clearTagsBtn {
+  padding: 6px 12px;
+  border: 1px solid #e57373;
+  background: #fff;
+  color: #c62828;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.clearTagsBtn:hover {
+  background: #ffebee;
+  color: #b71c1c;
+}
+
 .loadingTags,
 .noTags {
   padding: 20px;

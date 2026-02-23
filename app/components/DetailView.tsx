@@ -16,6 +16,7 @@ import PushNotification from './PushNotification'
 import CustomerVoice from './CustomerVoice'
 import TagManagement from './TagManagement'
 import ThemeManagement from './ThemeManagement'
+import PlaceManagement from './PlaceManagement'
 import { useAuth } from '../context/AuthContext'
 import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import { API_BASE_URLS, type ApiEnvironment } from '../lib/api-base-url'
@@ -119,6 +120,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
         return <TagManagement />
       case 'theme-management':
         return <ThemeManagement />
+      case 'place-management':
+        return <PlaceManagement />
       
       default:
         return (

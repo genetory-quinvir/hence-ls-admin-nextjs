@@ -3536,7 +3536,7 @@ export async function getPlacebookCategoriesAdmin(): Promise<PlacebookCategoryLi
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/categories`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/categories`
 
   try {
     const response = await fetch(url, {
@@ -3577,7 +3577,7 @@ export async function createPlacebookCategoryAdmin(
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/categories`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/categories`
 
   try {
     const response = await fetch(url, {
@@ -3620,7 +3620,7 @@ export async function updatePlacebookCategoryAdmin(
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/categories/${categoryId}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/categories/${categoryId}`
 
   try {
     const response = await fetch(url, {
@@ -3662,7 +3662,7 @@ export async function deletePlacebookCategoryAdmin(
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/categories/${categoryId}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/categories/${categoryId}`
 
   try {
     const response = await fetch(url, {
@@ -3744,7 +3744,7 @@ export async function getPlacebookThemesAdmin(): Promise<PlacebookThemeListRespo
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/themes`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/themes`
 
   try {
     const response = await fetch(url, {
@@ -3785,7 +3785,7 @@ export async function createPlacebookThemeAdmin(
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/themes`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/themes`
 
   try {
     const response = await fetch(url, {
@@ -3828,7 +3828,7 @@ export async function updatePlacebookThemeAdmin(
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/themes/${themeId}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/themes/${themeId}`
 
   try {
     const response = await fetch(url, {
@@ -3870,7 +3870,7 @@ export async function deletePlacebookThemeAdmin(
     return { success: false, error: '인증이 필요합니다.' }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/placebook/themes/${themeId}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/themes/${themeId}`
 
   try {
     const response = await fetch(url, {
@@ -3894,6 +3894,229 @@ export async function deletePlacebookThemeAdmin(
     return {
       success: false,
       error: error instanceof Error ? error.message : '테마 삭제 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export interface PlacebookPlace {
+  id: string
+  themeId: string
+  createdByUserId?: unknown
+  name: string
+  description?: string | null
+  placeName?: string | null
+  address?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  thumbnailUrl?: string | null
+  hashtags?: string[]
+  sortOrder: number
+  isActive: boolean
+  visited: boolean
+  favorited: boolean
+  visitCount: number
+  favoriteCount: number
+  likeCount: number
+  commentCount: number
+  popularityScore: number
+}
+
+export interface PlacebookPlaceListResponse {
+  success: boolean
+  data?: PlacebookPlace[]
+  error?: string
+}
+
+export interface CreatePlacebookPlaceRequest {
+  themeId: string
+  name: string
+  description?: string | null
+  placeName?: string | null
+  address?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  thumbnailUrl?: string | null
+  hashtags?: string[]
+}
+
+export interface UpdatePlacebookPlaceRequest {
+  themeId?: string
+  name?: string
+  description?: string | null
+  placeName?: string | null
+  address?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  thumbnailUrl?: string | null
+  hashtags?: string[]
+  isActive?: boolean
+}
+
+function getPlacebookPlaceItemsFromResponse(responseData: any): PlacebookPlace[] {
+  if (Array.isArray(responseData)) return responseData
+  if (Array.isArray(responseData?.items)) return responseData.items
+  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
+  if (Array.isArray(responseData?.data)) return responseData.data
+  return []
+}
+
+export async function getPlacebookPlacesAdmin(): Promise<PlacebookPlaceListResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 목록 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: getPlacebookPlaceItemsFromResponse(responseData),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function createPlacebookPlaceAdmin(
+  request: CreatePlacebookPlaceRequest
+): Promise<{ success: boolean; data?: PlacebookPlace; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places`
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 생성 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookPlace,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 생성 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function updatePlacebookPlaceAdmin(
+  placeId: string,
+  request: UpdatePlacebookPlaceRequest
+): Promise<{ success: boolean; data?: PlacebookPlace; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places/${placeId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 수정 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookPlace,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 수정 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function deletePlacebookPlaceAdmin(
+  placeId: string
+): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places/${placeId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 삭제 실패 (${response.status})`),
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 삭제 중 오류가 발생했습니다.',
     }
   }
 }

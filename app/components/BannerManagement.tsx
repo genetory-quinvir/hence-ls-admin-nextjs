@@ -305,10 +305,10 @@ export default function BannerManagement() {
     setIsSubmitting(true)
     
     try {
-      // 선택된 태그를 쉼표로 구분된 문자열로 변환
+      // 선택된 태그를 쉼표로 구분된 문자열로 변환 (빈 배열이면 빈 문자열로 전송해 모든 태그 삭제)
       const tagsString = formData.selectedTags.length > 0 
         ? formData.selectedTags.join(',') 
-        : undefined
+        : ''
       
       const updateData: any = {
         title: formData.title.trim(),
@@ -476,11 +476,22 @@ export default function BannerManagement() {
             ))}
           </div>
         )}
-        {formData.selectedTags.length > 0 && (
-          <div className={styles.selectedTagsPreview}>
-            <small>선택된 태그: {formData.selectedTags.join(', ')}</small>
-          </div>
-        )}
+        <div className={styles.tagActionsRow}>
+          {formData.selectedTags.length > 0 && (
+            <>
+              <div className={styles.selectedTagsPreview}>
+                <small>선택된 태그: {formData.selectedTags.join(', ')}</small>
+              </div>
+              <button
+                type="button"
+                className={styles.clearTagsBtn}
+                onClick={() => setFormData(prev => ({ ...prev, selectedTags: [] }))}
+              >
+                모든 태그 삭제
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.formRow}>

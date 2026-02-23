@@ -29,6 +29,7 @@ const menuItems: MenuItem[] = [
     children: [
       { id: 'category-management', label: '카테고리 관리' },
       { id: 'theme-management', label: '테마 관리' },
+      { id: 'place-management', label: '장소 관리' },
     ],
   },
   {
