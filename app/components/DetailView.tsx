@@ -9,14 +9,16 @@ import LiveSpaceAutomation from './LiveSpaceAutomation'
 import KoreanFestivalEvent from './KoreanFestivalEvent'
 import UserList from './UserList'
 import FeedList from './FeedList'
-import ReportList from './ReportList'
 import CommentList from './CommentList'
 import SystemManagement from './SystemManagement'
 import PushNotification from './PushNotification'
-import CustomerVoice from './CustomerVoice'
 import TagManagement from './TagManagement'
 import ThemeManagement from './ThemeManagement'
 import PlaceManagement from './PlaceManagement'
+import PlaceReportManagement from './PlaceReportManagement'
+import UserReportManagement from './UserReportManagement'
+import NoticeManagement from './NoticeManagement'
+import FAQManagement from './FAQManagement'
 import { useAuth } from '../context/AuthContext'
 import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import { API_BASE_URLS, type ApiEnvironment } from '../lib/api-base-url'
@@ -73,27 +75,26 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
       case 'comment-reported':
         return <CommentList menuId={menuId} />
       
-      // 신고/모더레이션
-      case 'reports-all':
-      case 'reports-pending':
-      case 'reports-completed':
-        return <ReportList menuId={menuId} />
-      case 'customer-voice':
-        return <CustomerVoice />
+      // 신고 관리
+      case 'user-report-management':
+        return <UserReportManagement />
+      case 'place-report-management':
+        return <PlaceReportManagement />
       
       // 앱 푸시
       case 'push-all':
       case 'push-role':
       case 'push-individual':
+      case 'push-schedules':
         return <PushNotification menuId={menuId} />
       
       // 시스템 관리
       case 'system-app-version':
-      case 'system-notice':
-      case 'system-faq':
-      case 'system-operators':
-      case 'system-logs':
         return <SystemManagement menuId={menuId} />
+      case 'system-notice':
+        return <NoticeManagement />
+      case 'system-faq':
+        return <FAQManagement />
       
       // 설정
       case 'settings-profile':

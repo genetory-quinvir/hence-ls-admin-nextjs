@@ -3,11 +3,13 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { User } from '../data/mockData'
 import { getUsersAdmin, UserListMeta, getUserDetail, UserDetail, UserListFilterOptions, updateAdminUser, updateAdminUserStatus } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import Modal from './Modal'
 import styles from './UserList.module.css'
 import * as XLSX from 'xlsx'
 
 export default function UserList() {
+  const { user: authUser } = useAuth()
   const menuId = 'users-list' as const
   const [searchKeyword, setSearchKeyword] = useState('') // 검색어 입력
   const [appliedKeyword, setAppliedKeyword] = useState<string | undefined>(undefined) // 실제 API에 전달되는 검색어
@@ -37,6 +39,7 @@ export default function UserList() {
   const [detailEditForm, setDetailEditForm] = useState({
     name: '',
     nickname: '',
+    role: 'MEMBER' as 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER',
     gender: 'SECRET' as 'MALE' | 'FEMALE' | 'SECRET',
     introduction: '',
     dateOfBirth: '',
@@ -50,6 +53,7 @@ export default function UserList() {
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
   const [sortField, setSortField] = useState<'createdAt' | 'nickname' | 'email' | 'provider' | 'activityScore' | 'points' | null>(null)
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+  const canEditUserRole = authUser?.role === 'SUPER_ADMIN'
   
   // 중복 API 호출 방지를 위한 ref
   const lastApiCallRef = useRef<{
@@ -467,6 +471,9 @@ export default function UserList() {
         setDetailEditForm({
           name: response.data.name || '',
           nickname: response.data.nickname || '',
+          role:
+            (response.data.role?.toUpperCase() as 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER' | undefined) ||
+            'MEMBER',
           gender:
             response.data.gender?.toUpperCase() === 'MALE' || response.data.gender?.toUpperCase() === 'FEMALE'
               ? (response.data.gender.toUpperCase() as 'MALE' | 'FEMALE')
@@ -509,6 +516,9 @@ export default function UserList() {
     setDetailEditForm({
       name: userDetail.name || '',
       nickname: userDetail.nickname || '',
+      role:
+        (userDetail.role?.toUpperCase() as 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER' | undefined) ||
+        'MEMBER',
       gender:
         userDetail.gender?.toUpperCase() === 'MALE' || userDetail.gender?.toUpperCase() === 'FEMALE'
           ? (userDetail.gender.toUpperCase() as 'MALE' | 'FEMALE')
@@ -549,6 +559,7 @@ export default function UserList() {
       marketingConsent: detailEditForm.marketingConsent,
       status: detailEditForm.status,
       statusReason: detailEditForm.statusReason.trim() || null,
+      ...(canEditUserRole ? { role: detailEditForm.role } : {}),
     })
     setIsSavingDetail(false)
 
@@ -572,6 +583,7 @@ export default function UserList() {
             marketingConsent: detailEditForm.marketingConsent,
             status: detailEditForm.status,
             statusReason: detailEditForm.statusReason.trim() || null,
+            role: canEditUserRole ? detailEditForm.role : prev.role,
           }
         : prev
     )
@@ -582,6 +594,7 @@ export default function UserList() {
           ? {
               ...u,
               nickname: detailEditForm.nickname.trim(),
+              role: (canEditUserRole ? detailEditForm.role : u.role) as User['role'],
               gender: nextListGender,
               accountStatus: detailEditForm.status,
               isSuspended: detailEditForm.status === 'SUSPENDED',
@@ -602,6 +615,7 @@ export default function UserList() {
             user: {
               ...prev.user,
               nickname: detailEditForm.nickname.trim(),
+              role: (canEditUserRole ? detailEditForm.role : prev.user.role) as User['role'],
               gender: nextListGender,
               isSuspended: detailEditForm.status === 'SUSPENDED',
               isWarned: detailEditForm.status === 'WARNING',
@@ -1453,7 +1467,26 @@ export default function UserList() {
                 <div className={styles.detailInfoItem}>
                   <span className={styles.detailInfoLabel}>권한(Role)</span>
                   <span className={styles.detailInfoValue}>
-                    {userDetail.roles && userDetail.roles.length > 0 ? userDetail.roles.join(', ') : '-'}
+                    {isEditingDetail && canEditUserRole ? (
+                      <select
+                        value={detailEditForm.role}
+                        onChange={(e) =>
+                          setDetailEditForm((p) => ({
+                            ...p,
+                            role: e.target.value as 'SUPER_ADMIN' | 'ADMIN' | 'MEMBER' | 'TESTER',
+                          }))
+                        }
+                        disabled={isSavingDetail}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                      >
+                        <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="MEMBER">MEMBER</option>
+                        <option value="TESTER">TESTER</option>
+                      </select>
+                    ) : (
+                      userDetail.role || '-'
+                    )}
                   </span>
                 </div>
                 <div className={styles.detailInfoItem}>

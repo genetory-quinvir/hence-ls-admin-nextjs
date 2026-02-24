@@ -9,6 +9,7 @@ import {
   PlacebookPlace,
   PlacebookTheme,
   updatePlacebookPlaceAdmin,
+  updatePlacebookPlaceStatusAdmin,
 } from '../lib/api'
 import styles from './TagManagement.module.css'
 
@@ -21,7 +22,6 @@ declare global {
 
 type PlaceFormState = {
   themeId: string
-  name: string
   description: string
   placeName: string
   address: string
@@ -34,7 +34,6 @@ type PlaceFormState = {
 
 const initialFormState: PlaceFormState = {
   themeId: '',
-  name: '',
   description: '',
   placeName: '',
   address: '',
@@ -351,12 +350,10 @@ export default function PlaceManagement() {
 
       if (!q) return true
       const themeName = (themeNameMap.get(place.themeId) || '').toLowerCase()
-      const name = (place.name || '').toLowerCase()
       const placeName = (place.placeName || '').toLowerCase()
       const address = (place.address || '').toLowerCase()
       const tags = (place.hashtags || []).join(',').toLowerCase()
       return (
-        name.includes(q) ||
         placeName.includes(q) ||
         address.includes(q) ||
         themeName.includes(q) ||
@@ -377,7 +374,6 @@ export default function PlaceManagement() {
     const placeLng = toNumberOrUndefined(place.longitude)
     setFormData({
       themeId: place.themeId,
-      name: place.name || '',
       description: place.description || '',
       placeName: place.placeName || '',
       address: place.address || '',
@@ -441,10 +437,6 @@ export default function PlaceManagement() {
       alert('테마를 선택해주세요.')
       return
     }
-    if (!formData.name.trim()) {
-      alert('이름을 입력해주세요.')
-      return
-    }
     if (!formData.placeName.trim()) {
       alert('장소명을 입력해주세요.')
       return
@@ -464,7 +456,6 @@ export default function PlaceManagement() {
     setIsSubmitting(true)
     const payload = {
       themeId: formData.themeId,
-      name: formData.name.trim(),
       description: formData.description.trim() || undefined,
       placeName: formData.placeName.trim(),
       address: formData.address.trim() || undefined,
@@ -472,7 +463,6 @@ export default function PlaceManagement() {
       longitude,
       thumbnailUrl: thumbnailDataUrl || formData.thumbnailUrl.trim() || undefined,
       hashtags: parseHashtags(formData.hashtags),
-      ...(editingPlace ? { isActive: formData.isActive } : {}),
     }
 
     const result = editingPlace
@@ -483,6 +473,18 @@ export default function PlaceManagement() {
       alert(result.error || (editingPlace ? '장소 수정에 실패했습니다.' : '장소 생성에 실패했습니다.'))
       setIsSubmitting(false)
       return
+    }
+
+    if (editingPlace && formData.isActive !== !!editingPlace.isActive) {
+      const statusResult = await updatePlacebookPlaceStatusAdmin(editingPlace.id, {
+        isActive: formData.isActive,
+      })
+
+      if (!statusResult.success) {
+        alert(statusResult.error || '장소 상태 변경에 실패했습니다.')
+        setIsSubmitting(false)
+        return
+      }
     }
 
     await loadPlaces()
@@ -510,16 +512,7 @@ export default function PlaceManagement() {
   const handleToggleActive = async (place: PlacebookPlace) => {
     if (isSubmitting) return
     setIsSubmitting(true)
-    const result = await updatePlacebookPlaceAdmin(place.id, {
-      themeId: place.themeId,
-      name: place.name,
-      description: place.description,
-      placeName: place.placeName,
-      address: place.address,
-      latitude: place.latitude ?? undefined,
-      longitude: place.longitude ?? undefined,
-      thumbnailUrl: place.thumbnailUrl ?? undefined,
-      hashtags: place.hashtags || [],
+    const result = await updatePlacebookPlaceStatusAdmin(place.id, {
       isActive: !place.isActive,
     })
 
@@ -547,7 +540,7 @@ export default function PlaceManagement() {
           <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: '1fr 220px' }}>
             <input
               type="text"
-              placeholder="장소명/이름/주소/테마로 검색..."
+              placeholder="장소명/주소/테마로 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchInput}
@@ -583,7 +576,6 @@ export default function PlaceManagement() {
                     <tr>
                       <th>테마</th>
                       <th>장소명</th>
-                      <th>이름</th>
                       <th>주소</th>
                       <th>활성</th>
                       <th>해시태그</th>
@@ -601,7 +593,6 @@ export default function PlaceManagement() {
                       <tr key={place.id}>
                         <td>{themeNameMap.get(place.themeId) || place.themeId}</td>
                         <td className={styles.tagNameCell}>{place.placeName || '-'}</td>
-                        <td>{place.name || '-'}</td>
                         <td>{place.address || '-'}</td>
                         <td>
                           <button
@@ -717,18 +708,6 @@ export default function PlaceManagement() {
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>
-                  이름 <span className={styles.required}>*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  className={styles.input}
-                  placeholder="이름을 입력하세요"
-                />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>
@@ -976,10 +955,6 @@ export default function PlaceManagement() {
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>장소명</span>
                   <span className={styles.detailValue}>{selectedPlace.placeName || '-'}</span>
-                </div>
-                <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>이름</span>
-                  <span className={styles.detailValue}>{selectedPlace.name || '-'}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>주소</span>

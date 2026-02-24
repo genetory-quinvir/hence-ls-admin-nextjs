@@ -173,9 +173,30 @@ export async function loginAdmin(email: string, password: string): Promise<Login
     return {
       success: true,
       data: {
-        email: data.email || data.user?.email || email,
-        nickname: data.nickname || data.user?.nickname || email.split('@')[0],
-        role: data.role || data.user?.role || 'MEMBER',
+        email:
+          data.email ||
+          data.user?.email ||
+          data.data?.email ||
+          data.data?.user?.email ||
+          data.result?.email ||
+          data.result?.user?.email ||
+          email,
+        nickname:
+          data.nickname ||
+          data.user?.nickname ||
+          data.data?.nickname ||
+          data.data?.user?.nickname ||
+          data.result?.nickname ||
+          data.result?.user?.nickname ||
+          email.split('@')[0],
+        role:
+          data.role ||
+          data.user?.role ||
+          data.data?.role ||
+          data.data?.user?.role ||
+          data.result?.role ||
+          data.result?.user?.role ||
+          'MEMBER',
         accessToken,
         refreshToken,
         // 하위 호환성을 위해 token 필드도 유지
@@ -275,9 +296,30 @@ export async function refreshAccessToken(refreshToken: string): Promise<LoginRes
     return {
       success: true,
       data: {
-        email: data.email || data.user?.email || '',
-        nickname: data.nickname || data.user?.nickname || '',
-        role: data.role || data.user?.role || 'MEMBER',
+        email:
+          data.email ||
+          data.user?.email ||
+          data.data?.email ||
+          data.data?.user?.email ||
+          data.result?.email ||
+          data.result?.user?.email ||
+          '',
+        nickname:
+          data.nickname ||
+          data.user?.nickname ||
+          data.data?.nickname ||
+          data.data?.user?.nickname ||
+          data.result?.nickname ||
+          data.result?.user?.nickname ||
+          '',
+        role:
+          data.role ||
+          data.user?.role ||
+          data.data?.role ||
+          data.data?.user?.role ||
+          data.result?.role ||
+          data.result?.user?.role ||
+          'MEMBER',
         accessToken,
         refreshToken: newRefreshToken,
         token: accessToken,
@@ -375,7 +417,7 @@ export async function searchUsers(query: string, limit: number = 20): Promise<Us
     }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/admin/users/search?q=${encodeURIComponent(query)}&limit=${limit}`
+  const url = `${getApiBaseUrl()}/api/v1/admin/users?q=${encodeURIComponent(query)}&limit=${limit}&page=1`
   
   if (isDev) {
     console.log('[API] 사용자 검색 요청:', {
@@ -425,24 +467,29 @@ export async function searchUsers(query: string, limit: number = 20): Promise<Us
     
     if (isDev) {
       console.log('[API] 사용자 검색 성공:', {
-        resultCount: data.users?.length || data.data?.length || 0,
-        total: data.total,
+        resultCount:
+          data.items?.length ||
+          data.data?.items?.length ||
+          data.users?.length ||
+          data.data?.length ||
+          0,
+        total: data.meta?.totalItems || data.data?.meta?.totalItems || data.total,
         timestamp: new Date().toISOString(),
       })
     }
     
     // API 응답 구조에 따라 다양한 형태 지원
-    const users = data.users || data.data || []
+    const users = data.items || data.data?.items || data.users || data.data || []
     
     return {
       success: true,
       data: users.map((u: any) => ({
         id: u.id,
         email: u.email,
-        nickname: u.nickname,
-        role: u.role,
+        nickname: u.nickname || u.name || u.email || '알 수 없음',
+        role: u.role || (Array.isArray(u.roles) && u.roles.length > 0 ? u.roles[0] : undefined),
       })),
-      total: data.total || users.length,
+      total: data.meta?.totalItems || data.data?.meta?.totalItems || data.total || users.length,
     }
   } catch (error) {
     if (isDev) {
@@ -2595,6 +2642,27 @@ export interface DashboardSummaryResponse {
   error?: string
 }
 
+export interface AdminDashboardResponse {
+  success: boolean
+  data?: Record<string, any>
+  error?: string
+}
+
+export type AdminDashboardTrendRange = '1y' | '3m' | '4w' | '1w'
+
+export interface AdminDashboardTrendItem {
+  label: string
+  start?: string
+  end?: string
+  value: number
+}
+
+export interface AdminDashboardTrendResponse {
+  success: boolean
+  data?: AdminDashboardTrendItem[]
+  error?: string
+}
+
 /**
  * 대시보드 Summary API 호출
  * @param periodFrom - 기간 시작일 (ISO 형식: '2025-11-10T00:00:00')
@@ -2688,6 +2756,120 @@ export async function getDashboardSummary(
   }
 }
 
+export async function getAdminDashboard(): Promise<AdminDashboardResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/dashboard`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `대시보드 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const raw = (responseData?.data ?? responseData) as Record<string, any>
+
+    return {
+      success: true,
+      data: raw,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '대시보드 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+async function getAdminDashboardTrend(
+  path: 'users' | 'places',
+  range: AdminDashboardTrendRange
+): Promise<AdminDashboardTrendResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return {
+      success: false,
+      error: '인증이 필요합니다.',
+    }
+  }
+
+  const params = new URLSearchParams()
+  params.set('range', range)
+  const url = `${getApiBaseUrl()}/api/v1/admin/dashboard/${path}/trend?${params.toString()}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `대시보드 ${path} 추이 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const rawItems =
+      (Array.isArray(responseData?.items) && responseData.items) ||
+      (Array.isArray(responseData?.data?.items) && responseData.data.items) ||
+      (Array.isArray(responseData?.data) && responseData.data) ||
+      []
+
+    return {
+      success: true,
+      data: rawItems.map((item: any) => ({
+        label: String(item?.label ?? ''),
+        start: item?.start ?? null,
+        end: item?.end ?? null,
+        value: typeof item?.value === 'number' ? item.value : Number(item?.value ?? 0) || 0,
+      })),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '대시보드 추이 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export function getAdminDashboardUsersTrend(
+  range: AdminDashboardTrendRange
+): Promise<AdminDashboardTrendResponse> {
+  return getAdminDashboardTrend('users', range)
+}
+
+export function getAdminDashboardPlacesTrend(
+  range: AdminDashboardTrendRange
+): Promise<AdminDashboardTrendResponse> {
+  return getAdminDashboardTrend('places', range)
+}
+
 /**
  * 사용자 상세 정보 인터페이스
  */
@@ -2719,7 +2901,7 @@ export interface UserDetail {
     cdnUrl?: string
     thumbnailUrl?: string
   } | null
-  roles?: string[]
+  role?: string | null
 }
 
 export interface UserDetailResponse {
@@ -2744,6 +2926,7 @@ export interface UpdateAdminUserRequest {
   marketingConsent: boolean
   status: 'NORMAL' | 'WARNING' | 'SUSPENDED'
   statusReason: string | null
+  role?: string
 }
 
 export interface UpdateAdminUserResponse {
@@ -2873,7 +3056,9 @@ export async function getUserDetail(userId: string): Promise<UserDetailResponse>
         withdrawalReason: normalizeString(userData.withdrawalReason),
         deletedAt: normalizeString(userData.deletedAt),
         profileImage: userData.profileImage || null,
-        roles: Array.isArray(userData.roles) ? userData.roles.map((r: unknown) => String(r)) : [],
+        role:
+          normalizeString(userData.role) ||
+          (Array.isArray(userData.roles) && userData.roles.length > 0 ? normalizeString(userData.roles[0]) : null),
       },
     }
   } catch (error) {
@@ -2976,11 +3161,38 @@ export async function updateAdminUser(
 /**
  * 전체 푸시 알림 전송 요청 인터페이스
  */
-export interface SendPushNotificationAllRequest {
+export interface AdminPushBaseRequest {
   title: string
   body: string
   link?: string
-  type: 'SYSTEM' | string
+  type?: 'SYSTEM' | string
+  scheduledAt?: string | null
+}
+
+export interface SendPushNotificationAllRequest extends AdminPushBaseRequest {}
+
+export interface SendPushNotificationRolesRequest extends AdminPushBaseRequest {
+  roles: string[]
+}
+
+export interface SendPushNotificationUsersRequest extends AdminPushBaseRequest {
+  userIds: string[]
+}
+
+export interface AdminPushScheduleItem {
+  jobId: string
+  title?: string
+  body?: string
+  link?: string | null
+  type?: string | null
+  scheduledAt?: string | null
+  status?: string | null
+  targetType?: string | null
+  targetRoles?: string[]
+  targetUserIds?: string[]
+  createdAt?: string | null
+  createdBy?: string | null
+  [key: string]: any
 }
 
 /**
@@ -2992,11 +3204,15 @@ export interface SendPushNotificationResponse {
   error?: string
 }
 
-/**
- * 전체 푸시 알림 전송 API 호출
- */
-export async function sendPushNotificationAll(
-  request: SendPushNotificationAllRequest
+export interface AdminPushSchedulesResponse {
+  success: boolean
+  data?: AdminPushScheduleItem[]
+  error?: string
+}
+
+async function postAdminPush(
+  path: string,
+  request: Record<string, any>
 ): Promise<SendPushNotificationResponse> {
   const accessToken = getAccessToken()
   
@@ -3007,10 +3223,10 @@ export async function sendPushNotificationAll(
     }
   }
 
-  const url = `${getApiBaseUrl()}/api/v1/notifications-admin/send/all`
+  const url = `${getApiBaseUrl()}${path}`
   
   if (isDev) {
-    console.log('[API] 전체 푸시 알림 전송 요청:', {
+    console.log('[API] 푸시 요청:', {
       url,
       request,
       timestamp: new Date().toISOString(),
@@ -3024,16 +3240,11 @@ export async function sendPushNotificationAll(
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        title: request.title,
-        body: request.body,
-        link: request.link || '',
-        type: request.type || 'SYSTEM',
-      }),
+      body: JSON.stringify(request),
     })
 
     if (isDev) {
-      console.log('[API] 전체 푸시 알림 전송 응답:', {
+      console.log('[API] 푸시 응답:', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
@@ -3045,7 +3256,7 @@ export async function sendPushNotificationAll(
       const errorData = await response.json().catch(() => ({}))
       
       if (isDev) {
-        console.error('[API] 전체 푸시 알림 전송 에러:', {
+        console.error('[API] 푸시 에러:', {
           status: response.status,
           errorData,
           timestamp: new Date().toISOString(),
@@ -3061,7 +3272,7 @@ export async function sendPushNotificationAll(
     const responseData = await response.json()
     
     if (isDev) {
-      console.log('[API] 전체 푸시 알림 전송 성공:', {
+      console.log('[API] 푸시 성공:', {
         data: responseData,
         timestamp: new Date().toISOString(),
       })
@@ -3073,7 +3284,7 @@ export async function sendPushNotificationAll(
     }
   } catch (error) {
     if (isDev) {
-      console.error('[API] 전체 푸시 알림 전송 네트워크 에러:', {
+      console.error('[API] 푸시 네트워크 에러:', {
         error,
         message: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
@@ -3083,6 +3294,145 @@ export async function sendPushNotificationAll(
     return {
       success: false,
       error: error instanceof Error ? error.message : '푸시 알림 전송 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 전체 푸시 발송/예약 (관리자)
+ */
+export async function sendPushNotificationAll(
+  request: SendPushNotificationAllRequest
+): Promise<SendPushNotificationResponse> {
+  return postAdminPush('/api/v1/admin/push/emit/all', {
+    title: request.title,
+    body: request.body,
+    link: request.link || '',
+    type: request.type || 'SYSTEM',
+    ...(request.scheduledAt ? { scheduledAt: request.scheduledAt } : {}),
+  })
+}
+
+/**
+ * 역할별 푸시 발송/예약 (관리자)
+ */
+export async function sendPushNotificationByRoles(
+  request: SendPushNotificationRolesRequest
+): Promise<SendPushNotificationResponse> {
+  return postAdminPush('/api/v1/admin/push/emit/roles', {
+    title: request.title,
+    body: request.body,
+    link: request.link || '',
+    type: request.type || 'SYSTEM',
+    roles: request.roles,
+    ...(request.scheduledAt ? { scheduledAt: request.scheduledAt } : {}),
+  })
+}
+
+/**
+ * 개인(다수) 푸시 발송/예약 (관리자)
+ */
+export async function sendPushNotificationToUsers(
+  request: SendPushNotificationUsersRequest
+): Promise<SendPushNotificationResponse> {
+  return postAdminPush('/api/v1/admin/push/emit/users', {
+    title: request.title,
+    body: request.body,
+    link: request.link || '',
+    type: request.type || 'SYSTEM',
+    userIds: request.userIds,
+    ...(request.scheduledAt ? { scheduledAt: request.scheduledAt } : {}),
+  })
+}
+
+/**
+ * 푸시 활동/히스토리 조회 (관리자)
+ */
+export async function getAdminPushSchedules(): Promise<AdminPushSchedulesResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/push/activities`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `푸시 활동 조회 실패 (${response.status})`,
+      }
+    }
+
+    const data = await response.json().catch(() => ({}))
+    const items =
+      data.items ||
+      data.data?.items ||
+      data.activities ||
+      data.data?.activities ||
+      data.histories ||
+      data.data?.histories ||
+      data.schedules ||
+      data.data?.schedules ||
+      data.data ||
+      []
+
+    return {
+      success: true,
+      data: Array.isArray(items) ? items : [],
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '푸시 활동 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+/**
+ * 푸시 예약 발송 취소 (관리자)
+ */
+export async function cancelAdminPushSchedule(jobId: string): Promise<{ success: boolean; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/push/schedules/${jobId}/cancel`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `예약 취소 실패 (${response.status})`,
+      }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '예약 취소 중 오류가 발생했습니다.',
     }
   }
 }
@@ -3902,9 +4252,8 @@ export interface PlacebookPlace {
   id: string
   themeId: string
   createdByUserId?: unknown
-  name: string
+  placeName: string
   description?: string | null
-  placeName?: string | null
   address?: string | null
   latitude?: number | null
   longitude?: number | null
@@ -3929,9 +4278,8 @@ export interface PlacebookPlaceListResponse {
 
 export interface CreatePlacebookPlaceRequest {
   themeId: string
-  name: string
+  placeName: string
   description?: string | null
-  placeName?: string | null
   address?: string | null
   latitude?: number | null
   longitude?: number | null
@@ -3941,9 +4289,8 @@ export interface CreatePlacebookPlaceRequest {
 
 export interface UpdatePlacebookPlaceRequest {
   themeId?: string
-  name?: string
   description?: string | null
-  placeName?: string | null
+  placeName?: string
   address?: string | null
   latitude?: number | null
   longitude?: number | null
@@ -3952,12 +4299,26 @@ export interface UpdatePlacebookPlaceRequest {
   isActive?: boolean
 }
 
+export interface UpdatePlacebookPlaceStatusRequest {
+  isActive: boolean
+}
+
 function getPlacebookPlaceItemsFromResponse(responseData: any): PlacebookPlace[] {
-  if (Array.isArray(responseData)) return responseData
-  if (Array.isArray(responseData?.items)) return responseData.items
-  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
-  if (Array.isArray(responseData?.data)) return responseData.data
-  return []
+  const rawItems = Array.isArray(responseData)
+    ? responseData
+    : Array.isArray(responseData?.items)
+      ? responseData.items
+      : Array.isArray(responseData?.data?.items)
+        ? responseData.data.items
+        : Array.isArray(responseData?.data)
+          ? responseData.data
+          : []
+
+  // Backward compatibility: if old payload still sends `name`, copy it into `placeName`.
+  return rawItems.map((item: any) => ({
+    ...item,
+    placeName: item?.placeName || item?.name || '',
+  }))
 }
 
 export async function getPlacebookPlacesAdmin(): Promise<PlacebookPlaceListResponse> {
@@ -4084,6 +4445,49 @@ export async function updatePlacebookPlaceAdmin(
   }
 }
 
+export async function updatePlacebookPlaceStatusAdmin(
+  placeId: string,
+  request: UpdatePlacebookPlaceStatusRequest
+): Promise<{ success: boolean; data?: PlacebookPlace; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places/${placeId}/status`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 상태 변경 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookPlace,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 상태 변경 중 오류가 발생했습니다.',
+    }
+  }
+}
+
 export async function deletePlacebookPlaceAdmin(
   placeId: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -4119,6 +4523,638 @@ export async function deletePlacebookPlaceAdmin(
       error: error instanceof Error ? error.message : '장소 삭제 중 오류가 발생했습니다.',
     }
   }
+}
+
+export interface AdminPlaceReportItem {
+  id: string
+  placeId?: string | null
+  placeName?: string | null
+  reason?: string | null
+  details?: string | null
+  status?: string | null
+  reporterId?: string | null
+  reporterEmail?: string | null
+  reporterNickname?: string | null
+  createdAt?: string | null
+  processedAt?: string | null
+  [key: string]: any
+}
+
+export interface AdminPlaceReportListResponse {
+  success: boolean
+  data?: AdminPlaceReportItem[]
+  error?: string
+}
+
+export type AdminPlaceReportStatusFilter = 'PENDING' | 'RESOLVED' | 'REJECTED'
+
+export interface UpdateAdminPlaceReportRequest {
+  status: string
+}
+
+function getAdminPlaceReportItemsFromResponse(responseData: any): any[] {
+  if (Array.isArray(responseData)) return responseData
+  if (Array.isArray(responseData?.items)) return responseData.items
+  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
+  if (Array.isArray(responseData?.reports)) return responseData.reports
+  if (Array.isArray(responseData?.data?.reports)) return responseData.data.reports
+  if (Array.isArray(responseData?.data)) return responseData.data
+  return []
+}
+
+export async function getAdminPlaceReports(
+  status?: AdminPlaceReportStatusFilter
+): Promise<AdminPlaceReportListResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  const url = `${getApiBaseUrl()}/api/v1/admin/place-reports${params.toString() ? `?${params.toString()}` : ''}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 신고 목록 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const items = getAdminPlaceReportItemsFromResponse(responseData)
+
+    const data = items.map((item: any): AdminPlaceReportItem => ({
+      ...item,
+      id: String(item?.id ?? item?.reportId ?? ''),
+      placeId: item?.placeId ?? item?.targetId ?? item?.place?.id ?? null,
+      placeName: item?.placeName ?? item?.place?.placeName ?? item?.place?.name ?? null,
+      reason: item?.reason ?? item?.reportReason ?? item?.category ?? null,
+      details: item?.details ?? item?.description ?? item?.content ?? null,
+      status: item?.status ?? item?.reportStatus ?? null,
+      reporterId: item?.reporterId ?? item?.reporter?.id ?? item?.userId ?? null,
+      reporterEmail: item?.reporterEmail ?? item?.reporter?.email ?? null,
+      reporterNickname: item?.reporterNickname ?? item?.reporter?.nickname ?? item?.reporter?.name ?? null,
+      createdAt: item?.createdAt ?? item?.reportedAt ?? null,
+      processedAt: item?.processedAt ?? item?.resolvedAt ?? null,
+    }))
+
+    return { success: true, data }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 신고 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function updateAdminPlaceReport(
+  reportId: string,
+  request: UpdateAdminPlaceReportRequest
+): Promise<{ success: boolean; data?: AdminPlaceReportItem; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/place-reports/${reportId}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 신고 상태 변경 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const raw = responseData?.data || responseData
+    return {
+      success: true,
+      data: raw as AdminPlaceReportItem,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 신고 상태 변경 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function processAdminPlaceReport(
+  reportId: string
+): Promise<{ success: boolean; data?: AdminPlaceReportItem; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/place-reports/${reportId}/process`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 신고 처리 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const raw = responseData?.data || responseData
+    return {
+      success: true,
+      data: raw as AdminPlaceReportItem,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 신고 처리 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export interface AdminUserReportItem {
+  id: string
+  targetUserId?: string | null
+  targetUserEmail?: string | null
+  targetUserNickname?: string | null
+  reason?: string | null
+  details?: string | null
+  status?: string | null
+  reporterId?: string | null
+  reporterEmail?: string | null
+  reporterNickname?: string | null
+  createdAt?: string | null
+  processedAt?: string | null
+  [key: string]: any
+}
+
+export interface AdminUserReportListResponse {
+  success: boolean
+  data?: AdminUserReportItem[]
+  error?: string
+}
+
+export type AdminUserReportStatusFilter = 'PENDING' | 'RESOLVED' | 'REJECTED'
+
+function getAdminUserReportItemsFromResponse(responseData: any): any[] {
+  if (Array.isArray(responseData)) return responseData
+  if (Array.isArray(responseData?.items)) return responseData.items
+  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
+  if (Array.isArray(responseData?.reports)) return responseData.reports
+  if (Array.isArray(responseData?.data?.reports)) return responseData.data.reports
+  if (Array.isArray(responseData?.data)) return responseData.data
+  return []
+}
+
+export async function getAdminUserReports(
+  status?: AdminUserReportStatusFilter
+): Promise<AdminUserReportListResponse> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  const url = `${getApiBaseUrl()}/api/v1/admin/user-reports${params.toString() ? `?${params.toString()}` : ''}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `유저 신고 목록 조회 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const items = getAdminUserReportItemsFromResponse(responseData)
+    return {
+      success: true,
+      data: items.map((item: any): AdminUserReportItem => ({
+        ...item,
+        id: String(item?.id ?? item?.reportId ?? ''),
+        targetUserId: item?.targetUserId ?? item?.userId ?? item?.targetId ?? item?.targetUser?.id ?? null,
+        targetUserEmail: item?.targetUserEmail ?? item?.targetUser?.email ?? item?.user?.email ?? null,
+        targetUserNickname:
+          item?.targetUserNickname ?? item?.targetUser?.nickname ?? item?.user?.nickname ?? item?.user?.name ?? null,
+        reason: item?.reason ?? item?.reportReason ?? item?.category ?? null,
+        details: item?.details ?? item?.description ?? item?.content ?? null,
+        status: item?.status ?? item?.reportStatus ?? null,
+        reporterId: item?.reporterId ?? item?.reporter?.id ?? null,
+        reporterEmail: item?.reporterEmail ?? item?.reporter?.email ?? null,
+        reporterNickname: item?.reporterNickname ?? item?.reporter?.nickname ?? item?.reporter?.name ?? null,
+        createdAt: item?.createdAt ?? item?.reportedAt ?? null,
+        processedAt: item?.processedAt ?? item?.resolvedAt ?? null,
+      })),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '유저 신고 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function processAdminUserReport(
+  reportId: string
+): Promise<{ success: boolean; data?: AdminUserReportItem; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/user-reports/${reportId}/process`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `유저 신고 처리 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    const raw = responseData?.data || responseData
+    return {
+      success: true,
+      data: raw as AdminUserReportItem,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '유저 신고 처리 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export interface AdminNoticeItem {
+  id: string
+  title: string
+  content?: string | null
+  isImportant?: boolean
+  isActive?: boolean
+  createdAt?: string | null
+  updatedAt?: string | null
+  [key: string]: any
+}
+
+export interface AdminFaqCategoryItem {
+  id: string
+  name: string
+  sortOrder?: number
+  isActive?: boolean
+  [key: string]: any
+}
+
+export interface AdminFaqItem {
+  id: string
+  categoryId?: string | null
+  categoryName?: string | null
+  question: string
+  answer: string
+  sortOrder?: number
+  isActive?: boolean
+  createdAt?: string | null
+  updatedAt?: string | null
+  [key: string]: any
+}
+
+export interface AdminListMeta {
+  currentPage: number
+  itemsPerPage: number
+  totalItems: number
+  totalPages: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
+type AdminCrudListResponse<T> = { success: boolean; data?: T[]; meta?: AdminListMeta; error?: string }
+type AdminCrudItemResponse<T> = { success: boolean; data?: T; error?: string }
+
+function getAdminItemsFromResponse(responseData: any): any[] {
+  if (Array.isArray(responseData)) return responseData
+  if (Array.isArray(responseData?.items)) return responseData.items
+  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
+  if (Array.isArray(responseData?.data)) return responseData.data
+  return []
+}
+
+function getAdminListMetaFromResponse(responseData: any): AdminListMeta | undefined {
+  const meta = responseData?.meta || responseData?.data?.meta
+  if (!meta || typeof meta !== 'object') return undefined
+  const currentPage = Number(meta.currentPage ?? meta.page ?? 1)
+  const itemsPerPage = Number(meta.itemsPerPage ?? meta.limit ?? 20)
+  const totalItems = Number(meta.totalItems ?? meta.total ?? 0)
+  const totalPages = Number(meta.totalPages ?? (itemsPerPage > 0 ? Math.ceil(totalItems / itemsPerPage) : 1))
+  return {
+    currentPage: Number.isFinite(currentPage) ? currentPage : 1,
+    itemsPerPage: Number.isFinite(itemsPerPage) ? itemsPerPage : 20,
+    totalItems: Number.isFinite(totalItems) ? totalItems : 0,
+    totalPages: Number.isFinite(totalPages) ? totalPages : 1,
+    hasNext: Boolean(meta.hasNext ?? (currentPage < totalPages)),
+    hasPrevious: Boolean(meta.hasPrevious ?? (currentPage > 1)),
+  }
+}
+
+async function adminJsonRequest<T>(
+  path: string,
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  body?: Record<string, any>
+): Promise<{ success: boolean; data?: T; error?: string }> {
+  const accessToken = getAccessToken()
+  if (!accessToken) return { success: false, error: '인증이 필요합니다.' }
+
+  const url = `${getApiBaseUrl()}${path}`
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `요청 실패 (${response.status})`),
+      }
+    }
+
+    if (method === 'DELETE') return { success: true }
+
+    const responseData = await response.json().catch(() => ({}))
+    return { success: true, data: (responseData?.data || responseData) as T }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '요청 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function getAdminNotices(options?: { page?: number; limit?: number; q?: string }): Promise<AdminCrudListResponse<AdminNoticeItem>> {
+  const accessToken = getAccessToken()
+  if (!accessToken) return { success: false, error: '인증이 필요합니다.' }
+  const params = new URLSearchParams()
+  if (options?.page) params.set('page', String(options.page))
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.q?.trim()) params.set('q', options.q.trim())
+  const url = `${getApiBaseUrl()}/api/v1/admin/notices${params.toString() ? `?${params.toString()}` : ''}`
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return { success: false, error: getApiErrorMessage(errorData, `공지사항 목록 조회 실패 (${response.status})`) }
+    }
+    const rawResponse = await response.json().catch(() => ({}))
+    const items = getAdminItemsFromResponse(rawResponse)
+    const meta = getAdminListMetaFromResponse(rawResponse)
+    return {
+      success: true,
+      meta,
+      data: items.map((item: any) => ({
+        ...item,
+        id: String(item?.id ?? ''),
+        title: String(item?.title ?? ''),
+        content: item?.content ?? item?.body ?? null,
+        isImportant: Boolean(item?.isImportant),
+        isActive: typeof item?.isActive === 'boolean' ? item.isActive : true,
+        createdAt: item?.createdAt ?? null,
+        updatedAt: item?.updatedAt ?? null,
+      })),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '공지사항 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function getAdminNoticeDetail(id: string): Promise<AdminCrudItemResponse<AdminNoticeItem>> {
+  const result = await adminJsonRequest<any>(`/api/v1/admin/notices/${id}`, 'GET')
+  if (!result.success || !result.data) return result
+  const item = result.data
+  return {
+    success: true,
+    data: {
+      ...item,
+      id: String(item?.id ?? id),
+      title: String(item?.title ?? ''),
+      content: item?.content ?? item?.body ?? null,
+      isImportant: Boolean(item?.isImportant),
+      isActive: typeof item?.isActive === 'boolean' ? item.isActive : true,
+      createdAt: item?.createdAt ?? null,
+      updatedAt: item?.updatedAt ?? null,
+    },
+  }
+}
+
+export async function createAdminNotice(payload: {
+  title: string
+  content: string
+  isImportant?: boolean
+  isActive?: boolean
+}): Promise<AdminCrudItemResponse<AdminNoticeItem>> {
+  return adminJsonRequest<AdminNoticeItem>('/api/v1/admin/notices', 'POST', payload)
+}
+
+export async function updateAdminNotice(
+  id: string,
+  payload: Partial<{ title: string; content: string; isImportant: boolean; isActive: boolean }>
+): Promise<AdminCrudItemResponse<AdminNoticeItem>> {
+  return adminJsonRequest<AdminNoticeItem>(`/api/v1/admin/notices/${id}`, 'PATCH', payload)
+}
+
+export async function deleteAdminNotice(id: string): Promise<{ success: boolean; error?: string }> {
+  return adminJsonRequest(`/api/v1/admin/notices/${id}`, 'DELETE')
+}
+
+export async function getAdminFaqCategories(): Promise<AdminCrudListResponse<AdminFaqCategoryItem>> {
+  const result = await adminJsonRequest<any>('/api/v1/admin/faq-categories', 'GET')
+  if (!result.success) return result
+  const items = getAdminItemsFromResponse(result.data)
+  return {
+    success: true,
+    data: items.map((item: any) => ({
+      ...item,
+      id: String(item?.id ?? ''),
+      name: String(item?.name ?? ''),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+      isActive: typeof item?.isActive === 'boolean' ? item.isActive : true,
+    })),
+  }
+}
+
+export async function createAdminFaqCategory(payload: {
+  name: string
+  sortOrder?: number
+  isActive?: boolean
+}): Promise<AdminCrudItemResponse<AdminFaqCategoryItem>> {
+  return adminJsonRequest<AdminFaqCategoryItem>('/api/v1/admin/faq-categories', 'POST', payload)
+}
+
+export async function updateAdminFaqCategory(
+  id: string,
+  payload: Partial<{ name: string; sortOrder: number; isActive: boolean }>
+): Promise<AdminCrudItemResponse<AdminFaqCategoryItem>> {
+  return adminJsonRequest<AdminFaqCategoryItem>(`/api/v1/admin/faq-categories/${id}`, 'PATCH', payload)
+}
+
+export async function deleteAdminFaqCategory(id: string): Promise<{ success: boolean; error?: string }> {
+  return adminJsonRequest(`/api/v1/admin/faq-categories/${id}`, 'DELETE')
+}
+
+export async function getAdminFaqs(options?: { page?: number; limit?: number; q?: string }): Promise<AdminCrudListResponse<AdminFaqItem>> {
+  const accessToken = getAccessToken()
+  if (!accessToken) return { success: false, error: '인증이 필요합니다.' }
+  const params = new URLSearchParams()
+  if (options?.page) params.set('page', String(options.page))
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.q?.trim()) params.set('q', options.q.trim())
+  const url = `${getApiBaseUrl()}/api/v1/admin/faqs${params.toString() ? `?${params.toString()}` : ''}`
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return { success: false, error: getApiErrorMessage(errorData, `FAQ 목록 조회 실패 (${response.status})`) }
+    }
+    const rawResponse = await response.json().catch(() => ({}))
+    const items = getAdminItemsFromResponse(rawResponse)
+    const meta = getAdminListMetaFromResponse(rawResponse)
+    return {
+      success: true,
+      meta,
+      data: items.map((item: any) => ({
+        ...item,
+        id: String(item?.id ?? ''),
+        categoryId: item?.categoryId ?? item?.faqCategoryId ?? item?.category?.id ?? null,
+        categoryName: item?.categoryName ?? item?.category?.name ?? null,
+        question: String(item?.question ?? ''),
+        answer: String(item?.answer ?? ''),
+        sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+        isActive: typeof item?.isActive === 'boolean' ? item.isActive : true,
+        createdAt: item?.createdAt ?? null,
+        updatedAt: item?.updatedAt ?? null,
+      })),
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'FAQ 목록 조회 중 오류가 발생했습니다.',
+    }
+  }
+}
+
+export async function getAdminFaqDetail(id: string): Promise<AdminCrudItemResponse<AdminFaqItem>> {
+  const result = await adminJsonRequest<any>(`/api/v1/admin/faqs/${id}`, 'GET')
+  if (!result.success || !result.data) return result
+  const item = result.data
+  return {
+    success: true,
+    data: {
+      ...item,
+      id: String(item?.id ?? id),
+      categoryId: item?.categoryId ?? item?.faqCategoryId ?? item?.category?.id ?? null,
+      categoryName: item?.categoryName ?? item?.category?.name ?? null,
+      question: String(item?.question ?? ''),
+      answer: String(item?.answer ?? ''),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+      isActive: typeof item?.isActive === 'boolean' ? item.isActive : true,
+      createdAt: item?.createdAt ?? null,
+      updatedAt: item?.updatedAt ?? null,
+    },
+  }
+}
+
+export async function createAdminFaq(payload: {
+  categoryId?: string | null
+  question: string
+  answer: string
+  sortOrder?: number
+  isActive?: boolean
+}): Promise<AdminCrudItemResponse<AdminFaqItem>> {
+  return adminJsonRequest<AdminFaqItem>('/api/v1/admin/faqs', 'POST', payload)
+}
+
+export async function updateAdminFaq(
+  id: string,
+  payload: Partial<{ categoryId: string | null; question: string; answer: string; sortOrder: number; isActive: boolean }>
+): Promise<AdminCrudItemResponse<AdminFaqItem>> {
+  return adminJsonRequest<AdminFaqItem>(`/api/v1/admin/faqs/${id}`, 'PATCH', payload)
+}
+
+export async function deleteAdminFaq(id: string): Promise<{ success: boolean; error?: string }> {
+  return adminJsonRequest(`/api/v1/admin/faqs/${id}`, 'DELETE')
 }
 
 /**

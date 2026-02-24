@@ -19,7 +19,7 @@ const menuItems: MenuItem[] = [
     label: '사용자 관리',
     icon: '👫🏼',
     children: [
-      { id: 'users-list', label: '전체 사용자 리스트' },
+      { id: 'users-list', label: '사용자 관리' },
     ],
   },
   {
@@ -34,13 +34,11 @@ const menuItems: MenuItem[] = [
   },
   {
     id: 'reports',
-    label: '신고/모더레이션',
+    label: '신고 관리',
     icon: '🚨',
     children: [
-      { id: 'reports-all', label: '전체 신고 내역' },
-      { id: 'reports-pending', label: '처리 대기(미처리)' },
-      { id: 'reports-completed', label: '처리 완료' },
-      { id: 'customer-voice', label: '고객의 소리' },
+      { id: 'user-report-management', label: '유저 신고 관리' },
+      { id: 'place-report-management', label: '장소 신고 관리' },
     ],
   },
   {
@@ -48,22 +46,20 @@ const menuItems: MenuItem[] = [
     label: '앱 푸시',
     icon: '📱',
     children: [
-      { id: 'push-all', label: '전체 푸시' },
-      { id: 'push-role', label: 'Role별 푸시' },
-      { id: 'push-individual', label: '개인 푸시' },
+      { id: 'push-all', label: '전체 푸시 발송/예약' },
+      { id: 'push-role', label: '역할별 푸시 발송/예약' },
+      { id: 'push-individual', label: '개인 푸시 발송/예약' },
+      { id: 'push-schedules', label: '푸시 활동/예약 관리' },
     ],
   },
   {
     id: 'system',
     label: '시스템 관리',
     icon: '⚙️',
-    requiredRole: 'SUPER',
     children: [
-      { id: 'system-app-version', label: '앱 버전 관리' },
       { id: 'system-notice', label: '공지사항 관리' },
       { id: 'system-faq', label: 'FAQ 관리' },
-      { id: 'system-operators', label: '운영자 계정 관리' },
-      { id: 'system-logs', label: '로그(Permission Log)' },
+      { id: 'system-app-version', label: '앱 버전 관리' },
     ],
   },
   {
