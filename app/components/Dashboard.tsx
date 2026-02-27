@@ -483,6 +483,7 @@ export default function Dashboard() {
                 color="linear-gradient(180deg, #059669 0%, #10b981 100%)"
               />
             </div>
+
           </>
         )}
       </div>

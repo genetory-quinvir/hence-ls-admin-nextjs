@@ -19,6 +19,7 @@ import PlaceReportManagement from './PlaceReportManagement'
 import UserReportManagement from './UserReportManagement'
 import NoticeManagement from './NoticeManagement'
 import FAQManagement from './FAQManagement'
+import DashboardMap from './DashboardMap'
 import { useAuth } from '../context/AuthContext'
 import { useApiBaseUrl } from '../context/ApiBaseUrlContext'
 import { API_BASE_URLS, type ApiEnvironment } from '../lib/api-base-url'
@@ -46,6 +47,8 @@ export default function DetailView({ menuId, menuLabel }: DetailViewProps) {
     switch (menuId) {
       case 'dashboard':
         return <Dashboard />
+      case 'dashboard-map':
+        return <DashboardMap />
       
       // 피쳐드 관리
       case 'featured-banner':

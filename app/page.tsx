@@ -15,6 +15,11 @@ const menuItems: MenuItem[] = [
     icon: '📊',
   },
   {
+    id: 'dashboard-map',
+    label: '지도로 보기',
+    icon: '🗺️',
+  },
+  {
     id: 'users',
     label: '사용자 관리',
     icon: '👫🏼',

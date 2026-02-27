@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { API_BASE_URLS } from '@/app/lib/api-base-url'
+import { getServerApiBaseUrl } from '@/app/lib/api-base-url'
 
-// API Base URL 가져오기 함수 (헤더에서 읽거나 기본값 사용)
-function getApiBaseUrl(request: NextRequest): string {
-  // 클라이언트에서 전달한 base URL 헤더 확인
-  const customBaseUrl = request.headers.get('x-api-base-url')
-  if (customBaseUrl) {
-    return customBaseUrl
-  }
-  
-  // 환경 변수 또는 기본값 사용 (개발 환경은 로컬 API 사용)
-  const defaultBaseUrl =
-    process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000'
-      : API_BASE_URLS.dev
-  return process.env.NEXT_PUBLIC_API_BASE_URL || defaultBaseUrl
-}
 
 const FIXED_PASSWORD = 'Quinvir2026!'
 
@@ -41,7 +26,7 @@ interface BatchCreateLiveSpaceRequest {
  */
 export async function POST(request: NextRequest) {
   try {
-    const API_BASE_URL = getApiBaseUrl(request)
+    const API_BASE_URL = getServerApiBaseUrl(request.headers)
     
     // FormData 요청 처리
     const formData = await request.formData()

@@ -4488,6 +4488,49 @@ export async function updatePlacebookPlaceStatusAdmin(
   }
 }
 
+export async function updatePlacebookPlaceHiddenAdmin(
+  placeId: string,
+  isHidden: boolean
+): Promise<{ success: boolean; data?: PlacebookPlace; error?: string }> {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    return { success: false, error: '인증이 필요합니다.' }
+  }
+
+  const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places/${placeId}/hidden`
+
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ isHidden }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      return {
+        success: false,
+        error: getApiErrorMessage(errorData, `장소 숨김 상태 변경 실패 (${response.status})`),
+      }
+    }
+
+    const responseData = await response.json().catch(() => ({}))
+    return {
+      success: true,
+      data: (responseData?.data || responseData) as PlacebookPlace,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '장소 숨김 상태 변경 중 오류가 발생했습니다.',
+    }
+  }
+}
+
 export async function deletePlacebookPlaceAdmin(
   placeId: string
 ): Promise<{ success: boolean; error?: string }> {
