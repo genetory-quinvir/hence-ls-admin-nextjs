@@ -202,7 +202,9 @@ export default function DashboardMap() {
 
         return {
           ...item,
-          placeName: item?.placeName || item?.name || item?.place_name,
+          title: item?.title ?? item?.placeName ?? item?.name ?? item?.place_name ?? null,
+          subtitle: item?.subtitle ?? item?.subTitle ?? null,
+          placeName: item?.placeName || item?.title || item?.name || item?.place_name,
           latitude: lat,
           longitude: lng,
           isHidden: item?.isHidden ?? item?.hidden ?? false,
@@ -398,7 +400,7 @@ export default function DashboardMap() {
         '<div style="width:16px;height:16px;border-radius:50%;background:#111827;border:2px solid #ffffff;box-shadow:0 0 0 1px rgba(17,24,39,0.35);"></div>'
       const marker = new window.naver.maps.Marker({
         position,
-        title: place.placeName || place.name || '장소',
+        title: place.title || place.placeName || place.name || '장소',
         icon: {
           content: markerHtml,
           size: new window.naver.maps.Size(20, 20),
@@ -407,7 +409,7 @@ export default function DashboardMap() {
         zIndex: 100,
       })
       window.naver.maps.Event.addListener(marker, 'click', () => {
-        const title = place.placeName || place.name || '장소'
+        const title = place.title || place.placeName || place.name || '장소'
         const content = `<div style="padding:6px 10px;background:#111827;color:#fff;border-radius:999px;font-size:12px;line-height:1;white-space:nowrap;">${title}</div>`
         infoWindowRef.current?.close()
         infoWindowRef.current.setContent(content)
@@ -482,7 +484,7 @@ export default function DashboardMap() {
           const marker = new window.naver.maps.Marker({
             position,
             map,
-            title: place.placeName || place.name || '장소',
+            title: place.title || place.placeName || place.name || '장소',
             icon: {
               content: markerHtml,
               size: new window.naver.maps.Size(20, 20),
@@ -491,7 +493,7 @@ export default function DashboardMap() {
             zIndex: 100,
           })
           window.naver.maps.Event.addListener(marker, 'click', () => {
-            const title = place.placeName || place.name || '장소'
+            const title = place.title || place.placeName || place.name || '장소'
             const content = `<div style="padding:6px 10px;background:#111827;color:#fff;border-radius:999px;font-size:12px;line-height:1;white-space:nowrap;">${title}</div>`
             infoWindowRef.current?.close()
             infoWindowRef.current.setContent(content)
@@ -528,7 +530,7 @@ export default function DashboardMap() {
     if (selectedPlaceIdRef.current) {
       const selectedPlace = validPlaces.find((place) => place.id === selectedPlaceIdRef.current)
       if (selectedPlace && Number.isFinite(selectedPlace.latitude) && Number.isFinite(selectedPlace.longitude)) {
-        const title = selectedPlace.placeName || selectedPlace.name || '장소'
+        const title = selectedPlace.title || selectedPlace.placeName || selectedPlace.name || '장소'
         const content = `<div style="padding:6px 10px;background:#111827;color:#fff;border-radius:999px;font-size:12px;line-height:1;white-space:nowrap;">${title}</div>`
         infoWindowRef.current.setContent(content)
         const marker = selectedPlace.id ? markerMapRef.current.get(selectedPlace.id) : null
@@ -551,7 +553,7 @@ export default function DashboardMap() {
   const handleSelectPlaceFromList = (place: MapPlace) => {
     if (!mapInstanceRef.current || !infoWindowRef.current) return
     if (!Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) return
-    const title = place.placeName || place.name || '장소'
+    const title = place.title || place.placeName || place.name || '장소'
     const content = `<div style="padding:6px 10px;background:#111827;color:#fff;border-radius:999px;font-size:12px;line-height:1;white-space:nowrap;">${title}</div>`
     selectedPlaceIdRef.current = place.id || null
     infoWindowRef.current.setContent(content)
@@ -662,7 +664,7 @@ export default function DashboardMap() {
   const openEditModal = (place: MapPlace) => {
     setEditForm({
       themeId: place.themeId || '',
-      placeName: place.placeName || place.name || '',
+      placeName: place.title || place.placeName || place.name || '',
       address: place.address || '',
       latitude: Number.isFinite(place.latitude) ? String(place.latitude) : '',
       longitude: Number.isFinite(place.longitude) ? String(place.longitude) : '',
@@ -979,7 +981,7 @@ export default function DashboardMap() {
                   <tbody>
                     {pagedPlaces.map((place, index) => (
                       <tr
-                        key={place.id || `${place.placeName}-${index}`}
+                        key={place.id || `${place.title || place.placeName}-${index}`}
                         onClick={() => handleSelectPlaceFromList(place)}
                         style={{
                           cursor:
@@ -1005,7 +1007,7 @@ export default function DashboardMap() {
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={place.thumbnailUrl}
-                                alt={place.placeName || place.name || '썸네일'}
+                                alt={place.title || place.placeName || place.name || '썸네일'}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
                             ) : (
@@ -1013,7 +1015,7 @@ export default function DashboardMap() {
                             )}
                           </div>
                         </td>
-                        <td className={tagStyles.tagNameCell}>{place.placeName || place.name || '-'}</td>
+                        <td className={tagStyles.tagNameCell}>{place.title || place.placeName || place.name || '-'}</td>
                         <td>{place.address || '-'}</td>
                       <td>{place.visitCount ?? 0}</td>
                       <td>{place.favoriteCount ?? 0}</td>
@@ -1157,7 +1159,7 @@ export default function DashboardMap() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={modalState.place.thumbnailUrl}
-                  alt={modalState.place.placeName || modalState.place.name || '썸네일'}
+                  alt={modalState.place.title || modalState.place.placeName || modalState.place.name || '썸네일'}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
@@ -1168,7 +1170,7 @@ export default function DashboardMap() {
               <div>
                 <span style={{ fontSize: 12, color: '#6b7280' }}>이름</span>
                 <div style={{ fontWeight: 600 }}>
-                  {modalState.place?.placeName || modalState.place?.name || '-'}
+                  {modalState.place?.title || modalState.place?.placeName || modalState.place?.name || '-'}
                 </div>
               </div>
               <div style={{ marginTop: 6 }}>

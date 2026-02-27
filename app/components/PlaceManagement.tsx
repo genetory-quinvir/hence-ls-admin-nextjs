@@ -23,6 +23,7 @@ declare global {
 type PlaceFormState = {
   themeId: string
   description: string
+  subtitle: string
   placeName: string
   address: string
   latitude: string
@@ -35,6 +36,7 @@ type PlaceFormState = {
 const initialFormState: PlaceFormState = {
   themeId: '',
   description: '',
+  subtitle: '',
   placeName: '',
   address: '',
   latitude: '',
@@ -322,7 +324,7 @@ export default function PlaceManagement() {
   const themeNameMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const theme of themes) {
-      map.set(theme.id, theme.name || theme.id)
+      map.set(theme.id, theme.title || theme.name || theme.id)
     }
     return map
   }, [themes])
@@ -350,11 +352,11 @@ export default function PlaceManagement() {
 
       if (!q) return true
       const themeName = (themeNameMap.get(place.themeId) || '').toLowerCase()
-      const placeName = (place.placeName || '').toLowerCase()
+      const placeTitle = (place.title || place.placeName || '').toLowerCase()
       const address = (place.address || '').toLowerCase()
       const tags = (place.hashtags || []).join(',').toLowerCase()
       return (
-        placeName.includes(q) ||
+        placeTitle.includes(q) ||
         address.includes(q) ||
         themeName.includes(q) ||
         tags.includes(q)
@@ -375,7 +377,8 @@ export default function PlaceManagement() {
     setFormData({
       themeId: place.themeId,
       description: place.description || '',
-      placeName: place.placeName || '',
+      subtitle: place.subtitle || '',
+      placeName: place.title || place.placeName || '',
       address: place.address || '',
       latitude: placeLat !== undefined ? String(placeLat) : '',
       longitude: placeLng !== undefined ? String(placeLng) : '',
@@ -438,7 +441,7 @@ export default function PlaceManagement() {
       return
     }
     if (!formData.placeName.trim()) {
-      alert('장소명을 입력해주세요.')
+      alert('타이틀을 입력해주세요.')
       return
     }
 
@@ -456,6 +459,8 @@ export default function PlaceManagement() {
     setIsSubmitting(true)
     const payload = {
       themeId: formData.themeId,
+      title: formData.placeName.trim(),
+      subtitle: formData.subtitle.trim() || undefined,
       description: formData.description.trim() || undefined,
       placeName: formData.placeName.trim(),
       address: formData.address.trim() || undefined,
@@ -551,11 +556,11 @@ export default function PlaceManagement() {
               onChange={(e) => setThemeFilter(e.target.value)}
             >
               <option value="ALL">전체 테마</option>
-              {themes.map((theme) => (
-                <option key={theme.id} value={theme.id}>
-                  {theme.name}
-                </option>
-              ))}
+                  {themes.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.title || theme.name || theme.id}
+                    </option>
+                  ))}
             </select>
           </div>
         </div>
@@ -574,8 +579,10 @@ export default function PlaceManagement() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
+                      <th>썸네일</th>
                       <th>테마</th>
-                      <th>장소명</th>
+                      <th>타이틀</th>
+                      <th>서브타이틀</th>
                       <th>주소</th>
                       <th>활성</th>
                       <th>해시태그</th>
@@ -584,15 +591,24 @@ export default function PlaceManagement() {
                       <th>좋아요</th>
                       <th>댓글</th>
                       <th>인기도</th>
-                      <th>썸네일</th>
                       <th>관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPlaces.map((place) => (
                       <tr key={place.id}>
+                        <td>
+                          {place.thumbnailUrl ? (
+                            <a href={place.thumbnailUrl} target="_blank" rel="noreferrer">
+                              보기
+                            </a>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td>{themeNameMap.get(place.themeId) || place.themeId}</td>
-                        <td className={styles.tagNameCell}>{place.placeName || '-'}</td>
+                        <td className={styles.tagNameCell}>{place.title || place.placeName || '-'}</td>
+                        <td>{place.subtitle || '-'}</td>
                         <td>{place.address || '-'}</td>
                         <td>
                           <button
@@ -611,15 +627,6 @@ export default function PlaceManagement() {
                         <td>{place.likeCount ?? 0}</td>
                         <td>{place.commentCount ?? 0}</td>
                         <td>{place.popularityScore ?? 0}</td>
-                        <td>
-                          {place.thumbnailUrl ? (
-                            <a href={place.thumbnailUrl} target="_blank" rel="noreferrer">
-                              보기
-                            </a>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
                         <td>
                           <div className={styles.actions}>
                             <button
@@ -704,21 +711,31 @@ export default function PlaceManagement() {
                   {themes.length === 0 && <option value="">테마 없음</option>}
                   {themes.map((theme) => (
                     <option key={theme.id} value={theme.id}>
-                      {theme.name}
+                      {theme.title || theme.name || theme.id}
                     </option>
                   ))}
                 </select>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  장소명 <span className={styles.required}>*</span>
+                  타이틀 <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.placeName}
                   onChange={(e) => setFormData((prev) => ({ ...prev, placeName: e.target.value }))}
                   className={styles.input}
-                  placeholder="장소명을 입력하세요"
+                  placeholder="타이틀을 입력하세요"
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>서브타이틀</label>
+                <input
+                  type="text"
+                  value={formData.subtitle}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, subtitle: e.target.value }))}
+                  className={styles.input}
+                  placeholder="서브타이틀을 입력하세요"
                 />
               </div>
               <div className={styles.formGroup}>
@@ -953,8 +970,12 @@ export default function PlaceManagement() {
                   </span>
                 </div>
                 <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>장소명</span>
-                  <span className={styles.detailValue}>{selectedPlace.placeName || '-'}</span>
+                  <span className={styles.detailLabel}>타이틀</span>
+                  <span className={styles.detailValue}>{selectedPlace.title || selectedPlace.placeName || '-'}</span>
+                </div>
+                <div className={styles.detailItem}>
+                  <span className={styles.detailLabel}>서브타이틀</span>
+                  <span className={styles.detailValue}>{selectedPlace.subtitle || '-'}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>주소</span>

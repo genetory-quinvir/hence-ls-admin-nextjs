@@ -15,6 +15,7 @@ import styles from './TagManagement.module.css'
 type ThemeFormState = {
   categoryId: string
   name: string
+  subtitle: string
   description: string
   sortOrder: number
   isActive: boolean
@@ -24,6 +25,7 @@ type ThemeFormState = {
 const initialFormState: ThemeFormState = {
   categoryId: '',
   name: '',
+  subtitle: '',
   description: '',
   sortOrder: 1,
   isActive: true,
@@ -46,7 +48,7 @@ export default function ThemeManagement() {
   const [dragOverThemeId, setDragOverThemeId] = useState<string | null>(null)
 
   const categoryNameMap = useMemo(
-    () => new Map(categories.map((category) => [category.id, category.name])),
+    () => new Map(categories.map((category) => [category.id, category.title || category.name || category.id])),
     [categories]
   )
 
@@ -113,10 +115,11 @@ export default function ThemeManagement() {
       const matchesCategory = categoryFilter === 'ALL' || theme.categoryId === categoryFilter
       if (!matchesCategory) return false
       if (!q) return true
-      const name = theme.name?.toLowerCase() || ''
+      const title = (theme.title || theme.name || '').toLowerCase()
+      const subtitle = (theme.subtitle || '').toLowerCase()
       const description = theme.description?.toLowerCase() || ''
       const categoryName = (categoryNameMap.get(theme.categoryId) || '').toLowerCase()
-      return name.includes(q) || description.includes(q) || categoryName.includes(q)
+      return title.includes(q) || subtitle.includes(q) || description.includes(q) || categoryName.includes(q)
     })
   }, [themes, categoryFilter, searchQuery, categoryNameMap])
 
@@ -139,7 +142,8 @@ export default function ThemeManagement() {
     setEditingTheme(theme)
     setFormData({
       categoryId: theme.categoryId,
-      name: theme.name || '',
+      name: theme.title || theme.name || '',
+      subtitle: theme.subtitle || '',
       description: theme.description || '',
       sortOrder: theme.sortOrder || 1,
       isActive: !!theme.isActive,
@@ -161,14 +165,15 @@ export default function ThemeManagement() {
       return
     }
     if (!formData.name.trim()) {
-      alert('테마 이름을 입력해주세요.')
+      alert('테마 타이틀을 입력해주세요.')
       return
     }
 
     setIsSubmitting(true)
     const payload = {
       categoryId: formData.categoryId,
-      name: formData.name.trim(),
+      title: formData.name.trim(),
+      subtitle: formData.subtitle.trim() || null,
       description: formData.description.trim() || null,
       sortOrder: formData.sortOrder,
       isActive: formData.isActive,
@@ -212,7 +217,8 @@ export default function ThemeManagement() {
     setIsSubmitting(true)
     const result = await updatePlacebookThemeAdmin(theme.id, {
       categoryId: theme.categoryId,
-      name: theme.name,
+      title: theme.title || theme.name,
+      subtitle: theme.subtitle ?? null,
       description: theme.description,
       sortOrder: theme.sortOrder,
       isActive: !theme.isActive,
@@ -267,7 +273,8 @@ export default function ThemeManagement() {
       for (const theme of changedThemes) {
         const result = await updatePlacebookThemeAdmin(theme.id, {
           categoryId: theme.categoryId,
-          name: theme.name,
+          title: theme.title || theme.name,
+          subtitle: theme.subtitle ?? null,
           description: theme.description,
           sortOrder: theme.sortOrder,
           isActive: theme.isActive,
@@ -351,7 +358,7 @@ export default function ThemeManagement() {
               <option value="ALL">전체 카테고리</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {category.name}
+                  {category.title || category.name || category.id}
                 </option>
               ))}
             </select>
@@ -378,9 +385,10 @@ export default function ThemeManagement() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>카테고리</th>
-                      <th>이름</th>
                       <th>썸네일</th>
+                      <th>카테고리</th>
+                      <th>타이틀</th>
+                      <th>서브타이틀</th>
                       <th>설명</th>
                       <th>상태</th>
                       <th>정렬</th>
@@ -424,15 +432,11 @@ export default function ThemeManagement() {
                           cursor: !isSubmitting && !searchQuery.trim() ? 'grab' : undefined,
                         }}
                       >
-                        <td>{categoryNameMap.get(theme.categoryId) || theme.categoryId}</td>
-                        <td>
-                          <div className={styles.tagNameCell}>{theme.name}</div>
-                        </td>
                         <td>
                           {theme.thumbnailUrl ? (
                             <img
                               src={theme.thumbnailUrl}
-                              alt={theme.name}
+                              alt={theme.title || theme.name || '테마'}
                               style={{
                                 width: '64px',
                                 height: '40px',
@@ -446,6 +450,11 @@ export default function ThemeManagement() {
                             '-'
                           )}
                         </td>
+                        <td>{categoryNameMap.get(theme.categoryId) || theme.categoryId}</td>
+                        <td>
+                          <div className={styles.tagNameCell}>{theme.title || theme.name || '-'}</div>
+                        </td>
+                        <td>{theme.subtitle || '-'}</td>
                         <td>{theme.description || '-'}</td>
                         <td>
                           <button
@@ -516,7 +525,7 @@ export default function ThemeManagement() {
                   <option value="">카테고리 선택</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.name}
+                      {category.title || category.name || category.id}
                     </option>
                   ))}
                 </select>
@@ -524,14 +533,26 @@ export default function ThemeManagement() {
 
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  테마 이름 <span className={styles.required}>*</span>
+                  테마 타이틀 <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
                   className={styles.input}
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="테마 이름을 입력하세요"
+                  placeholder="테마 타이틀을 입력하세요"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>서브타이틀</label>
+                <input
+                  type="text"
+                  className={styles.input}
+                  value={formData.subtitle}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, subtitle: e.target.value }))}
+                  placeholder="서브타이틀을 입력하세요"
                   disabled={isSubmitting}
                 />
               </div>

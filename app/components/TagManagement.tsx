@@ -14,6 +14,7 @@ import styles from './TagManagement.module.css'
 
 type CategoryFormState = {
   name: string
+  subtitle: string
   description: string
   sortOrder: number
   isActive: boolean
@@ -22,6 +23,7 @@ type CategoryFormState = {
 
 const initialFormState: CategoryFormState = {
   name: '',
+  subtitle: '',
   description: '',
   sortOrder: 1,
   isActive: true,
@@ -101,9 +103,10 @@ export default function TagManagement() {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return categories
     return categories.filter((category) => {
-      const name = category.name?.toLowerCase() || ''
+      const title = (category.title || category.name || '').toLowerCase()
+      const subtitle = (category.subtitle || '').toLowerCase()
       const description = category.description?.toLowerCase() || ''
-      return name.includes(q) || description.includes(q)
+      return title.includes(q) || subtitle.includes(q) || description.includes(q)
     })
   }, [categories, searchQuery])
 
@@ -129,7 +132,8 @@ export default function TagManagement() {
   const openEditModal = (category: PlacebookCategory) => {
     setEditingCategory(category)
     setFormData({
-      name: category.name || '',
+      name: category.title || category.name || '',
+      subtitle: category.subtitle || '',
       description: category.description || '',
       sortOrder: category.sortOrder || 1,
       isActive: !!category.isActive,
@@ -158,7 +162,8 @@ export default function TagManagement() {
     setIsSubmitting(true)
 
     const payload = {
-      name: formData.name.trim(),
+      title: formData.name.trim(),
+      subtitle: formData.subtitle.trim() || null,
       description: formData.description.trim() || null,
       sortOrder: formData.sortOrder,
       isActive: formData.isActive,
@@ -205,7 +210,8 @@ export default function TagManagement() {
 
     setIsSubmitting(true)
     const result = await updatePlacebookCategoryAdmin(category.id, {
-      name: category.name,
+      title: category.title || category.name,
+      subtitle: category.subtitle ?? null,
       description: category.description,
       sortOrder: category.sortOrder,
       isActive: !category.isActive,
@@ -254,7 +260,8 @@ export default function TagManagement() {
     try {
       for (const item of changedItems) {
         const result = await updatePlacebookCategoryAdmin(item.id, {
-          name: item.name,
+          title: item.title || item.name,
+          subtitle: item.subtitle ?? null,
           description: item.description,
           sortOrder: item.sortOrder,
           isActive: item.isActive,
@@ -344,8 +351,9 @@ export default function TagManagement() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>이름</th>
                       <th>썸네일</th>
+                      <th>타이틀</th>
+                      <th>서브타이틀</th>
                       <th>설명</th>
                       <th>상태</th>
                       <th>정렬</th>
@@ -392,23 +400,10 @@ export default function TagManagement() {
                         }}
                       >
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => toggleExpandedCategory(category.id)}
-                              className={styles.actionButton}
-                              style={{ padding: '2px 8px', minWidth: '32px' }}
-                            >
-                              {isExpanded ? '−' : '+'}
-                            </button>
-                            <div className={styles.tagNameCell}>{category.name}</div>
-                          </div>
-                        </td>
-                        <td>
                           {category.thumbnailUrl ? (
                             <img
                               src={category.thumbnailUrl}
-                              alt={category.name}
+                              alt={category.title || category.name || '카테고리'}
                               style={{
                                 width: '64px',
                                 height: '40px',
@@ -422,6 +417,20 @@ export default function TagManagement() {
                             '-'
                           )}
                         </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandedCategory(category.id)}
+                              className={styles.actionButton}
+                              style={{ padding: '2px 8px', minWidth: '32px' }}
+                            >
+                              {isExpanded ? '−' : '+'}
+                            </button>
+                            <div className={styles.tagNameCell}>{category.title || category.name || '-'}</div>
+                          </div>
+                        </td>
+                        <td>{category.subtitle || '-'}</td>
                         <td>{category.description || '-'}</td>
                         <td>
                           <button
@@ -484,7 +493,7 @@ export default function TagManagement() {
                                       <div style={{ fontSize: '12px', color: '#64748b' }}>#{theme.sortOrder}</div>
                                       <div>
                                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
-                                          {theme.name}
+                                          {theme.title || theme.name || theme.id}
                                         </div>
                                         <div style={{ fontSize: '12px', color: '#6b7280' }}>
                                           {theme.description || '-'}
@@ -525,14 +534,26 @@ export default function TagManagement() {
             <div className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  카테고리 이름 <span className={styles.required}>*</span>
+                  카테고리 타이틀 <span className={styles.required}>*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   className={styles.input}
-                  placeholder="카테고리 이름을 입력하세요"
+                  placeholder="카테고리 타이틀을 입력하세요"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>서브타이틀</label>
+                <input
+                  type="text"
+                  value={formData.subtitle}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, subtitle: e.target.value }))}
+                  className={styles.input}
+                  placeholder="서브타이틀을 입력하세요"
                   disabled={isSubmitting}
                 />
               </div>

@@ -3831,7 +3831,9 @@ export async function deleteTagAdmin(
 
 export interface PlacebookCategory {
   id: string
-  name: string
+  title?: string | null
+  subtitle?: string | null
+  name?: string | null
   description: string | null
   sortOrder: number
   isActive: boolean
@@ -3851,7 +3853,9 @@ export interface PlacebookCategoryListResponse {
 }
 
 export interface CreatePlacebookCategoryRequest {
-  name: string
+  title?: string
+  subtitle?: string | null
+  name?: string
   description?: string | null
   sortOrder?: number
   isActive?: boolean
@@ -3859,6 +3863,8 @@ export interface CreatePlacebookCategoryRequest {
 }
 
 export interface UpdatePlacebookCategoryRequest {
+  title?: string
+  subtitle?: string | null
   name?: string
   description?: string | null
   sortOrder?: number
@@ -3867,11 +3873,22 @@ export interface UpdatePlacebookCategoryRequest {
 }
 
 function getPlacebookCategoryItemsFromResponse(responseData: any): PlacebookCategory[] {
-  if (Array.isArray(responseData)) return responseData
-  if (Array.isArray(responseData?.items)) return responseData.items
-  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
-  if (Array.isArray(responseData?.data)) return responseData.data
-  return []
+  const rawItems = Array.isArray(responseData)
+    ? responseData
+    : Array.isArray(responseData?.items)
+      ? responseData.items
+      : Array.isArray(responseData?.data?.items)
+        ? responseData.data.items
+        : Array.isArray(responseData?.data)
+          ? responseData.data
+          : []
+
+  return rawItems.map((item: any) => ({
+    ...item,
+    title: item?.title ?? item?.name ?? null,
+    subtitle: item?.subtitle ?? item?.subTitle ?? null,
+    name: item?.name ?? item?.title ?? null,
+  }))
 }
 
 function getApiErrorMessage(errorData: any, fallback: string) {
@@ -3928,6 +3945,14 @@ export async function createPlacebookCategoryAdmin(
   }
 
   const url = `${getApiBaseUrl()}/api/v1/admin/placebook/categories`
+  const payload = {
+    title: request.title ?? request.name,
+    subtitle: request.subtitle ?? null,
+    description: request.description ?? null,
+    sortOrder: request.sortOrder,
+    isActive: request.isActive,
+    thumbnailUrl: request.thumbnailUrl ?? null,
+  }
 
   try {
     const response = await fetch(url, {
@@ -3936,7 +3961,7 @@ export async function createPlacebookCategoryAdmin(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -3971,6 +3996,14 @@ export async function updatePlacebookCategoryAdmin(
   }
 
   const url = `${getApiBaseUrl()}/api/v1/admin/placebook/categories/${categoryId}`
+  const payload = {
+    ...(request.title ?? request.name ? { title: request.title ?? request.name } : {}),
+    ...(request.subtitle !== undefined ? { subtitle: request.subtitle } : {}),
+    ...(request.description !== undefined ? { description: request.description } : {}),
+    ...(request.sortOrder !== undefined ? { sortOrder: request.sortOrder } : {}),
+    ...(request.isActive !== undefined ? { isActive: request.isActive } : {}),
+    ...(request.thumbnailUrl !== undefined ? { thumbnailUrl: request.thumbnailUrl } : {}),
+  }
 
   try {
     const response = await fetch(url, {
@@ -3979,7 +4012,7 @@ export async function updatePlacebookCategoryAdmin(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -4043,7 +4076,9 @@ export async function deletePlacebookCategoryAdmin(
 export interface PlacebookTheme {
   id: string
   categoryId: string
-  name: string
+  title?: string | null
+  subtitle?: string | null
+  name?: string | null
   description: string | null
   sortOrder: number
   isActive: boolean
@@ -4063,7 +4098,9 @@ export interface PlacebookThemeListResponse {
 
 export interface CreatePlacebookThemeRequest {
   categoryId: string
-  name: string
+  title?: string
+  subtitle?: string | null
+  name?: string
   description?: string | null
   sortOrder?: number
   isActive?: boolean
@@ -4072,6 +4109,8 @@ export interface CreatePlacebookThemeRequest {
 
 export interface UpdatePlacebookThemeRequest {
   categoryId?: string
+  title?: string
+  subtitle?: string | null
   name?: string
   description?: string | null
   sortOrder?: number
@@ -4080,11 +4119,22 @@ export interface UpdatePlacebookThemeRequest {
 }
 
 function getPlacebookThemeItemsFromResponse(responseData: any): PlacebookTheme[] {
-  if (Array.isArray(responseData)) return responseData
-  if (Array.isArray(responseData?.items)) return responseData.items
-  if (Array.isArray(responseData?.data?.items)) return responseData.data.items
-  if (Array.isArray(responseData?.data)) return responseData.data
-  return []
+  const rawItems = Array.isArray(responseData)
+    ? responseData
+    : Array.isArray(responseData?.items)
+      ? responseData.items
+      : Array.isArray(responseData?.data?.items)
+        ? responseData.data.items
+        : Array.isArray(responseData?.data)
+          ? responseData.data
+          : []
+
+  return rawItems.map((item: any) => ({
+    ...item,
+    title: item?.title ?? item?.name ?? null,
+    subtitle: item?.subtitle ?? item?.subTitle ?? null,
+    name: item?.name ?? item?.title ?? null,
+  }))
 }
 
 export async function getPlacebookThemesAdmin(): Promise<PlacebookThemeListResponse> {
@@ -4136,6 +4186,15 @@ export async function createPlacebookThemeAdmin(
   }
 
   const url = `${getApiBaseUrl()}/api/v1/admin/placebook/themes`
+  const payload = {
+    categoryId: request.categoryId,
+    title: request.title ?? request.name,
+    subtitle: request.subtitle ?? null,
+    description: request.description ?? null,
+    sortOrder: request.sortOrder,
+    isActive: request.isActive,
+    thumbnailUrl: request.thumbnailUrl ?? null,
+  }
 
   try {
     const response = await fetch(url, {
@@ -4144,7 +4203,7 @@ export async function createPlacebookThemeAdmin(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -4179,6 +4238,15 @@ export async function updatePlacebookThemeAdmin(
   }
 
   const url = `${getApiBaseUrl()}/api/v1/admin/placebook/themes/${themeId}`
+  const payload = {
+    ...(request.categoryId ? { categoryId: request.categoryId } : {}),
+    ...(request.title ?? request.name ? { title: request.title ?? request.name } : {}),
+    ...(request.subtitle !== undefined ? { subtitle: request.subtitle } : {}),
+    ...(request.description !== undefined ? { description: request.description } : {}),
+    ...(request.sortOrder !== undefined ? { sortOrder: request.sortOrder } : {}),
+    ...(request.isActive !== undefined ? { isActive: request.isActive } : {}),
+    ...(request.thumbnailUrl !== undefined ? { thumbnailUrl: request.thumbnailUrl } : {}),
+  }
 
   try {
     const response = await fetch(url, {
@@ -4187,7 +4255,7 @@ export async function updatePlacebookThemeAdmin(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -4252,7 +4320,9 @@ export interface PlacebookPlace {
   id: string
   themeId: string
   createdByUserId?: unknown
-  placeName: string
+  title?: string | null
+  subtitle?: string | null
+  placeName?: string
   description?: string | null
   address?: string | null
   latitude?: number | null
@@ -4278,7 +4348,9 @@ export interface PlacebookPlaceListResponse {
 
 export interface CreatePlacebookPlaceRequest {
   themeId: string
-  placeName: string
+  title?: string
+  subtitle?: string | null
+  placeName?: string
   description?: string | null
   address?: string | null
   latitude?: number | null
@@ -4290,6 +4362,8 @@ export interface CreatePlacebookPlaceRequest {
 export interface UpdatePlacebookPlaceRequest {
   themeId?: string
   description?: string | null
+  title?: string
+  subtitle?: string | null
   placeName?: string
   address?: string | null
   latitude?: number | null
@@ -4314,10 +4388,12 @@ function getPlacebookPlaceItemsFromResponse(responseData: any): PlacebookPlace[]
           ? responseData.data
           : []
 
-  // Backward compatibility: if old payload still sends `name`, copy it into `placeName`.
+  // Backward compatibility: title/name/placeName normalization
   return rawItems.map((item: any) => ({
     ...item,
-    placeName: item?.placeName || item?.name || '',
+    title: item?.title ?? item?.placeName ?? item?.name ?? null,
+    subtitle: item?.subtitle ?? item?.subTitle ?? null,
+    placeName: item?.placeName || item?.title || item?.name || '',
   }))
 }
 
@@ -4370,6 +4446,18 @@ export async function createPlacebookPlaceAdmin(
   }
 
   const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places`
+  const payload = {
+    themeId: request.themeId,
+    title: request.title ?? request.placeName,
+    subtitle: request.subtitle ?? null,
+    placeName: request.placeName,
+    description: request.description ?? null,
+    address: request.address ?? null,
+    latitude: request.latitude ?? null,
+    longitude: request.longitude ?? null,
+    thumbnailUrl: request.thumbnailUrl ?? null,
+    hashtags: request.hashtags,
+  }
 
   try {
     const response = await fetch(url, {
@@ -4378,7 +4466,7 @@ export async function createPlacebookPlaceAdmin(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -4413,6 +4501,19 @@ export async function updatePlacebookPlaceAdmin(
   }
 
   const url = `${getApiBaseUrl()}/api/v1/admin/placebook/places/${placeId}`
+  const payload = {
+    ...(request.themeId ? { themeId: request.themeId } : {}),
+    ...(request.title ?? request.placeName ? { title: request.title ?? request.placeName } : {}),
+    ...(request.subtitle !== undefined ? { subtitle: request.subtitle } : {}),
+    ...(request.description !== undefined ? { description: request.description } : {}),
+    ...(request.placeName !== undefined ? { placeName: request.placeName } : {}),
+    ...(request.address !== undefined ? { address: request.address } : {}),
+    ...(request.latitude !== undefined ? { latitude: request.latitude } : {}),
+    ...(request.longitude !== undefined ? { longitude: request.longitude } : {}),
+    ...(request.thumbnailUrl !== undefined ? { thumbnailUrl: request.thumbnailUrl } : {}),
+    ...(request.hashtags !== undefined ? { hashtags: request.hashtags } : {}),
+    ...(request.isActive !== undefined ? { isActive: request.isActive } : {}),
+  }
 
   try {
     const response = await fetch(url, {
@@ -4421,7 +4522,7 @@ export async function updatePlacebookPlaceAdmin(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(request),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
